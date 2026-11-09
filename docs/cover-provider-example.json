@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "Example Covers",
+  "search_url": "https://api.example.com/search/album?q={artist}%20{album}",
+  "min_interval": 1.0,
+  "results": "data.*",
+  "only_if": { "record_type": "album" },
+  "album": "title",
+  "artist": "artist.name",
+  "tracks": "nb_tracks",
+  "image": "cover_url",
+  "page": "link",
+  "image_replace": [["/250x250", "/1400x1400"]],
+  "preview_replace": [["/250x250", "/500x500"]]
+}

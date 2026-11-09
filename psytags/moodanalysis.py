@@ -64,8 +64,10 @@ REFERENCE: dict[str, float] = {
     "upbeat": 0.0159, "uplifting": 0.0321,
 }
 
-# Classifier class -> name in the MOOD tag. Other classes are themes or uses, not moods.
+# Classifier class -> name in the MOOD tag. The other classes are topics or uses (film, trailer, ...).
 MOOD_NAMES: dict[str, str] = {
+    "action": "Action", "adventure": "Adventure", "ballad": "Ballad", "cool": "Cool", "deep": "Deep",
+    "fast": "Fast", "funny": "Funny", "love": "Romantic", "melodic": "Melodic", "retro": "Retro", "slow": "Slow",
     "calm": "Calm", "dark": "Dark", "dramatic": "Dramatic", "dream": "Dreamy", "emotional": "Emotional",
     "energetic": "Energetic", "epic": "Epic", "fun": "Fun", "groovy": "Groovy", "happy": "Happy",
     "heavy": "Heavy", "hopeful": "Hopeful", "inspiring": "Uplifting", "meditative": "Meditative",

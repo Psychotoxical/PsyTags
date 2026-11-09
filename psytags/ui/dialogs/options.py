@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import copy
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
                                QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
                                QTabWidget, QVBoxLayout, QWidget)
@@ -229,6 +230,7 @@ class OptionsDialog(QDialog):
         f.addRow(self.drop_comments)
         tabs.addTab(g, tr("Tags"))
         tabs.addTab(self._numbers_tab(), tr("Nummern"))
+        tabs.addTab(self._cover_tab(), tr("Cover"))
         tabs.addTab(self._lastfm_tab(), tr("Last.fm"))
 
         lay.addWidget(_buttons(self))
@@ -238,6 +240,53 @@ class OptionsDialog(QDialog):
                 tabs.setCurrentIndex(i)
         tabs.currentChanged.connect(lambda i: config.settings().setValue("dialogs/options/tab", i))
         remember(self, "options")
+
+    def _cover_tab(self) -> QWidget:
+        from ...websources import coverprovider
+        from ..theme import ERROR
+        providers, problems = coverprovider.discover()
+        g = QWidget()
+        column = QVBoxLayout(g)
+        explain = QLabel(tr("Von oben nach unten: Die erste Quelle, die ein Cover liefert, gewinnt."))
+        explain.setWordWrap(True)
+        column.addWidget(explain)
+        self.cover_sources = QListWidget()
+        for name, on in coverprovider.arranged(providers):
+            it = QListWidgetItem(name)
+            it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            it.setCheckState(Qt.CheckState.Checked if on else Qt.CheckState.Unchecked)
+            self.cover_sources.addItem(it)
+        column.addWidget(self.cover_sources, 1)
+        row = QHBoxLayout()
+        for text, step in ((tr("Nach &oben"), -1), (tr("Nach &unten"), 1)):
+            b = QPushButton(text.replace("&", ""))
+            b.clicked.connect(lambda _=False, step=step: self.move_cover_source(step))
+            row.addWidget(b)
+        row.addStretch(1)
+        open_folder = QPushButton(tr("Ordner öffnen"))
+        open_folder.clicked.connect(self._open_provider_folder)
+        row.addWidget(open_folder)
+        column.addLayout(row)
+        for problem in problems:
+            label = QLabel(problem)
+            label.setWordWrap(True)
+            label.setStyleSheet(f"color: {ERROR};")
+            column.addWidget(label)
+        return g
+
+    def move_cover_source(self, step: int) -> None:
+        row = self.cover_sources.currentRow()
+        if row < 0 or not 0 <= row + step < self.cover_sources.count():
+            return
+        self.cover_sources.insertItem(row + step, self.cover_sources.takeItem(row))
+        self.cover_sources.setCurrentRow(row + step)
+
+    @staticmethod
+    def _open_provider_folder() -> None:
+        import os
+        from ...websources import coverprovider
+        os.makedirs(coverprovider.folder(), exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(coverprovider.folder()))
 
     def _lastfm_tab(self) -> QWidget:
         s = config.settings()
@@ -285,6 +334,10 @@ class OptionsDialog(QDialog):
         self.number_sample.setText(tr("Beispiel: Track {1}, Disc {2}", track, disc) if disc else tr("Beispiel: Track {1}", track))
 
     def accept(self):
+        from ...websources import coverprovider
+        coverprovider.save_arrangement([(self.cover_sources.item(i).text(),
+                                         self.cover_sources.item(i).checkState() == Qt.CheckState.Checked)
+                                        for i in range(self.cover_sources.count())])
         self._number_format().save()
         s = config.settings()
         key = self.lastfm_key.text().strip()

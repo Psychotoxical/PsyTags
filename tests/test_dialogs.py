@@ -93,11 +93,69 @@ class SummaryButtonTests(unittest.TestCase):
             button = next(d.table.itemWidget(r, column) for r in rows if d.table.itemWidget(r, column))
             self.assertGreaterEqual(d.table.columnWidth(column), button.sizeHint().width())
 
+    def test_the_text_of_a_button_always_fits(self):
+        d = self._dialog(self._entry(cover="zu klein"))
+        button = self._button(d, 2)
+        needed = button.fontMetrics().horizontalAdvance(button.text()) + 26     # padding, border, margin
+        self.assertGreaterEqual(button.minimumWidth(), needed)
+        self.assertGreaterEqual(d.table.columnWidth(2), button.minimumWidth())
+
     def test_double_click_is_no_longer_explained(self):
         from PySide6.QtWidgets import QLabel
         d = self._dialog(self._entry(cover="zu klein"))
         self.assertFalse([l.text() for l in d.findChildren(QLabel) if "Doppelklick" in l.text()])
         self.assertFalse([b.text() for b in d.findChildren(QPushButton) if b.text() == "Manuell bearbeiten"])
+
+
+class ResultOrderTests(unittest.TestCase):
+    """The list keeps the order of the search: the best edition is on top and preselected."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        cls.dir = tempfile.mkdtemp()
+        cls.orig_config_dir = config.config_dir
+        config.config_dir = lambda: cls.dir
+
+    @classmethod
+    def tearDownClass(cls):
+        config.config_dir = cls.orig_config_dir
+        shutil.rmtree(cls.dir, ignore_errors=True)
+
+    ROWS = [{"Score": "100", "Album": "Richtig", "_preview": ""}, {"Score": "83", "Album": "Pt. II", "_preview": ""},
+            {"Score": "33", "Album": "Anderes", "_preview": ""}, {"Score": "69", "Album": "Live", "_preview": ""}]
+
+    def _dialog(self):
+        from psytags.ui.dialogs.tagsources import ResultsDialog
+        d = ResultsDialog(SimpleNamespace(name="Reihenfolge", index_columns=["Score", "Album"]), list(self.ROWS))
+        self.addCleanup(d.deleteLater)
+        d.show()
+        QApplication.processEvents()
+        return d
+
+    @staticmethod
+    def _albums(d):
+        return [d.tree.topLevelItem(i).text(1) for i in range(d.tree.topLevelItemCount())]
+
+    def test_a_lower_score_never_moves_above_100(self):
+        d = self._dialog()
+        self.assertEqual(self._albums(d), ["Richtig", "Pt. II", "Anderes", "Live"])
+        self.assertIs(d.selected(), self.ROWS[0])
+
+    def test_columns_can_still_be_sorted_by_hand(self):
+        d = self._dialog()
+        self.assertTrue(d.tree.isSortingEnabled())
+        d.tree.sortByColumn(1, Qt.SortOrder.AscendingOrder)
+        self.assertEqual(self._albums(d)[0], "Anderes")
+
+    def test_a_sorting_from_last_time_does_not_change_the_order(self):
+        first = self._dialog()
+        first.tree.sortByColumn(1, Qt.SortOrder.AscendingOrder)
+        first.accept()
+        QApplication.processEvents()
+        second = self._dialog()
+        self.assertEqual(self._albums(second), ["Richtig", "Pt. II", "Anderes", "Live"])
+        self.assertIs(second.selected(), self.ROWS[0])
 
 
 class TagSourceButtonTests(unittest.TestCase):

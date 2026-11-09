@@ -161,16 +161,16 @@ class WindowTests(unittest.TestCase):
 
     def test_a_retry_asks_the_archive(self):
         win = self._win()
-        win.fetch_archive_cover.return_value = ""
+        win.fetch_cover_chain.return_value = ""
         entry = NS(tracks=[Track()], cover="alt", detail="x · alt")
         MainWindow._retry_cover(win, entry)
-        win.fetch_archive_cover.assert_called_once_with(entry.tracks)
+        win.fetch_cover_chain.assert_called_once_with(entry.tracks, pick=True)
         self.assertEqual(entry.cover, "")
         self.assertEqual(entry.detail, "x")
 
     def test_a_declined_retry_ends_there_and_shows_why(self):
         win = self._win()
-        win.fetch_archive_cover.return_value = "zu klein"
+        win.fetch_cover_chain.return_value = "zu klein"
         entry = NS(tracks=[Track()], cover="alt", detail="x · alt")
         MainWindow._retry_cover(win, entry)
         win.fetch_cover_from_source.assert_not_called()
@@ -208,30 +208,30 @@ class WindowTests(unittest.TestCase):
 
     def test_the_cover_step_works_album_by_album(self):
         win = self._win()
-        win.fetch_archive_cover.side_effect = ["", "kein Cover"]
+        win.fetch_cover_chain.side_effect = ["", "kein Cover"]
         progress = self._step(win, [[Track(ALBUM="A")], [Track(ALBUM="B")]])
-        self.assertEqual(win.fetch_archive_cover.call_count, 2)
+        self.assertEqual(win.fetch_cover_chain.call_count, 2)
         self.assertIn("1 von 2", win.message.call_args.args[0])
         progress.return_value.finish.assert_called_once()
 
     def test_several_albums_never_ask_about_small_covers(self):
         win = self._win()
-        win.fetch_archive_cover.return_value = ""
+        win.fetch_cover_chain.return_value = ""
         self._step(win, [[Track(ALBUM="A")], [Track(ALBUM="B")]])
-        self.assertFalse(win.fetch_archive_cover.call_args.kwargs["ask"])
+        self.assertFalse(win.fetch_cover_chain.call_args.kwargs["ask"])
 
     def test_a_single_album_may_ask_and_shows_its_reason(self):
         win = self._win()
-        win.fetch_archive_cover.return_value = "Keine MusicBrainz-ID"
+        win.fetch_cover_chain.return_value = "Keine MusicBrainz-ID"
         progress = self._step(win, [[Track(ALBUM="A")]])
-        self.assertTrue(win.fetch_archive_cover.call_args.kwargs["ask"])
+        self.assertTrue(win.fetch_cover_chain.call_args.kwargs["ask"])
         self.assertEqual(win.message.call_args.args[0], "Keine MusicBrainz-ID")
         progress.assert_not_called()
 
     def test_the_cover_step_can_be_stopped(self):
         win = self._win()
         self._step(win, [[Track(ALBUM="A")], [Track(ALBUM="B")]], stop=True)
-        win.fetch_archive_cover.assert_not_called()
+        win.fetch_cover_chain.assert_not_called()
 
     def _import(self, win, cover=None, archive=None):
         win._lastfm_enabled.return_value = False
@@ -242,24 +242,24 @@ class WindowTests(unittest.TestCase):
 
     def test_the_import_uses_the_archive_and_never_asks(self):
         win = self._win()
-        win.fetch_archive_cover.return_value = ""
+        win.fetch_cover_chain.return_value = ""
         self._import(win, archive=("r1", "g1"))
-        win.fetch_archive_cover.assert_called_once()
-        self.assertFalse(win.fetch_archive_cover.call_args.args[1])
-        self.assertEqual(win.fetch_archive_cover.call_args.args[2], ("r1", "g1"))
+        win.fetch_cover_chain.assert_called_once()
+        self.assertFalse(win.fetch_cover_chain.call_args.args[1])
+        self.assertEqual(win.fetch_cover_chain.call_args.args[2], ("r1", "g1"))
         win.fetch_cover_from_source.assert_not_called()
 
     def test_a_cover_settled_in_the_dialog_is_not_fetched_again(self):
         win = self._win()
         result = self._import(win, cover=b"x", archive=())
-        win.fetch_archive_cover.assert_not_called()
+        win.fetch_cover_chain.assert_not_called()
         win.fetch_cover_from_source.assert_not_called()
         self.assertEqual(result, (None, None))
 
     def test_other_tag_sources_have_no_cover_step(self):
         win = self._win()
         result = self._import(win)
-        win.fetch_archive_cover.assert_not_called()
+        win.fetch_cover_chain.assert_not_called()
         win.fetch_cover_from_source.assert_not_called()
         self.assertEqual(result, (None, None))
 

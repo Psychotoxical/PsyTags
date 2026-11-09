@@ -38,7 +38,8 @@ def _polite(call: Callable, retries: int = 4):
         except http.FetchError as e:
             if "503" not in str(e) or attempt == retries:
                 raise
-            time.sleep(4)
+            with http.activity(tr("MusicBrainz ist ausgelastet, neuer Versuch gleich")):
+                time.sleep(4)
 
 
 def track_count(row: dict) -> int | None:
@@ -182,9 +183,11 @@ def _search(src: srcfile.Source, tracks: list, title: str, values: list[str], al
     rows = search_rows(src, values)
     matches = coverfetch.rank(rows, title, artist, len(tracks))
     releases = []
-    for row in candidate_rows(matches, len(tracks), _first(tracks[0], "MUSICBRAINZ_ALBUMID")):
+    candidates = candidate_rows(matches, len(tracks), _first(tracks[0], "MUSICBRAINZ_ALBUMID"))
+    for number, row in enumerate(candidates, 1):
         url, prev = runner.album_target(src, row)
-        found = _polite(lambda: runner.run_album(src, url, prev))
+        with http.activity(tr("Ausgabe {1} von {2}", number, len(candidates))):
+            found = _polite(lambda: runner.run_album(src, url, prev))
         if _fits_album(found, album, artist):
             releases.append(to_release(found, row, _needs_tight_lengths(found, album)))
     d: Decision = albummatch.decide(file_infos(tracks), releases, _first(tracks[0], "YEAR")[:4])
@@ -263,3 +266,4 @@ class BatchEntry:
     leftovers: list = field(default_factory=list)
     cover: str | None = None           # cover source: None did not run, "" worked, else why not
     genres: str | None = None          # Last.fm: same meaning
+    cover_seen: list | None = None     # the front covers when the cover step failed

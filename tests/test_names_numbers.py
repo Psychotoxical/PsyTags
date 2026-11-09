@@ -236,6 +236,24 @@ class DialogTests(unittest.TestCase):
         self.addCleanup(w.deleteLater)
         return w
 
+    def test_the_summary_button_stands_out_once_there_is_a_result(self):
+        from PySide6.QtWidgets import QPushButton
+        from psytags.ui import theme
+        self.addCleanup(theme.use, "mocha")
+        for name in theme.THEMES:
+            theme.use(name)
+            w = self._window()
+            button = next(b for b in w.topbar.findChildren(QPushButton) if b.text() == "Übersicht")
+            button.setStyleSheet(theme.style_sheet())
+            self.assertFalse(button.isEnabled())
+            image = button.grab().toImage()
+            self.assertEqual(image.pixelColor(image.width() // 2, 3).name(), theme.BUTTON, name)
+            w._last_batch = [object()]
+            w._update_actions()
+            self.assertTrue(button.isEnabled())
+            image = button.grab().toImage()
+            self.assertEqual(image.pixelColor(image.width() // 2, 3).name(), theme.ACCENT, name)
+
     def test_during_a_run_the_list_can_only_be_scrolled(self):
         from PySide6.QtCore import QEvent
         from PySide6.QtWidgets import QLabel

@@ -35,11 +35,26 @@ class PickMoodsTests(unittest.TestCase):
         self.assertEqual(len(set(got)), 4)
 
     def test_themes_never_become_moods(self):
-        self.assertEqual(ma.pick_moods(_values(love=0.9, film=0.9, melodic=0.9, funny=0.9)), [])
+        self.assertEqual(ma.pick_moods(_values(film=0.9, trailer=0.9, corporate=0.9, advertising=0.9)), [])
+
+    def test_descriptive_classes_have_names(self):
+        for name, label in (("action", "Action"), ("adventure", "Adventure"), ("ballad", "Ballad"), ("cool", "Cool"),
+                            ("deep", "Deep"), ("fast", "Fast"), ("funny", "Funny"), ("love", "Romantic"),
+                            ("melodic", "Melodic"), ("retro", "Retro"), ("slow", "Slow")):
+            self.assertEqual(ma.pick_moods(_values(**{name: 0.5})), [label])
+
+    def test_love_and_romantic_count_once(self):
+        self.assertEqual(ma.pick_moods(_values(love=0.5, romantic=0.2)), ["Romantic"])
+
+    def test_thirty_three_names(self):
+        self.assertEqual(len(set(ma.MOOD_NAMES.values())), 33)
 
     def test_names_are_in_the_vocabulary(self):
-        known = set(genremood.MOODS)
-        self.assertEqual(set(ma.MOOD_NAMES.values()) - known, set())
+        known = set(genremood.MOODS)        # "Ballad" is also a genre, see the next test
+        self.assertEqual(set(ma.MOOD_NAMES.values()) - known, {"Ballad"})
+
+    def test_ballad_from_lastfm_stays_a_genre(self):
+        self.assertEqual(genremood.classify([("ballad", 100)]), (["Ballad"], []))
 
 
 class FeatureTests(unittest.TestCase):

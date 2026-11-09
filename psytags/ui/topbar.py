@@ -139,7 +139,7 @@ class TopBar(QWidget):
         row.addWidget(self.search, 1)
         row.addWidget(ActionButton(w.act_undo, tr("Rückgängig")))
         row.addWidget(ActionButton(w.act_save, tr("Speichern")))
-        row.addWidget(ActionButton(w.act_batch_summary, tr("Übersicht")))
+        row.addWidget(ActionButton(w.act_batch_summary, tr("Übersicht"), "SummaryButton"))
         menu = QToolButton()
         menu.setObjectName("MenuButton")
         menu.setText("≡")

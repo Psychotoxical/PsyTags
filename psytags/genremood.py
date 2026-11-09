@@ -15,17 +15,17 @@ SEPARATOR = "; "
 # Includes the mood ids Psysonic uses (happy, excited, calm, peaceful, angry,
 # tense, sad, melancholic).
 MOODS: dict[str, tuple[str, ...]] = {
-    "Aggressive": ("aggression",), "Angry": ("anger",), "Atmospheric": ("atmosphere",),
-    "Bittersweet": (), "Brooding": (), "Calm": (), "Cheerful": (), "Chill": ("chilled", "chill out"),
-    "Dark": (), "Depressive": ("depressing",), "Dramatic": (), "Dreamy": (), "Emotional": (), "Energetic": ("energy",),
+    "Action": (), "Adventure": (), "Aggressive": ("aggression",), "Angry": ("anger",), "Atmospheric": ("atmosphere",),
+    "Bittersweet": (), "Brooding": (), "Calm": (), "Cheerful": (), "Chill": ("chilled", "chill out"), "Cool": (),
+    "Dark": (), "Deep": (), "Depressive": ("depressing",), "Dramatic": (), "Dreamy": (), "Emotional": (), "Energetic": ("energy",),
     "Epic": (), "Ethereal": (), "Euphoric": ("euphoria",), "Excited": ("exciting",),
-    "Feel Good": ("feelgood", "feel-good"), "Fun": (), "Gloomy": (), "Groovy": (),
+    "Fast": (), "Feel Good": ("feelgood", "feel-good"), "Fun": (), "Funny": (), "Gloomy": (), "Groovy": (),
     "Happy": (), "Haunting": (), "Heavy": (), "Hopeful": (), "Hypnotic": (), "Intense": (), "Introspective": (),
-    "Lonely": (), "Meditative": (), "Melancholic": ("melancholy", "melancholia"), "Mellow": (),
+    "Lonely": (), "Meditative": (), "Melancholic": ("melancholy", "melancholia"), "Mellow": (), "Melodic": (),
     "Moody": (), "Mysterious": (), "Nostalgic": ("nostalgia",), "Ominous": (), "Party": (),
     "Passionate": (), "Peaceful": (), "Playful": (), "Powerful": (), "Quirky": (),
-    "Relaxing": ("relax", "relaxed", "relaxation"), "Romantic": ("romance",), "Sad": ("sadness",),
-    "Sensual": (), "Sentimental": (), "Sexy": (), "Smooth": (), "Soothing": (), "Spiritual": (),
+    "Relaxing": ("relax", "relaxed", "relaxation"), "Retro": (), "Romantic": ("romance",), "Sad": ("sadness",),
+    "Sensual": (), "Sentimental": (), "Sexy": (), "Slow": (), "Smooth": (), "Soothing": (), "Spiritual": (),
     "Tense": (), "Triumphant": (), "Upbeat": (), "Uplifting": (), "Warm": (), "Wistful": (),
 }
 

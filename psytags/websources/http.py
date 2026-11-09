@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import gzip
 import http.client
+import itertools
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
+
+from contextlib import contextmanager
 
 from .. import __version__, config
 from ..i18n import tr
@@ -36,21 +40,60 @@ def _host(url: str) -> str:
     return urllib.parse.urlsplit(url).hostname or url
 
 
+_running: dict[int, str] = {}
+_running_lock = threading.Lock()
+_running_ids = itertools.count()
+
+
+@contextmanager
+def activity(text: str):
+    """Lists ``text`` as running while the block lasts; any thread may use it."""
+    key = next(_running_ids)
+    with _running_lock:
+        _running[key] = text
+    try:
+        yield
+    finally:
+        with _running_lock:
+            _running.pop(key, None)
+
+
+def running() -> list[str]:
+    """What is going on right now, oldest first."""
+    with _running_lock:
+        return list(_running.values())
+
+
+def describe(url: str) -> str:
+    """A running request in words. Never the query of the address: it can hold an API key."""
+    parts = urllib.parse.urlsplit(url)
+    host = parts.hostname or ""
+    if host.endswith("musicbrainz.org"):
+        return tr("MusicBrainz: Suche") if "query=" in parts.query else tr("MusicBrainz: Album-Daten")
+    if host.endswith("coverartarchive.org"):
+        return tr("Cover Art Archive: Cover")
+    if host.endswith("audioscrobbler.com"):
+        return tr("Last.fm: Genres")
+    return host
+
+
 def _download(req: urllib.request.Request, url: str, timeout: float, read):
     """``read(response)``, again after a pause when the connection breaks: image servers
     drop connections now and then. An answer from the server, even an error, is final."""
-    for wait in RETRY_WAITS + (None,):
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return read(r)
-        except urllib.error.HTTPError as e:
-            body = e.read()[:300].decode("utf-8", "replace") if e.fp else ""
-            kind = NotFound if e.code == 404 else ServerError if e.code >= 500 else FetchError
-            raise kind(f"HTTP {e.code} {e.reason}: {url}\n{body}") from e
-        except _CONNECTION_ERRORS as e:
-            if wait is None:
-                raise FetchError(tr("Verbindung zu {1} abgebrochen", _host(url))) from e
-            time.sleep(wait)
+    with activity(describe(url)):
+        for wait in RETRY_WAITS + (None,):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    return read(r)
+            except urllib.error.HTTPError as e:
+                body = e.read()[:300].decode("utf-8", "replace") if e.fp else ""
+                if e.code >= 500:
+                    raise ServerError(tr("{1} antwortet gerade nicht (HTTP {2})", _host(url), e.code)) from e
+                raise (NotFound if e.code == 404 else FetchError)(f"HTTP {e.code} {e.reason}: {url}\n{body}") from e
+            except _CONNECTION_ERRORS as e:
+                if wait is None:
+                    raise FetchError(tr("Verbindung zu {1} abgebrochen", _host(url))) from e
+                time.sleep(wait)
 
 
 def fetch(url: str, user_agent: str = "1", timeout: float = 30) -> str:
@@ -76,8 +119,8 @@ def fetch(url: str, user_agent: str = "1", timeout: float = 30) -> str:
     return _decode(data)
 
 
-def fetch_bytes(url: str, timeout: float = 30) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+def fetch_bytes(url: str, timeout: float = 30, browser: bool = False) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": BROWSER_AGENT if browser else USER_AGENT})
     return _download(req, url, timeout, lambda r: r.read())
 
 

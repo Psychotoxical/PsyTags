@@ -9,7 +9,7 @@ import threading
 from PySide6.QtCore import (QEvent, QObject, Qt, QThread, QTimer, QUrl, Signal)
 from PySide6.QtGui import (QAction, QDesktopServices, QKeySequence, QShortcut)
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QInputDialog,
-                               QLabel, QMainWindow, QMenu, QMessageBox, QProgressBar,
+                               QLabel, QMainWindow, QMenu, QMessageBox, QProgressBar, QSizePolicy,
                                QDialog, QPushButton, QStatusBar, QVBoxLayout, QWidget)
 
 from .. import albumorder, config, convert, namescheme, numbering, tags
@@ -53,6 +53,34 @@ class _ScrollOnlyGuard(QObject):
         return kind in self.BLOCKED and not any(obj is b for b in bars)
 
 
+def _front_covers(tracks) -> list:
+    return [[hash(c.data) for c in t.data.covers if c.type == 3] for t in tracks]
+
+
+def _remember_covers(entry) -> None:
+    """After a failed cover step: any later change means the cover was settled another way."""
+    entry.cover_seen = _front_covers(entry.tracks) if entry.cover else None
+
+
+class _Canceled(Exception):
+    """The user left a waiting window."""
+
+
+def _store_front_cover(window, tracks, data: bytes, label: str, ask: bool) -> str:
+    """Replace the front cover of ``tracks``. Returns "" or why not."""
+    if not window._cover_big_enough(data, label, ask=ask):
+        from PySide6.QtGui import QImage
+        image = QImage.fromData(data)
+        return tr("Cover von {1} zu klein ({2}x{3})", label, image.width(), image.height())
+    new = tags.Cover(data, "image/png" if data[:4] == b"\x89PNG" else "image/jpeg", 3, label)
+
+    def apply(t):
+        t.data.covers = [new] + [c for c in t.data.covers if c.type != 3]
+    window._write(tr("Cover von {1}", label), tracks, apply)
+    window.panel.load(window.view.selected_tracks())
+    return ""
+
+
 class _StayingProgress(QDialog):
     """Stays open and modal after Cancel until the running step has finished."""
     canceled = Signal()
@@ -79,6 +107,14 @@ class _StayingProgress(QDialog):
         self.bar.setFixedHeight(10)
         self.bar.setRange(0, max(1, maximum))
         column.addWidget(self.bar)
+        self.activity_label = QLabel()
+        self.activity_label.setObjectName("ProgressActivity")
+        self.activity_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.activity_label.hide()
+        column.addWidget(self.activity_label)
+        self.activity_timer = QTimer(self)
+        self.activity_timer.setInterval(150)
+        self.activity_timer.timeout.connect(self.show_activity)
         row = QHBoxLayout()
         row.setSpacing(16)
         self.hint_label = QLabel()
@@ -111,6 +147,17 @@ class _StayingProgress(QDialog):
         self.hint_label.show()
         self.adjustSize()
 
+    def follow_activity(self) -> None:
+        """Show in small print which requests are running."""
+        self.activity_label.show()
+        self.activity_timer.start()
+
+    def show_activity(self) -> None:
+        from ..websources import http as wshttp
+        now = wshttp.running()
+        if now:                                 # between two requests the last one stays
+            self.activity_label.setText(" · ".join(now))
+
     def request_stop(self):
         self.stop.set()
         self.cancel_button.setEnabled(False)
@@ -124,6 +171,7 @@ class _StayingProgress(QDialog):
         self.request_stop()
 
     def finish(self):
+        self.activity_timer.stop()
         if self._guard is not None:
             QApplication.instance().removeEventFilter(self._guard)
             self._guard = None
@@ -191,6 +239,7 @@ class MainWindow(QMainWindow):
                                                    # tracks keeps their ids from being reused
         self._mood_done: dict[int, Track] = {}     # analyzed in this list, no need to run again
         self._last_batch: list = []
+        self._provider_problems: set[str] = set()
         self.current_dir = ""
         # isabs() also drops the single characters older versions stored by mistake.
         self.dir_history: list[str] = [d for d in config.string_list(self.settings, "dirs/history")
@@ -845,9 +894,12 @@ class MainWindow(QMainWindow):
 
     def _cover_fetch_entries(self) -> list[tuple[str, str]]:
         """(command, menu text) for the cover context menu."""
-        if not self.view.selected_tracks() or not self._mb_cover_source():
+        if not self.view.selected_tracks():
             return []
-        return [("fetch_mb", tr("Cover von {1} laden", "MusicBrainz"))]
+        out = [("fetch_mb", tr("Cover von {1} laden", "MusicBrainz"))] if self._mb_cover_source() else []
+        out += [(f"provider:{s.name}", tr("Cover von {1} laden", s.name))
+                for s in self._cover_sources() if hasattr(s, "name")]
+        return out
 
     def fetch_archive_cover(self, tracks, ask: bool = True,
                             ids: tuple[str, str] | None = None) -> str:
@@ -869,17 +921,97 @@ class MainWindow(QMainWindow):
             return str(e).splitlines()[0]
         if not data:
             return tr("Kein Cover bei {1} gefunden", label)
-        if not self._cover_big_enough(data, label, ask=ask):
-            from PySide6.QtGui import QImage
-            image = QImage.fromData(data)
-            return tr("Cover von {1} zu klein ({2}x{3})", label, image.width(), image.height())
-        new = tags.Cover(data, "image/png" if data[:4] == b"\x89PNG" else "image/jpeg", 3, label)
+        return _store_front_cover(self, tracks, data, label, ask)
 
-        def apply(t):
-            t.data.covers = [new] + [c for c in t.data.covers if c.type != 3]
-        self._write(tr("Cover von {1}", label), tracks, apply)
-        self.panel.load(self.view.selected_tracks())
-        return ""
+    def _cover_sources(self) -> list:
+        """The sources that are switched on, in order. Files are read anew, a bad one is reported once."""
+        from ..websources import coverprovider
+        providers, problems = coverprovider.discover()
+        new = [p for p in problems if p not in self._provider_problems]
+        if new:
+            self._provider_problems.update(new)
+            self.message(new[0], 10000)
+        return coverprovider.active(providers)
+
+    def fetch_cover_chain(self, tracks, ask: bool = True, ids: tuple[str, str] | None = None,
+                          pick: bool = False) -> str:
+        """The sources in their order until one delivers. ``pick``: a provider without a certain
+        match shows its results. Returns "" if a cover was written, otherwise why not."""
+        from ..websources import coverprovider
+        reasons = []
+        for source in self._cover_sources():
+            if source == coverprovider.ARCHIVE:
+                reason = self.fetch_archive_cover(tracks, ask, ids)
+            else:
+                reason = self.fetch_provider_cover(source, tracks, ask, pick)
+            if not reason or reason == tr("Abgebrochen"):
+                return reason
+            reasons.append(reason)
+        return "; ".join(reasons) or tr("Keine Cover-Quelle eingeschaltet")
+
+    def fetch_provider_cover(self, provider, tracks, ask: bool = True, pick: bool = False) -> str:
+        """Front cover of one album from a cover provider. Only a certain match is taken
+        without asking; with ``pick`` the user chooses from the results otherwise.
+        Returns "" if a cover was written, otherwise why not."""
+        from types import SimpleNamespace
+        from ..websources import coverfetch, coverprovider
+        from ..websources import http as wshttp
+        from .dialogs.tagsources import ResultsDialog
+        first = lambda name: (tracks[0].get(name) or [""])[0]
+        album, artist = first("ALBUM"), first("ALBUMARTIST") or first("ARTIST")
+        name = provider.name
+        wait = self._waiting if ask or pick else self._background
+        try:
+            rows = wait(tr("Cover-Suche bei {1}", name), lambda: coverprovider.search(provider, artist, album))
+            if not rows:
+                return tr("Kein Cover bei {1} gefunden", name)
+            best = coverfetch.confident(coverfetch.rank(rows, album, artist, len(tracks)))
+            row = best.row if best else None
+            if row is None:
+                if not pick:
+                    return tr("Kein sicherer Treffer bei {1}", name)
+                d = ResultsDialog(SimpleNamespace(name=name, index_columns=["Album", "Artist", "Tracks"]), rows, self)
+                d.set_heading(tr("Cover von {1}", name), tr("Bitte das passende Album wählen"))
+                row = d.selected() if d.exec() == 1 else None
+                if row is None:
+                    return tr("Abgebrochen")
+            data = wait(tr("Cover von {1} laden", name), lambda: coverprovider.image(provider, row))
+        except _Canceled:
+            return tr("Abgebrochen")
+        except (wshttp.FetchError, coverprovider.ProviderError) as e:
+            return str(e).splitlines()[0]
+        return _store_front_cover(self, tracks, data, name, ask)
+
+    def _waiting(self, label: str, fn):
+        """Like _background, but with a visible window and Cancel; the answer of a call
+        that was left behind is dropped. Raises _Canceled."""
+        from PySide6.QtCore import QEventLoop
+        box: dict = {}
+
+        def work():
+            try:
+                box["v"] = fn()
+            except Exception as e:      # reported in the UI thread
+                box["e"] = e
+        th = threading.Thread(target=work, daemon=True)
+        th.start()
+        dlg = _StayingProgress(label, 1, self)
+        dlg.setWindowTitle("PsyTags")
+        dlg.follow_activity()
+        dlg.count_label.hide()
+        dlg.bar.setRange(0, 0)                  # no steps to count
+        try:
+            while th.is_alive() and not dlg.stop.is_set():
+                QApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 50)
+                th.join(0.02)
+            canceled = dlg.stop.is_set()
+        finally:
+            dlg.finish()
+        if canceled:
+            raise _Canceled()
+        if "e" in box:
+            raise box["e"]
+        return box.get("v")
 
     def fetch_covers(self) -> None:
         """Cover step: every selected album on its own, several ones in a progress window."""
@@ -893,6 +1025,7 @@ class MainWindow(QMainWindow):
         if several:
             dlg = _StayingProgress(tr("Cover holen ..."), len(albums), self)
             dlg.setWindowTitle("PsyTags")
+            dlg.follow_activity()
         results = []
         try:
             with self._undo_group(tr("Cover holen")):
@@ -902,7 +1035,7 @@ class MainWindow(QMainWindow):
                             break
                         dlg.setLabelText(albumauto.album_title(album))
                         dlg.setValue(i)
-                    results.append(self.fetch_archive_cover(album, ask=not several))
+                    results.append(self.fetch_cover_chain(album, ask=not several))
         finally:
             if dlg:
                 dlg.finish()
@@ -1422,7 +1555,7 @@ class MainWindow(QMainWindow):
         # Last.fm runs while the cover is fetched; results are written after.
         job = self.start_lastfm(written, interactive) if self._lastfm_enabled() else None
         # No IDs: not from MusicBrainz. Empty: settled in the adjust dialog.
-        cover_result = self.fetch_archive_cover(written, False, archive) if archive else None
+        cover_result = self.fetch_cover_chain(written, False, archive) if archive else None
         return cover_result, self.finish_lastfm(job, interactive) if job is not None else None
 
     def _renumber(self, tracks: list[Track]) -> None:
@@ -1496,6 +1629,7 @@ class MainWindow(QMainWindow):
         if not self.analyze_moods([t for g in todo for t in g if id(t) not in self._mood_done]):
             return
         dlg = _StayingProgress("", len(todo), self)
+        dlg.follow_activity()
         dlg.setWindowTitle(tr("Alle Alben automatisch"))
         dlg.set_hint(tr("MusicBrainz lässt nur eine Anfrage pro Sekunde zu. Je nach Tageszeit kann der Abruf "
                         "deshalb länger dauern."))
@@ -1529,7 +1663,9 @@ class MainWindow(QMainWindow):
             return albumauto.BatchEntry(title, tracks, False, tr("Schreibfehler: {1}", " · ".join(self._group_errors[:3])))
         self._auto_done.update({id(t): t for t in tracks})
         detail = " · ".join([albumauto.release_label(res.match)] + [n for n in (cover, genres) if n])
-        return albumauto.BatchEntry(title, tracks, True, detail, list(res.match.leftover_keys), cover, genres)
+        entry = albumauto.BatchEntry(title, tracks, True, detail, list(res.match.leftover_keys), cover, genres)
+        _remember_covers(entry)
+        return entry
 
     def show_batch_summary(self) -> None:
         from .dialogs.tagsources import BatchSummaryDialog
@@ -1537,6 +1673,7 @@ class MainWindow(QMainWindow):
             self.message(tr("Noch kein automatischer Lauf in dieser Sitzung."), 6000)
             return
         while True:
+            self._notice_new_covers()
             d = BatchSummaryDialog(self._last_batch, self._trash_files, self)
             accepted = d.exec()
             entry, action = d.chosen, d.action
@@ -1552,8 +1689,16 @@ class MainWindow(QMainWindow):
             if outcome is not None:                 # saved: the album is no longer open
                 entry.ok, (entry.cover, entry.genres) = True, outcome
                 entry.detail = " · ".join([tr("Manuell getaggt")] + [n for n in outcome if n])
+                _remember_covers(entry)
                 self._auto_done.update({id(t): t for t in entry.tracks})
             return
+
+    def _notice_new_covers(self) -> None:
+        """A cover that came another way since the run (context menu, a file) counts as well."""
+        for e in self._last_batch:
+            if e.cover and e.cover_seen is not None and e.cover_seen != _front_covers(e.tracks):
+                e.detail = e.detail.replace(f" · {e.cover}", "")
+                e.cover, e.cover_seen = "", None
 
     def _retry_genres(self, entry) -> None:
         """Last.fm once more for one finished album."""
@@ -1564,8 +1709,8 @@ class MainWindow(QMainWindow):
         entry.detail = entry.detail.replace(f" · {failed}", f" · {entry.genres}" if entry.genres else "")
 
     def _retry_cover(self, entry) -> None:
-        """The archive once more for one finished album; a too small cover may be taken after asking."""
-        failed, entry.cover = entry.cover, self.fetch_archive_cover(entry.tracks)
+        """The cover sources once more for one finished album; here the user may be asked."""
+        failed, entry.cover = entry.cover, self.fetch_cover_chain(entry.tracks, pick=True)
         entry.detail = entry.detail.replace(f" · {failed}", f" · {entry.cover}" if entry.cover else "")
 
     def customize_panel(self):
@@ -1648,6 +1793,12 @@ class MainWindow(QMainWindow):
             self.save_tags()
         elif cmd == "fetch_mb":
             self.fetch_cover_from_source(self.view.selected_tracks(), path=self._mb_cover_source(), manual=True)
+        elif cmd.startswith("provider:"):
+            source = next((s for s in self._cover_sources() if getattr(s, "name", "") == cmd[9:]), None)
+            if source is not None:
+                reason = self.fetch_provider_cover(source, self.view.selected_tracks(), True, True)
+                if reason:
+                    self.message(reason, 8000)
         elif cmd == "preview":
             from .dialogs.cover import CoverPreview
             CoverPreview.show_for(self, cv)

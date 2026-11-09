@@ -66,7 +66,10 @@ class RetryTests(unittest.TestCase):
         self._open(urllib.error.HTTPError(URL, 500, "Internal Server Error", {}, None))
         with self.assertRaises(http.ServerError) as caught:
             http.fetch_bytes(URL)
-        self.assertIn("HTTP 500", str(caught.exception))        # Last.fm looks for this
+        self.assertIn("HTTP 500", str(caught.exception))        # Last.fm and MusicBrainz look for the code
+        self.assertIn("images.example.invalid", str(caught.exception))
+        self.assertNotIn("://", str(caught.exception))
+        self.assertEqual(len(str(caught.exception).splitlines()), 1)
 
     def test_text_requests_are_tried_again_too(self):
         opened = self._open(ConnectionResetError(10054, "reset"), _Reply(b"seite"))

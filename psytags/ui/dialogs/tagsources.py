@@ -157,7 +157,6 @@ class ResultsDialog(QDialog):
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(cols)
         self.tree.setRootIsDecorated(False)
-        self.tree.setSortingEnabled(True)
         self.tree.setUniformRowHeights(True)
         _as_list(self.tree)
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -168,7 +167,6 @@ class ResultsDialog(QDialog):
         for i in range(len(cols)):
             self.tree.resizeColumnToContents(i)
             self.tree.setColumnWidth(i, min(self.tree.columnWidth(i), 260))
-        self.tree.sortByColumn(-1, Qt.SortOrder.AscendingOrder)
         self.tree.itemDoubleClicked.connect(lambda *_: self.accept())
         self.tree.currentItemChanged.connect(self._current)
         split.addWidget(self.tree)
@@ -191,6 +189,9 @@ class ResultsDialog(QDialog):
         lay.addWidget(_buttons(self, back=True))
         self._jobs = []
         remember(self, "ts_results/" + source.name.replace("/", "_"))
+        # Only now: the search order (best edition on top) must survive the filling and a remembered sorting.
+        self.tree.header().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+        self.tree.setSortingEnabled(True)
         if rows:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
 
@@ -233,7 +234,8 @@ class ResultsDialog(QDialog):
                     self.cover.setPixmap(QPixmap.fromImage(img).scaled(
                         218, 218, Qt.AspectRatioMode.KeepAspectRatio,
                         Qt.TransformationMode.SmoothTransformation))
-        self._jobs.append(run_async(lambda: fetch_bytes(url), done))
+        browser = bool((r or {}).get("_browser"))
+        self._jobs.append(run_async(lambda: fetch_bytes(url, browser=browser), done))
 
 
 class AdjustDialog(QDialog):
@@ -580,6 +582,7 @@ class BatchSummaryDialog(QDialog):
     def _row_button(self, item, column: int, text: str, tip: str) -> None:
         button = QPushButton(text)
         button.setObjectName("RowAction")
+        button.setMinimumWidth(button.fontMetrics().horizontalAdvance(text) + 32)   # the column follows this
         button.setAutoDefault(False)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setToolTip(tip)

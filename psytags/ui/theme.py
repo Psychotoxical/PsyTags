@@ -74,6 +74,12 @@ QPushButton#HeaderButton, QToolButton#MenuButton {
 QToolButton#MenuButton::menu-indicator { image: none; width: 0; }
 QPushButton#HeaderButton:hover, QToolButton#MenuButton:hover { background: $HOVER; }
 QPushButton#HeaderButton:disabled { color: $DISABLED; }
+QPushButton#SummaryButton {
+    background: $ACCENT; color: $ACCENT_TEXT; border: 1px solid $ACCENT; border-radius: 6px;
+    min-height: 32px; min-width: 0; padding: 0 14px; font-weight: 600;
+}
+QPushButton#SummaryButton:hover { background: $ACCENT_HOVER; border-color: $ACCENT_HOVER; }
+QPushButton#SummaryButton:disabled { background: $BUTTON; color: $DISABLED; border-color: $FIELD_BORDER; font-weight: 400; }
 QLineEdit#Search { min-height: 32px; padding: 0 12px; border-radius: 6px; }
 QPushButton#Primary {
     background: $ACCENT; color: $ACCENT_TEXT; border: none; border-radius: 8px;
@@ -121,6 +127,7 @@ QPushButton#DialogPrimary { background: $ACCENT; color: $ACCENT_TEXT; border: no
 QPushButton#DialogPrimary:hover { background: $ACCENT_HOVER; }
 QPushButton#DialogPrimary:disabled { background: $BUTTON; color: $DISABLED; }
 QLabel#ProgressCount { color: $SECONDARY; font-size: 12px; }
+QLabel#ProgressActivity { color: $SECONDARY; font-size: 11px; }
 QProgressBar { background: $FIELD; border: none; border-radius: 4px; }
 QProgressBar::chunk { background: $ACCENT; border-radius: 4px; }
 QPushButton#ChipButton { padding: 3px 11px; min-width: 0; border-radius: 11px; }
