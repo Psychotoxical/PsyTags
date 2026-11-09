@@ -224,6 +224,9 @@ class OptionsDialog(QDialog):
         self.v1 = QCheckBox(tr("Zusätzlich ID3v1 schreiben"))
         self.v1.setChecked(opts.write_id3v1)
         f.addRow(self.v1)
+        self.drop_comments = QCheckBox(tr("Kommentare standardmäßig löschen (MusicBrainz-Import, Vorauswahl im Tag-Panel)"))
+        self.drop_comments.setChecked(opts.drop_comments)
+        f.addRow(self.drop_comments)
         tabs.addTab(g, tr("Tags"))
         tabs.addTab(self._numbers_tab(), tr("Nummern"))
         tabs.addTab(self._lastfm_tab(), tr("Last.fm"))
@@ -295,4 +298,5 @@ class OptionsDialog(QDialog):
         o.subfolders = self.subfolders.isChecked()
         o.id3_version = 3 if self.id3.currentIndex() == 0 else 4
         o.write_id3v1 = self.v1.isChecked()
+        o.drop_comments = self.drop_comments.isChecked()
         super().accept()

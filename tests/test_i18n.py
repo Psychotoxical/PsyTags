@@ -57,10 +57,10 @@ class EnglishCoverageTests(unittest.TestCase):
     def test_tr_switches_language(self):
         try:
             i18n.set_language("en")
-            self.assertEqual(i18n.tr("Cover von {1} laden", "Apple Music"), "Load cover from Apple Music")
+            self.assertEqual(i18n.tr("Cover von {1} laden", "MusicBrainz"), "Load cover from MusicBrainz")
         finally:
             i18n.set_language("de")
-        self.assertEqual(i18n.tr("Cover von {1} laden", "Apple Music"), "Cover von Apple Music laden")
+        self.assertEqual(i18n.tr("Cover von {1} laden", "MusicBrainz"), "Cover von MusicBrainz laden")
 
 
 if __name__ == "__main__":

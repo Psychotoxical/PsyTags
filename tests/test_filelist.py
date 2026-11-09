@@ -116,6 +116,59 @@ class ThemeTests(unittest.TestCase):
     def test_style_sheet_is_complete(self):
         self.assertNotIn("$", theme.style_sheet())
 
+    def test_fields_with_a_list_show_an_arrow_in_both_themes(self):
+        import os
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtGui import QColor
+        from PySide6.QtWidgets import QApplication, QComboBox
+        self.app = QApplication.instance() or QApplication([])
+        self.addCleanup(theme.use, "mocha")
+        for name in theme.THEMES:
+            theme.use(name)
+            combo = QComboBox()
+            combo.setEditable(True)
+            combo.addItems(["a", "b"])
+            combo.setStyleSheet(theme.style_sheet())
+            combo.resize(200, 30)
+            image = combo.grab().toImage()
+            background = QColor(theme.FIELD).name()
+            drawn = [(x, y) for x in range(image.width() - 18, image.width() - 2) for y in range(3, image.height() - 3)
+                     if QColor(image.pixel(x, y)).name() != background]
+            self.assertTrue(drawn, name)
+            xs, ys = [x for x, _y in drawn], [y for _x, y in drawn]
+            width, middle = max(xs) - min(xs) + 1, (max(xs) + min(xs)) // 2
+            self.assertGreater(width, max(ys) - min(ys) + 1, name)
+            top = [x for x, y in drawn if y == min(ys)]             # two tips at the top ...
+            bottom = [x for x, y in drawn if y == max(ys)]          # ... one point in the middle at the bottom
+            self.assertNotIn(middle, top, name)
+            self.assertLess(max(bottom) - min(bottom), width / 2, name)
+            combo.setEnabled(False)                                 # nothing to open, so no arrow
+            image = combo.grab().toImage()
+            self.assertFalse([1 for x in range(image.width() - 18, image.width() - 2)
+                              for y in range(3, image.height() - 3)
+                              if QColor(image.pixel(x, y)).name() != background], name)
+
+    def test_column_borders_show_in_both_themes(self):
+        import os
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtGui import QColor, QStandardItemModel
+        from PySide6.QtWidgets import QApplication, QTableView
+        self.app = QApplication.instance() or QApplication([])
+        self.addCleanup(theme.use, "mocha")
+        for name in theme.THEMES:
+            theme.use(name)
+            model = QStandardItemModel(1, 3)
+            view = QTableView()
+            view.setModel(model)
+            view.setStyleSheet(theme.style_sheet())
+            view.resize(500, 120)
+            header = view.horizontalHeader()
+            image = view.grab().toImage()
+            top = header.mapTo(view, header.rect().center()).y()
+            x = header.mapTo(view, header.rect().topLeft()).x() + header.sectionSize(0) - 1
+            self.assertEqual(QColor(image.pixel(x, top)).name(), theme.FIELD_BORDER, name)
+            self.assertEqual(QColor(image.pixel(x - 8, top)).name(), theme.BACKGROUND, name)
+
 
 if __name__ == "__main__":
     unittest.main()

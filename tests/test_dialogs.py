@@ -13,6 +13,93 @@ from PySide6.QtWidgets import QApplication, QPushButton
 from psytags import config
 
 
+class SummaryButtonTests(unittest.TestCase):
+    """What can still be done in the result window is a button, one click away."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        cls.dir = tempfile.mkdtemp()                 # dialogs remember their geometry
+        cls.orig_config_dir = config.config_dir
+        config.config_dir = lambda: cls.dir
+
+    @classmethod
+    def tearDownClass(cls):
+        config.config_dir = cls.orig_config_dir
+        shutil.rmtree(cls.dir, ignore_errors=True)
+
+    @staticmethod
+    def _entry(ok=True, cover="", genres=""):
+        from psytags.websources import albumauto
+        return albumauto.BatchEntry("A", [], ok, "A (2001)", [], cover, genres)
+
+    def _dialog(self, *entries):
+        from psytags.ui.dialogs.tagsources import BatchSummaryDialog
+        d = BatchSummaryDialog(list(entries), lambda tracks: tracks)
+        self.addCleanup(d.deleteLater)
+        d.show()
+        QApplication.processEvents()
+        return d
+
+    @staticmethod
+    def _button(d, column, row=0):
+        return d.table.itemWidget(d.table.topLevelItem(row), column)
+
+    def test_a_failed_cover_can_be_fetched_with_one_click(self):
+        e = self._entry(cover="zu klein")
+        d = self._dialog(e)
+        button = self._button(d, 2)
+        self.assertEqual(button.text(), "Nachholen")
+        self.assertEqual(button.toolTip(), "zu klein")
+        self.assertEqual(d.table.topLevelItem(0).text(2), "")
+        button.click()
+        self.assertIs(d.chosen, e)
+        self.assertEqual(d.action, "cover")
+        self.assertEqual(d.result(), 1)
+
+    def test_failed_genres_too(self):
+        e = self._entry(genres="HTTP 502")
+        d = self._dialog(e)
+        self._button(d, 3).click()
+        self.assertEqual(d.action, "genres")
+
+    def test_an_open_album_can_be_edited_with_one_click(self):
+        e = self._entry(ok=False, cover=None, genres=None)
+        d = self._dialog(e)
+        button = self._button(d, 1)
+        self.assertEqual(button.text(), "Bearbeiten")
+        self.assertEqual(d.table.topLevelItem(0).text(1), "")
+        button.click()
+        self.assertIs(d.chosen, e)
+        self.assertEqual(d.action, "manual")
+
+    def test_finished_steps_have_no_button(self):
+        d = self._dialog(self._entry(cover="", genres=None))
+        for column in (1, 2, 3):
+            self.assertIsNone(self._button(d, column))
+        self.assertEqual(d.table.topLevelItem(0).text(2), "\u2612")
+
+    def test_enter_does_not_press_a_row_button(self):
+        d = self._dialog(self._entry(cover="zu klein"))
+        self.assertFalse(self._button(d, 2).autoDefault())
+        self.assertEqual(self._button(d, 2).objectName(), "RowAction")
+
+    def test_rows_stay_even_and_buttons_fit(self):
+        d = self._dialog(self._entry(), self._entry(cover="zu klein"), self._entry(ok=False, cover=None, genres=None))
+        d.table.doItemsLayout()
+        rows = [d.table.topLevelItem(i) for i in range(3)]
+        self.assertEqual(len({d.table.visualItemRect(r).height() for r in rows}), 1)
+        for column in (1, 2):
+            button = next(d.table.itemWidget(r, column) for r in rows if d.table.itemWidget(r, column))
+            self.assertGreaterEqual(d.table.columnWidth(column), button.sizeHint().width())
+
+    def test_double_click_is_no_longer_explained(self):
+        from PySide6.QtWidgets import QLabel
+        d = self._dialog(self._entry(cover="zu klein"))
+        self.assertFalse([l.text() for l in d.findChildren(QLabel) if "Doppelklick" in l.text()])
+        self.assertFalse([b.text() for b in d.findChildren(QPushButton) if b.text() == "Manuell bearbeiten"])
+
+
 class TagSourceButtonTests(unittest.TestCase):
     """Wizard buttons of the tag source dialogs: [< Back] [Next >] [Cancel], Enter = Next."""
 
@@ -59,9 +146,9 @@ class TagSourceButtonTests(unittest.TestCase):
 
     def test_own_heading_replaces_title_and_lead(self):
         d = self._dialog()
-        d.set_heading("Cover von Apple Music", "Bitte das passende Album wählen")
-        self.assertEqual(d.title_label.text(), "Cover von Apple Music")
-        self.assertEqual(d.windowTitle(), "Cover von Apple Music")
+        d.set_heading("Cover von MusicBrainz", "Bitte das passende Album wählen")
+        self.assertEqual(d.title_label.text(), "Cover von MusicBrainz")
+        self.assertEqual(d.windowTitle(), "Cover von MusicBrainz")
         self.assertEqual(d.subtitle_label.text(), "Bitte das passende Album wählen · 1 Treffer")
 
     def test_next_is_the_highlighted_button(self):

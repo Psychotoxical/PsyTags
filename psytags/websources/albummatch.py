@@ -53,6 +53,14 @@ def clean_import(values: dict[str, str], has_mood: bool) -> dict[str, str]:
     return out
 
 
+def drop_comments(track) -> None:
+    """Remove the comments of a file. iTunes keeps technical values in the same frames
+    (gapless playback, loudness); those are no comments and stay."""
+    for name in list(track.data.fields):
+        if name == "COMMENT" or (name.startswith("COMMENT ") and not name.startswith("COMMENT ITUN")):
+            track.set(name, "")
+
+
 def base_title(album: str, drop_recording_notes: bool = False) -> str:
     """The album title without trailing edition notes, for another search: "Aftermath (Bonus
     Tracks Edition)" becomes "Aftermath". Notes about other recordings (live, remix) only go

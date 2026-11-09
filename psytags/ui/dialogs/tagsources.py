@@ -5,7 +5,7 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, QUrl, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QDesktopServices, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog,
                                QDialogButtonBox, QFormLayout, QHBoxLayout, QHeaderView, QLabel,
-                               QListWidget, QListWidgetItem, QPushButton, QSplitter,
+                               QListWidget, QListWidgetItem, QPushButton, QSplitter, QStyledItemDelegate,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from ..theme import ERROR, ICON_POSITIVE, WARNING, WARNING_BACKGROUND
@@ -505,6 +505,15 @@ def summary_action(entry, column: int | None) -> str:
     return "cover" if entry.cover else "genres" if entry.genres else ""
 
 
+class _EvenRows(QStyledItemDelegate):
+    """Every row of the summary is as high as one with a button."""
+
+    def sizeHint(self, option, index):
+        size = super().sizeHint(option, index)
+        size.setHeight(30)
+        return size
+
+
 class BatchSummaryDialog(QDialog):
     """Result of "all albums automatically": open albums and files without a track."""
 
@@ -521,6 +530,7 @@ class BatchSummaryDialog(QDialog):
         lay.addWidget(QLabel(tr("{1} erledigt, {2} offen", done, len(entries) - done)))
         self.table = QTreeWidget()
         self.table.setRootIsDecorated(False)
+        self.table.setItemDelegate(_EvenRows(self.table))
         self.table.setHeaderLabels([tr("Album"), tr("Ergebnis"), tr("Cover"), tr("Genres"), tr("Details")])
         for column in range(4):
             self.table.header().setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
@@ -537,15 +547,9 @@ class BatchSummaryDialog(QDialog):
                 if value:
                     it.setToolTip(column, value)
             self.table.addTopLevelItem(it)
+            self._add_buttons(it, e)
         self.table.itemDoubleClicked.connect(lambda _it, column: self._open(column))
         lay.addWidget(self.table, 2)
-        self.open_btn = QPushButton(tr("Manuell bearbeiten"))
-        self.open_btn.clicked.connect(lambda _=False: self._open())
-        row = QHBoxLayout()
-        row.addWidget(QLabel(tr("Doppelklick auf ein offenes Album oder ein leeres Kästchen, um es nachzuholen.")))
-        row.addStretch(1)
-        row.addWidget(self.open_btn)
-        lay.addLayout(row)
         lay.addWidget(QLabel(tr("Dateien ohne Track (zum Löschen anhaken):")))
         self.left = QListWidget()
         for e in entries:
@@ -563,6 +567,29 @@ class BatchSummaryDialog(QDialog):
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
         remember(self, "ts_batch_summary2")
+
+    def _add_buttons(self, item, entry) -> None:
+        """What can still be done is a button in its own cell."""
+        if not entry.ok:
+            self._row_button(item, 1, tr("Bearbeiten"), tr("Manuell bearbeiten"))
+            return
+        for column, failed in ((2, entry.cover), (3, entry.genres)):
+            if failed:
+                self._row_button(item, column, tr("Nachholen"), failed)
+
+    def _row_button(self, item, column: int, text: str, tip: str) -> None:
+        button = QPushButton(text)
+        button.setObjectName("RowAction")
+        button.setAutoDefault(False)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setToolTip(tip)
+        button.clicked.connect(lambda _=False: self._press(item, column))
+        item.setText(column, "")
+        self.table.setItemWidget(item, column, button)
+
+    def _press(self, item, column: int) -> None:
+        self.table.setCurrentItem(item)
+        self._open(column)
 
     def _open(self, column=None):
         it = self.table.currentItem()

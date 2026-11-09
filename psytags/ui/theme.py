@@ -1,6 +1,7 @@
 """Catppuccin Mocha and Latte, the two themes PsyTags shares with Psysonic."""
 from __future__ import annotations
 
+import os
 from string import Template
 
 from PySide6.QtCore import Qt
@@ -141,6 +142,8 @@ QLineEdit, QComboBox, QTextEdit, QPlainTextEdit {
 QLineEdit, QComboBox { min-height: 26px; padding: 0 6px; }
 QComboBox:editable { background: $FIELD; }
 QComboBox::drop-down { border: none; width: 18px; }
+QComboBox::down-arrow { image: url("$ARROW"); width: 10px; height: 6px; }
+QComboBox::down-arrow:disabled { image: none; }
 QComboBox QLineEdit, QAbstractSpinBox QLineEdit {
     border: none; border-radius: 0; background: transparent; min-height: 0; padding: 0;
 }
@@ -159,6 +162,7 @@ QAbstractItemView::item:selected:!active { background: $SELECTION; }
 QHeaderView { background: $BACKGROUND; }
 QHeaderView::section { background: $BACKGROUND; color: $SECONDARY; font-weight: 500;
     border: none; border-bottom: 1px solid $BORDER; padding: 6px 8px; }
+QHeaderView::section:horizontal { border-right: 1px solid $FIELD_BORDER; }
 QTableCornerButton::section { background: $BACKGROUND; border: none; }
 QPushButton { background: $BUTTON; color: $TEXT; border: 1px solid $FIELD_BORDER;
     border-radius: 6px; padding: 4px 12px; min-width: 58px; }
@@ -167,6 +171,9 @@ QPushButton:pressed { background: $SELECTION; }
 QPushButton:default { border-color: $ACCENT; }
 QPushButton:focus { border-color: $ACCENT; }
 QPushButton:disabled { color: $DISABLED; }
+QPushButton#RowAction { background: transparent; color: $ACCENT; border: 1px solid $ACCENT;
+    border-radius: 5px; padding: 0 8px; margin: 3px 4px; min-width: 0; }
+QPushButton#RowAction:hover { background: $SELECTION; }
 QTabWidget::pane { border: 1px solid $BORDER; border-radius: 6px; }
 QTabBar::tab { background: transparent; color: $SECONDARY; padding: 6px 12px;
     border-bottom: 2px solid transparent; }
@@ -190,7 +197,9 @@ QToolTip { background: $CHROME; color: $TEXT; border: 1px solid $BORDER; }
 
 
 def style_sheet() -> str:
-    return _STYLE.substitute(THEMES[CURRENT])
+    folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources")
+    arrow = os.path.join(folder, f"arrow-{CURRENT}.png").replace("\\", "/")     # style sheets want /
+    return _STYLE.substitute(THEMES[CURRENT], ARROW=arrow)
 
 
 class AppStyle(QProxyStyle):

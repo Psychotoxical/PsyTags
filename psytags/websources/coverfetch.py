@@ -1,4 +1,4 @@
-"""Cover-only fetch from a second tag source (e.g. Apple Music after a MusicBrainz import).
+"""Cover-only fetch from a tag source (the search behind "Cover von MusicBrainz laden").
 
 The search uses the source's own [SearchBy] prefill on the freshly written tags; the best
 index row is chosen by album title, artist and track count.

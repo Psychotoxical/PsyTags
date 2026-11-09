@@ -3,21 +3,54 @@ from __future__ import annotations
 
 import gzip
 import http.client
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
 
 from .. import __version__, config
+from ..i18n import tr
 
 USER_AGENT = f"PsyTags/{__version__} ( https://github.com/ )"
 BROWSER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
                  "Chrome/140.0 Safari/537.36")
 _cache: dict[str, bytes] = {}
+RETRY_WAITS = (2.0, 5.0)                # seconds before the second and the third try
+_CONNECTION_ERRORS = (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException, EOFError, zlib.error)
 
 
 class FetchError(Exception):
     pass
+
+
+class NotFound(FetchError):
+    """The server says it does not have this (HTTP 404)."""
+
+
+class ServerError(FetchError):
+    """The server failed by itself (HTTP 5xx); asking again later can work."""
+
+
+def _host(url: str) -> str:
+    return urllib.parse.urlsplit(url).hostname or url
+
+
+def _download(req: urllib.request.Request, url: str, timeout: float, read):
+    """``read(response)``, again after a pause when the connection breaks: image servers
+    drop connections now and then. An answer from the server, even an error, is final."""
+    for wait in RETRY_WAITS + (None,):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return read(r)
+        except urllib.error.HTTPError as e:
+            body = e.read()[:300].decode("utf-8", "replace") if e.fp else ""
+            kind = NotFound if e.code == 404 else ServerError if e.code >= 500 else FetchError
+            raise kind(f"HTTP {e.code} {e.reason}: {url}\n{body}") from e
+        except _CONNECTION_ERRORS as e:
+            if wait is None:
+                raise FetchError(tr("Verbindung zu {1} abgebrochen", _host(url))) from e
+            time.sleep(wait)
 
 
 def fetch(url: str, user_agent: str = "1", timeout: float = 30) -> str:
@@ -32,16 +65,11 @@ def fetch(url: str, user_agent: str = "1", timeout: float = 30) -> str:
         if token:
             headers["Authorization"] = f"Discogs token={token}"
     req = urllib.request.Request(url, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = r.read()
-            if r.headers.get("Content-Encoding") == "gzip":
-                data = gzip.decompress(data)
-    except urllib.error.HTTPError as e:
-        body = e.read()[:300].decode("utf-8", "replace")
-        raise FetchError(f"HTTP {e.code} {e.reason}: {url}\n{body}") from e
-    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException, EOFError, zlib.error) as e:
-        raise FetchError(f"{e}: {url}") from e
+
+    def read(r):
+        data = r.read()
+        return gzip.decompress(data) if r.headers.get("Content-Encoding") == "gzip" else data
+    data = _download(req, url, timeout, read)
     if len(_cache) > 200:
         _cache.clear()
     _cache[url] = data
@@ -50,11 +78,7 @@ def fetch(url: str, user_agent: str = "1", timeout: float = 30) -> str:
 
 def fetch_bytes(url: str, timeout: float = 30) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.read()
-    except http.client.HTTPException as e:
-        raise FetchError(f"{e}: {url}") from e
+    return _download(req, url, timeout, lambda r: r.read())
 
 
 def _decode(data: bytes) -> str:

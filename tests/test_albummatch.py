@@ -490,7 +490,6 @@ class FollowUpTests(unittest.TestCase):
         from psytags.ui.mainwindow import MainWindow
         win = mock.MagicMock()
         win._lastfm_enabled.return_value = False
-        win.fetch_cover_from_source.return_value = ""
         t = _track("a.mp3", "One")
         MainWindow._finish_source_import(win, "MB", "p", [(t, {"TITLE": "One"})], None, [], False, complete)
         return win, t
@@ -557,9 +556,10 @@ class SummaryOutcomeTests(unittest.TestCase):
         from psytags.ui.mainwindow import MainWindow
         win = mock.MagicMock()
         win._lastfm_enabled.return_value = True
-        win.fetch_cover_from_source.return_value = "kein Treffer"
+        win.fetch_archive_cover.return_value = "kein Treffer"
         win.finish_lastfm.return_value = ""
-        result = MainWindow._finish_source_import(win, "MB", "p", [(_track("a.mp3", "One"), {})], None, [], False)
+        result = MainWindow._finish_source_import(win, "MB", "p", [(_track("a.mp3", "One"), {})], None, [], False,
+                                                  archive=("r", "g"))
         self.assertEqual(result, ("kein Treffer", ""))
 
     def test_lastfm_off_is_reported_as_not_run(self):
@@ -570,7 +570,6 @@ class SummaryOutcomeTests(unittest.TestCase):
         from psytags.ui.mainwindow import MainWindow
         win = mock.MagicMock()
         win._lastfm_enabled.return_value = False
-        win.fetch_cover_from_source.return_value = None
         self.assertEqual(MainWindow._finish_source_import(win, "MB", "p", [], None, [], False), (None, None))
 
 
@@ -607,19 +606,20 @@ class CoverRetryTests(unittest.TestCase):
         QApplication.instance() or QApplication([])
         from psytags.ui.mainwindow import MainWindow
         win = mock.MagicMock()
-        win.fetch_cover_from_source.return_value = result
+        win.fetch_archive_cover.return_value = result
         e = self._entry(True, "kein Treffer")
         MainWindow._retry_cover(win, e)
-        win.fetch_cover_from_source.assert_called_once_with(e.tracks, manual=True)
+        win.fetch_archive_cover.assert_called_once_with(e.tracks)
+        win.fetch_cover_from_source.assert_not_called()
         return e
 
     def test_a_new_cover_ticks_the_box(self):
         e = self._retry("")
         self.assertEqual((e.cover, e.detail), ("", "A (2001)"))
 
-    def test_canceling_leaves_the_box_empty(self):
-        e = self._retry("Abgebrochen")
-        self.assertEqual((e.cover, e.detail), ("kein Treffer", "A (2001) · kein Treffer"))
+    def test_a_failed_retry_shows_the_new_reason(self):
+        e = self._retry("zu klein")
+        self.assertEqual((e.cover, e.detail), ("zu klein", "A (2001) · zu klein"))
 
     def test_summary_returns_after_the_cover_step(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

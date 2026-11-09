@@ -452,16 +452,16 @@ class FileListView(QTableView):
         m.keep_scroll = False
 
     def _forget_bands(self) -> None:
-        self.bands = {}                              # a reset already restored the row heights
+        self.bands = {}
         self._band_timer.start()
 
     def _refresh_bands(self) -> None:
         new = album_bands(self.model().rows)
         vh = self.verticalHeader()
-        for r in set(self.bands) - set(new):
-            vh.resizeSection(r, ROW_HEIGHT)
-        for r in set(new) - set(self.bands):
-            vh.resizeSection(r, ROW_HEIGHT + BAND_HEIGHT)
+        for r in range(self.model().rowCount()):       # a reset keeps the old heights, so check every row
+            height = ROW_HEIGHT + BAND_HEIGHT if r in new else ROW_HEIGHT
+            if vh.sectionSize(r) != height:
+                vh.resizeSection(r, height)
         self.bands = new
         if self._restore_scroll is not None:
             self.updateGeometries()                  # the range has to know the new row heights

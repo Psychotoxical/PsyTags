@@ -67,6 +67,8 @@ ID3_TXXX = {
     "BARCODE": "BARCODE",
 }
 _ID3_TEXT_REV = {v: k for k, v in ID3_TEXT.items()}
+# iTunes' own comment names, also where an earlier version wrote them in capitals
+_ITUNES_COMMENTS = {n.upper(): n for n in ("iTunSMPB", "iTunNORM", "iTunPGAP")}
 _ID3_URL_REV = {v: k for k, v in ID3_URL.items()}
 _ID3_TXXX_REV = {v.upper(): k for k, v in ID3_TXXX.items()}
 
@@ -373,6 +375,7 @@ def _is_id3_container(f) -> bool:
 
 def _write_id3(tags: id3.ID3, fields: dict[str, list[str]], covers) -> None:
     keep = {"APIC"} if covers is None else set()
+    comment_names = {f.desc.upper(): f.desc for f in tags.getall("COMM")}     # fields only know capitals
     for key in list(tags.keys()):
         fid = key[:4]
         if fid in keep or fid in ("PRIV", "UFID", "MCDI", "GEOB", "SYLT", "CHAP", "CTOC"):
@@ -393,7 +396,8 @@ def _write_id3(tags: id3.ID3, fields: dict[str, list[str]], covers) -> None:
         elif name == "COMMENT":
             tags.add(id3.COMM(encoding=3, lang="eng", desc="", text=vals))
         elif name.startswith("COMMENT "):
-            tags.add(id3.COMM(encoding=3, lang="eng", desc=name[8:], text=vals))
+            desc = _ITUNES_COMMENTS.get(name[8:]) or comment_names.get(name[8:], name[8:])
+            tags.add(id3.COMM(encoding=3, lang="eng", desc=desc, text=vals))
         elif name == "UNSYNCEDLYRICS":
             tags.add(id3.USLT(encoding=3, lang="eng", desc="", text=vals[0]))
         elif name == "RATING":

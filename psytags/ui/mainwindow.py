@@ -7,7 +7,7 @@ import os
 import threading
 
 from PySide6.QtCore import (QEvent, QObject, Qt, QThread, QTimer, QUrl, Signal)
-from PySide6.QtGui import (QAction, QActionGroup, QDesktopServices, QKeySequence, QShortcut)
+from PySide6.QtGui import (QAction, QDesktopServices, QKeySequence, QShortcut)
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QInputDialog,
                                QLabel, QMainWindow, QMenu, QMessageBox, QProgressBar,
                                QDialog, QPushButton, QStatusBar, QVBoxLayout, QWidget)
@@ -80,6 +80,12 @@ class _StayingProgress(QDialog):
         self.bar.setRange(0, max(1, maximum))
         column.addWidget(self.bar)
         row = QHBoxLayout()
+        row.setSpacing(16)
+        self.hint_label = QLabel()
+        self.hint_label.setObjectName("DialogSubtitle")
+        self.hint_label.setWordWrap(True)
+        self.hint_label.hide()
+        row.addWidget(self.hint_label, 100)
         row.addStretch(1)
         self.cancel_button = QPushButton(tr("Abbrechen"))
         self.cancel_button.clicked.connect(lambda: self.canceled.emit())
@@ -99,6 +105,11 @@ class _StayingProgress(QDialog):
 
     def setLabelText(self, text: str) -> None:
         self.title_label.setText(text)
+
+    def set_hint(self, text: str) -> None:
+        self.hint_label.setText(text)
+        self.hint_label.show()
+        self.adjustSize()
 
     def request_stop(self):
         self.stop.set()
@@ -227,9 +238,10 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ layout
     def _build_panel(self):
         self.panel = TagPanel()
+        self.panel.blank_comments = self.opts.drop_comments
         self._rebuild_panel()
         self.panel.changed.connect(self._update_actions)
-        self.panel.save_requested.connect(self.save_tags)
+        self.panel.save_requested.connect(self.save_by_user)
         self.panel.directory_chosen.connect(lambda d: self.load_paths([os.path.expanduser(d)], False))
         self.panel.cover.request.connect(self._cover_command)
         self.panel.cover.fetch_entries = self._cover_fetch_entries
@@ -326,7 +338,7 @@ class MainWindow(QMainWindow):
     def _build_actions(self):
         A = self._act
         # File
-        self.act_save = A("Tag &speichern", self.save_tags, "Ctrl+S", "Speichert den Tag in ausgewählten Dateien.", "save")
+        self.act_save = A("Tag &speichern", self.save_by_user, "Ctrl+S", "Speichert den Tag in ausgewählten Dateien.", "save")
         self.act_remove = A("Tag ent&fernen", self.remove_tags, "Ctrl+R", "Entfernt den Tag aus den ausgewählten Dateien.", "remove")
         self.act_dir = A("Verzeichnis wechseln...", self.choose_directory, "Ctrl+D", "Verzeichnis wechseln...", "folder-open")
         self.act_add_dir = A("Verzeichnis hinzufügen...", self.add_directory, "Ctrl+H", "Fügt der Dateiansicht ein Verzeichnis hinzu.", "folder-add")
@@ -346,8 +358,8 @@ class MainWindow(QMainWindow):
         self.act_select_all = A("&Alle Dateien auswählen", self.view.selectAll, "Ctrl+A", "Wählt alle Dateien in der Dateiansicht aus.")
         # Cover
         self.act_cover_add = A("Cover hinzu&fügen...", lambda: self._cover_command("add"), "Ctrl+Alt+A")
-        self.act_cover_fetch = A("Cover holen", lambda: self._cover_command("fetch"), None,
-                                 "Holt das Cover der ausgewählten Dateien von der eingestellten Quelle.")
+        self.act_cover_fetch = A("Cover holen", self.fetch_covers, None,
+                                 "Holt die Cover der ausgewählten Alben aus dem Cover Art Archive.")
         # View
         self.act_ext_tags = A("&Erweiterte Tags...", self.extended_tags, "Alt+T", "Zeigt den erweiterten Tag-Dialog an.", "extended")
         self.act_panel = self.panel_dock.toggleViewAction()
@@ -626,15 +638,18 @@ class MainWindow(QMainWindow):
             self.undo.push(rec.finish())
             self._update_actions()
 
-    def _write_panel(self, tracks: list[Track]) -> bool:
+    def _write_panel(self, tracks: list[Track], with_preset: bool = False) -> bool:
         """Write the panel inputs to ``tracks``. Returns False if a file failed;
         the inputs then stay dirty so they are not lost."""
-        pending = self.panel.pending()
+        from ..websources import albummatch
+        pending = self.panel.pending(with_preset)
         covers = self.panel.cover.covers if self.panel.covers_dirty else None
 
         def apply(t: Track):
             for name, value in pending.items():
                 t.set(name, value or "")
+            if with_preset and pending.get("COMMENT", "") is None:
+                albummatch.drop_comments(t)
             if covers is not None:
                 t.data.covers = list(covers)
         ok = self._write(tr("Tag speichern"), tracks, apply) == len(tracks)
@@ -642,11 +657,15 @@ class MainWindow(QMainWindow):
             self.panel.clear_dirty()
         return ok
 
-    def save_tags(self):
+    def save_by_user(self):
+        """Ctrl+S or Enter: everything the panel shows, also the comment that starts out blank."""
+        self.save_tags(True)
+
+    def save_tags(self, with_preset: bool = False):
         tracks = self.view.selected_tracks()
         if not tracks:
             return
-        if self._write_panel(tracks):
+        if self._write_panel(tracks, with_preset):
             self.panel.load(tracks)
         self.message(tr("Tag-Informationen gespeichert"), 3000)
 
@@ -778,7 +797,6 @@ class MainWindow(QMainWindow):
         m.clear()
         self._add_source_entries(m)
         m.addSeparator()
-        self._add_cover_source_menu(m)
         m.addAction(tr("Cover-Mindestgröße ({1} px)...", self._cover_min_size()), self.set_cover_min_size)
         m.addSeparator()
         for a in (self.act_moods, self.act_moods_all, self.act_auto_mb, self.act_auto_all, self.act_batch_summary):
@@ -786,30 +804,6 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         m.addAction(self.act_lastfm)
         m.addAction(tr("Discogs-Zugang..."), self.discogs_token)
-
-    def _add_cover_source_menu(self, m: QMenu) -> None:
-        """Which source supplies the cover after a tag import (e.g. Apple Music after MusicBrainz)."""
-        from ..sources import list_sources
-        current = self.settings.value("tagsources/cover_source", "")
-        if current and os.path.exists(current):
-            label = os.path.splitext(os.path.basename(current))[0].replace("&", "").replace("#", " – ")
-            a = m.addAction(tr("Nur Cover holen von {1}", label),
-                            lambda: self.fetch_cover_from_source(self.view.selected_tracks()))
-            a.setEnabled(bool(self.view.selected_tracks()))
-        sub = m.addMenu(tr("Cover anschließend holen von"))
-        group = QActionGroup(sub)
-        a = sub.addAction(tr("(nicht automatisch)"))
-        a.setCheckable(True)
-        a.setChecked(not current)
-        a.triggered.connect(lambda: self.settings.setValue("tagsources/cover_source", ""))
-        group.addAction(a)
-        sub.addSeparator()
-        for name, path in list_sources():
-            a = sub.addAction(name.replace("&", "").replace("#", " – "))
-            a.setCheckable(True)
-            a.setChecked(path == current)
-            a.triggered.connect(lambda _=False, p=path: self.settings.setValue("tagsources/cover_source", p))
-            group.addAction(a)
 
     def _cover_min_size(self) -> int:
         try:
@@ -843,14 +837,6 @@ class MainWindow(QMainWindow):
                         label, img.width(), img.height(), n), 8000)
         return False
 
-    def _manual_cover_source(self) -> str:
-        """Source for the cover context menu: the configured cover source, else Apple Music."""
-        from ..sources import list_sources
-        path = self.settings.value("tagsources/cover_source", "")
-        if path and os.path.exists(path):
-            return path
-        return next((p for name, p in list_sources() if "apple" in name.lower()), "")
-
     def _mb_cover_source(self) -> str:
         """MusicBrainz source for the cover context menu: the cover-art one, else the plain one."""
         from ..sources import list_sources
@@ -858,23 +844,79 @@ class MainWindow(QMainWindow):
         return srcs.get("cover art#musicbrainz") or srcs.get("musicbrainz") or ""
 
     def _cover_fetch_entries(self) -> list[tuple[str, str]]:
-        """(command, menu text) for the cover context menu: the cover source (Apple Music)
-        and MusicBrainz, e.g. when Apple Music delivered a wrong cover."""
-        if not self.view.selected_tracks():
+        """(command, menu text) for the cover context menu."""
+        if not self.view.selected_tracks() or not self._mb_cover_source():
             return []
-        out = []
-        path = self._manual_cover_source()
-        if path:
-            name = os.path.splitext(os.path.basename(path))[0].replace("&", "")
-            out.append(("fetch", tr("Cover von {1} laden", name.split("#")[0].strip() or name)))
-        mb = self._mb_cover_source()
-        if mb and mb != path:
-            out.append(("fetch_mb", tr("Cover von {1} laden", "MusicBrainz")))
-        return out
+        return [("fetch_mb", tr("Cover von {1} laden", "MusicBrainz"))]
 
-    def fetch_cover_from_source(self, tracks, exclude: str = "", path: str = "",
-                                manual: bool = False, interactive: bool = True) -> str | None:
-        """Cover-only fetch from the configured cover source; replaces the front cover.
+    def fetch_archive_cover(self, tracks, ask: bool = True,
+                            ids: tuple[str, str] | None = None) -> str:
+        """Front cover of one album from the Cover Art Archive; replaces the front cover.
+        ``ask``: the user may take a too small cover anyway. ``ids`` (release, release group)
+        default to the tags of the files. Returns "" if it worked, otherwise what went wrong."""
+        from ..websources import coverart
+        from ..websources import http as wshttp
+        first = lambda name: (tracks[0].get(name) or [""])[0]
+        release, group = ids or (first("MUSICBRAINZ_ALBUMID"), first("MUSICBRAINZ_RELEASEGROUPID"))
+        if not (release or group):
+            return tr("Keine MusicBrainz-ID")
+        label = coverart.NAME
+        try:
+            data = self._background(tr("Cover von {1} laden", label), lambda: coverart.fetch_front(release, group))
+        except wshttp.ServerError:
+            return tr("{1} antwortet gerade nicht", label)
+        except wshttp.FetchError as e:
+            return str(e).splitlines()[0]
+        if not data:
+            return tr("Kein Cover bei {1} gefunden", label)
+        if not self._cover_big_enough(data, label, ask=ask):
+            from PySide6.QtGui import QImage
+            image = QImage.fromData(data)
+            return tr("Cover von {1} zu klein ({2}x{3})", label, image.width(), image.height())
+        new = tags.Cover(data, "image/png" if data[:4] == b"\x89PNG" else "image/jpeg", 3, label)
+
+        def apply(t):
+            t.data.covers = [new] + [c for c in t.data.covers if c.type != 3]
+        self._write(tr("Cover von {1}", label), tracks, apply)
+        self.panel.load(self.view.selected_tracks())
+        return ""
+
+    def fetch_covers(self) -> None:
+        """Cover step: every selected album on its own, several ones in a progress window."""
+        from ..websources import albumauto
+        tracks = self.view.selected_tracks()
+        if not tracks:
+            return
+        albums = albumauto.group_albums(tracks)
+        several = len(albums) > 1
+        dlg = None
+        if several:
+            dlg = _StayingProgress(tr("Cover holen ..."), len(albums), self)
+            dlg.setWindowTitle("PsyTags")
+        results = []
+        try:
+            with self._undo_group(tr("Cover holen")):
+                for i, album in enumerate(albums):
+                    if dlg:
+                        if dlg.stop.is_set():
+                            break
+                        dlg.setLabelText(albumauto.album_title(album))
+                        dlg.setValue(i)
+                    results.append(self.fetch_archive_cover(album, ask=not several))
+        finally:
+            if dlg:
+                dlg.finish()
+        failed = [r for r in results if r]
+        if not several and failed:
+            self.message(failed[0], 8000)
+        elif failed:
+            self.message(tr("{1} von {2} Alben ohne Cover", len(failed), len(results)), 8000)
+        else:
+            self.message(tr("Cover geladen: {1}", len(results)), 6000)
+
+    def fetch_cover_from_source(self, tracks, path: str, manual: bool = False,
+                                interactive: bool = True) -> str | None:
+        """Cover-only fetch from a tag source; replaces the front cover.
         ``manual``: started by the user, so a too small cover may be taken after asking.
         Without ``interactive`` no dialog opens. Returns None if it did not run, "" if it
         worked, otherwise what went wrong."""
@@ -882,8 +924,7 @@ class MainWindow(QMainWindow):
         from ..websources import http as wshttp
         from ..websources import runner
         from .dialogs.tagsources import ResultsDialog
-        path = path or self.settings.value("tagsources/cover_source", "")
-        if not path or not os.path.exists(path) or path == exclude or not tracks:
+        if not path or not os.path.exists(path) or not tracks:
             return None
         label = os.path.splitext(os.path.basename(path))[0].replace("&", "").replace("#", " – ")
         try:
@@ -1025,7 +1066,7 @@ class MainWindow(QMainWindow):
         return box.get("v")
 
     def run_source(self, path: str, quick: bool = False, note: str = ""):
-        from ..websources import albumauto
+        from ..websources import albumauto, coverart
         from ..websources import http as wshttp
         from ..websources import runner, srcfile
         from .dialogs.tagsources import (AdjustDialog, DiscogsTokenDialog, ResultsDialog,
@@ -1132,7 +1173,8 @@ class MainWindow(QMainWindow):
                     return
                 plan = d.plan()
                 return self._finish_source_import(name, path, plan, cover if d.use_cover() else None, d.leftovers(),
-                                                  complete=len(plan) == d.album.tracks)
+                                                  complete=len(plan) == d.album.tracks,
+                                                  archive=coverart.ids_after_dialog(album, cover))
 
     # ------------------------------------------------------------------ views
     def _fill_columns_menu(self):
@@ -1335,24 +1377,17 @@ class MainWindow(QMainWindow):
 
     def _import_match(self, src, path: str, match, interactive: bool) -> tuple[str | None, str | None]:
         """Write a certain match; returns the outcome of the cover and genre steps."""
-        from ..websources import albumauto
-        from ..websources import http as wshttp
-        from ..websources import runner
+        from ..websources import albumauto, coverart
         album = match.release.key
-        cover = None
-        if album.cover_url:
-            try:
-                cover = self._background(tr("Cover laden"), lambda: wshttp.fetch_bytes(
-                    runner.cover_download_url(album.cover_url)))
-            except Exception:
-                cover = None
         disabled = set(config.string_list(self.settings, "tagsources/disabled_fields"))
         return self._finish_source_import(src.get("name") or src.name, path, albumauto.plan_for(match, disabled),
-                                          cover, match.leftover_keys, interactive, complete=True)
+                                          None, match.leftover_keys, interactive, complete=True,
+                                          archive=coverart.ids_of(album))
 
     def _finish_source_import(self, name: str, path: str, plan: list, cover: bytes | None,
                               leftovers: list, interactive: bool = True,
-                              complete: bool = False) -> tuple[str | None, str | None]:
+                              complete: bool = False,
+                              archive: tuple[str, str] | None = None) -> tuple[str | None, str | None]:
         """Shared end of every tag source import: write, order the album, number it (only when
         ``complete``, i.e. every track has its file), ask about files without a track, then
         cover source and genres. Returns (cover, genres): None did not run, "" worked, else why not."""
@@ -1360,11 +1395,14 @@ class MainWindow(QMainWindow):
         use_cover = bool(cover) and self._cover_big_enough(cover, name)
         mime = "image/png" if cover and cover[:4] == b"\x89PNG" else "image/jpeg"
         values_by_track = {id(t): v for t, v in plan}
+        drop_comments = archive is not None and self.opts.drop_comments     # from MusicBrainz
 
         def apply(t):
             vals = values_by_track.get(id(t))
             if vals is None:
                 return False
+            if drop_comments:
+                albummatch.drop_comments(t)
             for k, v in albummatch.clean_import(vals, bool(t.get("MOOD"))).items():
                 t.set(k, v)
             if use_cover:                       # the source's cover replaces the existing ones
@@ -1381,9 +1419,10 @@ class MainWindow(QMainWindow):
         if interactive and leftovers:
             self._offer_trash(leftovers)
             self.view.select_tracks([t for t in selection if os.path.exists(t.path)])
-        # Last.fm runs while the cover source is searched; results are written after.
+        # Last.fm runs while the cover is fetched; results are written after.
         job = self.start_lastfm(written, interactive) if self._lastfm_enabled() else None
-        cover_result = self.fetch_cover_from_source(written, exclude=path, interactive=interactive)
+        # No IDs: not from MusicBrainz. Empty: settled in the adjust dialog.
+        cover_result = self.fetch_archive_cover(written, False, archive) if archive else None
         return cover_result, self.finish_lastfm(job, interactive) if job is not None else None
 
     def _renumber(self, tracks: list[Track]) -> None:
@@ -1458,6 +1497,8 @@ class MainWindow(QMainWindow):
             return
         dlg = _StayingProgress("", len(todo), self)
         dlg.setWindowTitle(tr("Alle Alben automatisch"))
+        dlg.set_hint(tr("MusicBrainz lässt nur eine Anfrage pro Sekunde zu. Je nach Tageszeit kann der Abruf "
+                        "deshalb länger dauern."))
         entries = []
         try:
             for i, tracks in enumerate(todo):
@@ -1523,11 +1564,9 @@ class MainWindow(QMainWindow):
         entry.detail = entry.detail.replace(f" · {failed}", f" · {entry.genres}" if entry.genres else "")
 
     def _retry_cover(self, entry) -> None:
-        """Cover source for one finished album, this time with its result list."""
-        failed = entry.cover
-        if self.fetch_cover_from_source(entry.tracks, manual=True) == "":
-            entry.cover = ""
-            entry.detail = entry.detail.replace(f" · {failed}", "")
+        """The archive once more for one finished album; a too small cover may be taken after asking."""
+        failed, entry.cover = entry.cover, self.fetch_archive_cover(entry.tracks)
+        entry.detail = entry.detail.replace(f" · {failed}", f" · {entry.cover}" if entry.cover else "")
 
     def customize_panel(self):
         from .dialogs.options import PanelDialog
@@ -1607,9 +1646,8 @@ class MainWindow(QMainWindow):
         elif cmd == "remove":
             cv.remove_current()
             self.save_tags()
-        elif cmd in ("fetch", "fetch_mb"):
-            path = self._manual_cover_source() if cmd == "fetch" else self._mb_cover_source()
-            self.fetch_cover_from_source(self.view.selected_tracks(), path=path, manual=True)
+        elif cmd == "fetch_mb":
+            self.fetch_cover_from_source(self.view.selected_tracks(), path=self._mb_cover_source(), manual=True)
         elif cmd == "preview":
             from .dialogs.cover import CoverPreview
             CoverPreview.show_for(self, cv)
@@ -1649,6 +1687,7 @@ class MainWindow(QMainWindow):
         if d.exec():
             self.opts = d.opts
             self.opts.save()
+            self.panel.blank_comments = self.opts.drop_comments
 
     def about(self):
         from .. import __version__

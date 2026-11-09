@@ -131,7 +131,7 @@ class CoverView(QFrame):
         fmt = c.mime.split("/")[-1].upper()
         n = f" ({self.index + 1}/{len(self.covers)})" if len(self.covers) > 1 else ""
         text = f"{typ}{n}\n{fmt} {dims} - {len(c.data) // 1024} KB"
-        if c.description:          # tag sources store their name here, e.g. "Apple Music"
+        if c.description:          # tag sources store their name here, e.g. "Cover Art Archive"
             text += "\n" + tr("Quelle: {1}", c.description)
         return text
 
@@ -245,7 +245,7 @@ class CoverView(QFrame):
             a.setEnabled(bool(enabled))
             a.triggered.connect(lambda _=False, k=key: self.request.emit(k))
         entries = self.fetch_entries() if self.fetch_entries else []
-        if entries:                                 # e.g. "Cover von Apple Music laden"
+        if entries:                                 # e.g. "Cover von MusicBrainz laden"
             m.addSeparator()
         for key, label in entries:
             m.addAction(label).triggered.connect(lambda _=False, k=key: self.request.emit(k))
@@ -269,6 +269,8 @@ class TagPanel(QWidget):
         super().__init__(parent)
         self.fields: list[PanelField] = []
         self.combos: dict[str, FieldCombo] = {}
+        self.blank_comments = True                  # several files start with the comment on "< blank >"
+        self.comment_preset = False
         self.dir_combo: QComboBox | None = None
         self.custom_values: dict[str, list[str]] = {}
         self.tracks = []
@@ -375,6 +377,7 @@ class TagPanel(QWidget):
     def load(self, tracks) -> None:
         self.tracks = list(tracks)
         n = len(self.tracks)
+        self.comment_preset = n > 1 and self.blank_comments
         for name, combo in self.combos.items():
             if name in genremood.LIST_FIELDS:            # "Rock; Pop" instead of "Rock\\Pop"
                 values = [genremood.join(t.get(name)) for t in self.tracks]
@@ -390,6 +393,8 @@ class TagPanel(QWidget):
                 current = values[0]
             else:
                 current = keep_text()
+            if name == "COMMENT" and self.comment_preset:
+                current = blank_text()
             choices = [keep_text(), blank_text()] if n else []
             choices += sorted(distinct, key=str.lower)
             extra = list(self.custom_values.get(name, []))
@@ -416,11 +421,15 @@ class TagPanel(QWidget):
     def dirty(self) -> bool:
         return self.covers_dirty or any(c.dirty for c in self.combos.values())
 
-    def pending(self) -> dict[str, str | None]:
-        """Changed fields -> new value (None = blank/remove). KEEP values are skipped."""
+    def pending(self, with_preset: bool = False) -> dict[str, str | None]:
+        """Changed fields -> new value (None = blank/remove). KEEP values are skipped.
+        ``with_preset``: also the comment that starts out blank; only a real save takes it,
+        never an automatic one when the selection changes or the window closes."""
         out: dict[str, str | None] = {}
         for name, combo in self.combos.items():
             if not combo.dirty:
+                if with_preset and name == "COMMENT" and self.comment_preset:
+                    out[name] = None
                 continue
             v = combo.currentText()
             if v == keep_text():

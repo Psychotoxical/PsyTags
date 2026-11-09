@@ -14,6 +14,7 @@ class Fake:
     def __init__(self, path="/music/Old/01.mp3", **fields):
         self.fields = {k.upper(): (v if isinstance(v, list) else [v]) for k, v in fields.items()}
         self.path = path
+        self.data = mock.MagicMock(covers=[])
 
     @property
     def folder(self):
@@ -274,6 +275,18 @@ class DialogTests(unittest.TestCase):
         d.finish()
         self.assertIsNone(d._guard)
 
+    def test_a_row_without_heading_loses_the_extra_height(self):
+        from psytags.ui.filelist import BAND_HEIGHT, ROW_HEIGHT
+        w = self._window()
+        tracks = [Fake(**FULL) for _ in range(3)]
+        w.model.set_tracks(tracks)
+        w.view.verticalHeader().resizeSection(1, ROW_HEIGHT + BAND_HEIGHT)    # left over from an earlier order
+        w.view._forget_bands()
+        w.view._refresh_bands()
+        self.assertEqual(w.view.rowHeight(0), ROW_HEIGHT + BAND_HEIGHT)
+        self.assertEqual(w.view.rowHeight(1), ROW_HEIGHT)
+        self.assertEqual(w.view.rowHeight(2), ROW_HEIGHT)
+
     def test_selecting_can_leave_the_scroll_position_alone(self):
         w = self._window()
         tracks = [Fake(**FULL), Fake(**FULL)]
@@ -296,6 +309,15 @@ class DialogTests(unittest.TestCase):
         self.assertFalse(w.model.keep_scroll)
         w.view._remember_scroll()
         self.assertIsNone(w.view._restore_scroll)
+
+    def test_progress_window_can_show_a_hint(self):
+        from psytags.ui.mainwindow import _StayingProgress
+        d = _StayingProgress("x", 2, None)
+        self.assertTrue(d.hint_label.isHidden())
+        d.set_hint("Das kann dauern.")
+        self.assertFalse(d.hint_label.isHidden())
+        self.assertEqual(d.hint_label.text(), "Das kann dauern.")
+        d.finish()
 
     def test_progress_window_shows_the_count(self):
         from psytags.ui.mainwindow import _StayingProgress

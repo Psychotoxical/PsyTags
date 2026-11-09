@@ -250,6 +250,7 @@ class Options:
     id3_version: int = 3
     write_id3v1: bool = False
     keep_mtime: bool = False
+    drop_comments: bool = True
     subfolders: bool = True
     save_on_selection_change: bool = True
     confirm_delete: bool = True

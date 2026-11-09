@@ -165,7 +165,7 @@ class TopBar(QWidget):
                                 [(tr("Auswahl"), w.act_moods), (tr("Alle"), w.act_moods_all)]))
         steps = [("MusicBrainz", shortcut_text(w.act_auto_mb), w.act_auto_mb),
                  (tr("Nummern"), shortcut_text(w.act_numbers), w.act_numbers),
-                 (tr("Cover"), tr("Eingestellte Quelle"), w.act_cover_fetch),
+                 (tr("Cover"), "Cover Art Archive", w.act_cover_fetch),
                  (tr("Genres"), shortcut_text(w.act_lastfm), w.act_lastfm),
                  (tr("Umbenennen"), shortcut_text(w.act_ttf), w.act_ttf)]
         for number, (title, hint, action) in enumerate(steps, 2):
