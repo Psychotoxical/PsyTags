@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PsyTags
+GenericName=Tag-Editor
+Comment=Tags von Audiodateien bearbeiten
+Exec=psytags %F
+Icon=audio-x-generic
+Terminal=false
+Categories=AudioVideo;Audio;
+MimeType=inode/directory;audio/mpeg;audio/flac;audio/mp4;audio/ogg;audio/x-opus+ogg;
