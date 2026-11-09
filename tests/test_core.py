@@ -98,29 +98,6 @@ class ScriptTests(unittest.TestCase):
         self.assertEqual(self.f("$unknown(x)"), "$unknown(x)")
 
 
-class ConvertTests(unittest.TestCase):
-    def test_tag_to_filename(self):
-        p = convert.tag_to_filename(T, "%artist% - %title%")
-        self.assertEqual(p, os.path.normpath("/music/Artist - Album/ACDC - Back in Black.mp3"))
-        p = convert.tag_to_filename(T, "%year%\\$num(%track%,2) %title%")
-        self.assertEqual(p, os.path.normpath("/music/1980/03 Back in Black.mp3"))
-
-    def test_tag_to_filename_folders_below_working_dir(self):
-        root = os.path.abspath(os.path.join(os.sep, "rip"))
-        t = FakeTrack({"ALBUM": "Close to the Edge", "TRACK": "3", "TITLE": "Siberian Khatru"},
-                      path=os.path.join(root, "Old Name", "CD1", "track03.flac"))
-        convert.working_dir = os.path.join(root, "First Album")
-        try:
-            # The new album goes next to the old album folder, also from a disc folder.
-            self.assertEqual(convert.tag_to_filename(t, "%album%\\$num(%track%,2) %title%"),
-                             os.path.join(root, "Close to the Edge", "03 Siberian Khatru.flac"))
-            # Without a folder part the file stays where it is.
-            self.assertEqual(convert.tag_to_filename(t, "%title%"),
-                             os.path.join(root, "Old Name", "CD1", "Siberian Khatru.flac"))
-        finally:
-            convert.working_dir = ""
-
-
 class GenreMoodTests(unittest.TestCase):
     def test_classify_lastfm_tags(self):
         from psytags import genremood

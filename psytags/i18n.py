@@ -16,7 +16,7 @@ EN: dict[str, str] = {
     "Im Dateimanager öffnen": "&Open in file manager", "&Optionen...": "&Options...",
     "Konfiguration sichern...": "Save &configuration...",
     "Konfigurationsordner öffnen": "Open configuration folder",
-    "Mp3tag-Konfiguration importieren...": "Import Mp3tag configuration...",
+    
     "&Beenden": "E&xit",
     "&Rückgängig": "&Undo", "&Wiederholen": "&Redo", "Au&sschneiden": "C&ut", "K&opieren": "C&opy",
     "Kopieren als &Text...": "Copy as Text...", "&Einfügen": "&Paste", "S&uchen...": "&Find...",

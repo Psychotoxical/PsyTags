@@ -1,4 +1,4 @@
-"""Undo/redo for tag writes and renames (Mp3tag: Edit > Undo / Redo)."""
+"""Undo/redo for tag writes and renames."""
 from __future__ import annotations
 
 import copy

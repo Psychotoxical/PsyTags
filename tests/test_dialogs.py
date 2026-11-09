@@ -47,6 +47,28 @@ class TagSourceButtonTests(unittest.TestCase):
         QTest.keyClick(d.tree, Qt.Key.Key_Return)
         self.assertEqual(d.result(), 1)
 
+    def test_heading_names_source_and_hits(self):
+        d = self._dialog()
+        self.assertEqual(d.title_label.text(), "Suchergebnisse")
+        self.assertEqual(d.subtitle_label.text(), "Test · 1 Treffer")
+
+    def test_note_joins_the_heading(self):
+        d = self._dialog()
+        d.add_note("Nicht sicher erkannt")
+        self.assertEqual(d.subtitle_label.text(), "Test · 1 Treffer · Nicht sicher erkannt")
+
+    def test_own_heading_replaces_title_and_lead(self):
+        d = self._dialog()
+        d.set_heading("Cover von Apple Music", "Bitte das passende Album wählen")
+        self.assertEqual(d.title_label.text(), "Cover von Apple Music")
+        self.assertEqual(d.windowTitle(), "Cover von Apple Music")
+        self.assertEqual(d.subtitle_label.text(), "Bitte das passende Album wählen · 1 Treffer")
+
+    def test_next_is_the_highlighted_button(self):
+        d = self._dialog()
+        self.assertEqual(self._button(d, "Weiter").objectName(), "DialogPrimary")
+        self.assertNotIn("&", self._button(d, "Weiter").text())
+
     def test_back_sits_directly_left_of_next(self):
         d = self._dialog()
         back, nxt = self._button(d, "Zurück"), self._button(d, "Weiter")

@@ -89,7 +89,14 @@ QPushButton#Step {
 }
 QPushButton#Step:hover { background: $HOVER; }
 QPushButton#Step:disabled { background: $CHROME; }
-QPushButton#Step QLabel { background: transparent; }
+QPushButton#Step QLabel, QFrame#StepSplit QLabel { background: transparent; }
+QFrame#StepSplit { background: $BUTTON; border: 1px solid $BORDER; border-radius: 8px; min-height: 56px; }
+QPushButton#StepChoice {
+    background: $HOVER; color: $TEXT; border: none; border-radius: 5px;
+    min-height: 22px; min-width: 0; padding: 0 12px; font-size: 11px; font-weight: 500;
+}
+QPushButton#StepChoice:hover { background: $ACCENT; color: $ACCENT_TEXT; }
+QPushButton#StepChoice:disabled { background: transparent; color: $DISABLED; }
 QLabel#StepNumber {
     min-width: 22px; max-width: 22px; min-height: 22px; max-height: 22px;
     border: 1px solid $ACCENT; border-radius: 12px; color: $ACCENT; font-weight: 600;
@@ -101,6 +108,24 @@ QLabel#StepKey, QLabel#PanelCount { color: $SECONDARY; font-size: 11px; }
 QLabel#StepTitle:disabled, QLabel#StepKey:disabled { color: $DISABLED; }
 QLabel#PanelTitle { font-size: 14px; font-weight: 600; }
 QLabel#FieldLabel { color: $SECONDARY; font-size: 12px; }
+QLabel#ProgressTitle { font-size: 14px; font-weight: 600; }
+QLabel#DialogTitle { font-size: 16px; font-weight: 600; }
+QLabel#DialogSubtitle { color: $SECONDARY; font-size: 12px; }
+QAbstractItemView#DialogList { background: $BACKGROUND; border: 1px solid $BORDER; border-radius: 8px; padding: 2px; }
+QTreeView#DialogList::item, QListView#DialogList::item { height: 28px; }
+QLabel#CoverBox { background: $FIELD; border: 1px solid $BORDER; border-radius: 8px; }
+QSplitter::handle { background: transparent; }
+QDialogButtonBox QPushButton { min-height: 26px; min-width: 84px; }
+QPushButton#DialogPrimary { background: $ACCENT; color: $ACCENT_TEXT; border: none; font-weight: 600; }
+QPushButton#DialogPrimary:hover { background: $ACCENT_HOVER; }
+QPushButton#DialogPrimary:disabled { background: $BUTTON; color: $DISABLED; }
+QLabel#ProgressCount { color: $SECONDARY; font-size: 12px; }
+QProgressBar { background: $FIELD; border: none; border-radius: 4px; }
+QProgressBar::chunk { background: $ACCENT; border-radius: 4px; }
+QPushButton#ChipButton { padding: 3px 11px; min-width: 0; border-radius: 11px; }
+QListWidget#SchemeChips { background: $FIELD; border: 1px solid $FIELD_BORDER; border-radius: 6px; padding: 4px; }
+QListWidget#SchemeChips::item { background: $BUTTON; border-radius: 10px; padding: 3px 10px; margin: 2px; }
+QListWidget#SchemeChips::item:hover { background: $HOVER; }
 QWidget#PanelHost { background: $CHROME; }
 QFrame#StepDivider { background: $BORDER; }
 QMenu { background: $CHROME; color: $TEXT; border: 1px solid $BORDER; padding: 4px; }

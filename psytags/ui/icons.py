@@ -6,11 +6,14 @@ Unknown names fall back to theme icons.
 from __future__ import annotations
 
 import math
+import os
 from functools import lru_cache
 
-from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt
+from PySide6.QtGui import (QBrush, QColor, QGuiApplication, QIcon, QImage, QPainter, QPainterPath, QPen,
+                           QPixmap, QPolygonF)
 
+from . import theme
 from .theme import ACCENT, CHROME, ERROR, ICON_INK, ICON_MUTED, ICON_POSITIVE, TEXT
 
 INK = QColor(ICON_INK)
@@ -426,26 +429,27 @@ def icon(name: str) -> QIcon:
     return QIcon()
 
 
+def _resource(name: str) -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources", name)
+
+
 def _app_icon() -> QIcon:
     ic = QIcon()
-    for size in (16, 32, 64, 128, 256):
-        pm = QPixmap(size, size)
-        pm.fill(Qt.GlobalColor.transparent)
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.scale(size / 16, size / 16)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor("#2f7bd6"))
-        p.drawRoundedRect(QRectF(0.5, 0.5, 15, 15), 3, 3)
-        p.setBrush(QColor("#ffffff"))
-        p.drawEllipse(QPointF(6, 11), 2.4, 2)
-        p.setPen(_pen(QColor("#ffffff"), 1.3))
-        p.drawLine(QPointF(8.2, 11), QPointF(8.2, 3.5))
-        p.drawLine(QPointF(8.2, 3.5), QPointF(12, 5))
-        p.end()
-        ic.addPixmap(pm)
+    for size in (16, 32, 64, 256):
+        ic.addFile(_resource(f"icon-{size}.png"), QSize(size, size))
     return ic
 
 
-def save_app_icon(path: str, size: int = 256) -> None:
-    _app_icon().pixmap(size, size).save(path)
+def logo_pixmap(height: int) -> QPixmap:
+    """The PsyTags lettering in the accent color of the current theme, sharp on any display."""
+    screen = QGuiApplication.primaryScreen()
+    ratio = screen.devicePixelRatio() if screen is not None else 1.0
+    image = QImage(_resource("logo.png")).scaledToHeight(round(height * ratio), Qt.TransformationMode.SmoothTransformation)
+    image = image.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
+    painter = QPainter(image)
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    painter.fillRect(image.rect(), QColor(theme.ACCENT))
+    painter.end()
+    pixmap = QPixmap.fromImage(image)
+    pixmap.setDevicePixelRatio(ratio)
+    return pixmap

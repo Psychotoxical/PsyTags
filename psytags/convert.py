@@ -1,4 +1,4 @@
-"""Converters (Mp3tag "Convert" menu) without UI."""
+"""Target paths and renames, without UI."""
 from __future__ import annotations
 
 import os
@@ -6,81 +6,28 @@ import pathlib
 import re
 import sys
 
-from . import script
 from .albumorder import album_root
 
-# Characters that Mp3tag replaces in tag values when building file names.
-# `\` inside the *format string* creates folders; inside values it is replaced.
-# "/" is dropped like in Mp3tag: DISCNUMBER "01/01" -> "0101", "AC/DC" -> "ACDC".
+# What happens to characters in tag values that a file name cannot hold.
+# "/" is dropped: DISCNUMBER "01/01" -> "0101", "AC/DC" -> "ACDC".
 FILENAME_REPLACEMENTS = {"\\": "-", "/": "", ":": "-", "*": "", "?": "", '"': "''",
                          "<": "", ">": "", "|": ""}
 
-# Mp3tag's working directory (Tag Panel "Verzeichnis"). Relative target paths with
-# folders are created below it, not below the file's own folder. Set by the UI.
+# The folder that was opened; previews show target paths relative to it. Set by the UI.
 working_dir = ""
-
-
-# Stand-ins for separators inside tag values: they must not create folders, but
-# functions like $num(%track%,2) still have to see "14/14" and not "1414".
-_VALUE_SEP = {"\\": "\ue001", "/": "\ue002"}
-
-
-class _SanitizedTrack:
-    """Script context that hides folder separators inside field values."""
-
-    def __init__(self, track):
-        self._t = track
-        self._script_vars = {}
-
-    def field(self, name: str) -> list[str]:
-        vals = self._t.field(name)
-        if name.upper() in ("_FOLDERPATH", "_PATH", "_FILENAME_PATH", "_WORKINGDIR"):
-            return vals
-        out = []
-        for v in vals:
-            for a, b in _VALUE_SEP.items():
-                v = v.replace(a, b)
-            out.append(v)
-        return out
-
-    def __getattr__(self, item):
-        return getattr(self._t, item)
-
-
-def _clean_part(part: str) -> str:
-    """Replace characters not allowed in file names, after all functions ran."""
-    for a, b in FILENAME_REPLACEMENTS.items():
-        part = part.replace(_VALUE_SEP.get(a, a), b)
-    return part
 
 
 WINDOWS_PATH_LIMIT = 259                  # MAX_PATH without its terminator
 
 
-def tag_to_filename(track, fmt: str) -> str:
-    """Return the new absolute path for ``track`` (extension is kept)."""
-    name = script.format(fmt, _SanitizedTrack(track)).strip()
-    if not name:
-        return track.path
-    # Format-level backslashes (and slashes) are folder separators.
-    m = re.match(r"([A-Za-z]:)[\\/]", name)           # absolute Windows path: D:\Musik\...
-    drive = m.group(1) if m else ""
-    if drive:
-        name = name[2:]
-    parts = [_clean_part(p).strip() for p in re.split(r"[\\/]", name)]
-    parts = [p.rstrip(". ") or "_" for p in parts if p != ""]
+def place(track, parts: list[str]) -> str:
+    """Absolute target for name parts (folders, then the file name); the extension is kept.
+    With folders the new album goes next to the old one, which then goes away."""
+    parts = [p.strip().rstrip(". ") or "_" for p in parts if p.strip()]
     if not parts:
         return track.path
-    ext = os.path.splitext(track.path)[1]
-    rel = os.path.join(*parts) + ext
-    if drive:
-        target = drive + os.sep + rel
-    elif name.startswith(("/", "\\")):
-        target = os.sep + rel
-    else:
-        # A format with folders puts the new album next to the old one, which then goes away.
-        target = os.path.join(os.path.dirname(album_root(track.folder)) if len(parts) > 1 else track.folder, rel)
-    target = os.path.normpath(target)
+    rel = os.path.join(*parts) + os.path.splitext(track.path)[1]
+    target = os.path.normpath(os.path.join(os.path.dirname(album_root(track.folder)) if len(parts) > 1 else track.folder, rel))
     return fit_path(target) if sys.platform == "win32" else target
 
 

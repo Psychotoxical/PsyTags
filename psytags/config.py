@@ -9,6 +9,11 @@ from dataclasses import dataclass, field, asdict
 from PySide6.QtCore import QSettings, QStandardPaths
 
 APP = "PsyTags"
+FIELDS = ["TITLE", "ARTIST", "ALBUM", "YEAR", "TRACK", "GENRE", "COMMENT", "ALBUMARTIST",
+          "COMPOSER", "DISCNUMBER", "BPM", "PUBLISHER", "CONDUCTOR", "LYRICIST", "ORIGARTIST",
+          "ORIGALBUM", "ORIGYEAR", "MOOD", "INITIALKEY", "ISRC", "GROUPING", "SUBTITLE",
+          "ENCODEDBY", "COPYRIGHT", "ALBUMSORT", "ARTISTSORT", "TITLESORT", "ALBUMARTISTSORT",
+          "COMPOSERSORT", "MEDIATYPE", "LANGUAGE", "UNSYNCEDLYRICS", "MUSICBRAINZ_ALBUMTYPE"]
 
 
 def config_dir() -> str:
@@ -246,8 +251,6 @@ class Options:
     write_id3v1: bool = False
     keep_mtime: bool = False
     subfolders: bool = True
-    favorite_dir: str = ""
-    start_in_last_dir: bool = True
     save_on_selection_change: bool = True
     confirm_delete: bool = True
     alt_row_colors: bool = True

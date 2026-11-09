@@ -1,6 +1,6 @@
 """Unified tag access on top of mutagen.
 
-Fields are exposed with Mp3tag-style upper-case names (TITLE, ARTIST, TRACK, ...)
+Fields are exposed with upper-case names (TITLE, ARTIST, TRACK, ...)
 mapped to a list of string values. Each concrete tag format translates those
 names to its native keys.
 """
@@ -46,7 +46,7 @@ ID3_URL = {
     "WWWCOMMERCIALINFO": "WCOM", "WWWCOPYRIGHT": "WCOP", "WWWPAYMENT": "WPAY",
     "WWWPUBLISHER": "WPUB", "WWWRADIOPAGE": "WORS",
 }
-# TXXX descriptions used by MusicBrainz Picard / Mp3tag for well-known fields.
+# TXXX descriptions other taggers use for well-known fields.
 ID3_TXXX = {
     "MUSICBRAINZ_ALBUMID": "MusicBrainz Album Id",
     "MUSICBRAINZ_ARTISTID": "MusicBrainz Artist Id",
@@ -71,7 +71,7 @@ _ID3_URL_REV = {v: k for k, v in ID3_URL.items()}
 _ID3_TXXX_REV = {v.upper(): k for k, v in ID3_TXXX.items()}
 
 # ---------------------------------------------------------------------------
-# Vorbis comments (FLAC, Ogg, Opus). Mp3tag stores most fields verbatim; these
+# Vorbis comments (FLAC, Ogg, Opus). Most fields are stored verbatim; these
 # are the default renames (Options > Tags > Mapping in the user's setup).
 # The MusicBrainz release fields use Picard's Vorbis keys. The legacy keys
 # (MUSICBRAINZ_ALBUMTYPE, ...) are still read but never written: servers like
@@ -477,7 +477,7 @@ def _picture(c: Cover) -> Picture:
 
 
 def remove(path: str) -> None:
-    """Remove all tags (Mp3tag: File > Remove tag)."""
+    """Remove all tags."""
     ext = os.path.splitext(path)[1].lower().lstrip(".")
     if ext in ("mp3", "mp2", "aac"):
         _remove_mp3(path)

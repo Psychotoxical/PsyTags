@@ -4,11 +4,11 @@ from __future__ import annotations
 import copy
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
-                               QFormLayout, QHBoxLayout, QLineEdit, QListWidget, QListWidgetItem,
-                               QPushButton, QTabWidget, QToolButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
+                               QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
+                               QTabWidget, QVBoxLayout, QWidget)
 
-from ... import config
+from ... import config, numbering
 from ...config import Column, Options, PanelField
 from ...i18n import tr
 from ..persist import remember
@@ -138,7 +138,7 @@ class PanelDialog(_ListEditor):
         super().__init__(tr("Tag-Panel anpassen..."), fields, parent)
         self.name, self.value = QLineEdit(), QComboBox()
         self.value.setEditable(True)
-        from .converters import FIELDS
+        from ...config import FIELDS
         self.value.addItems(FIELDS + ["_DIRECTORY"])
         self.size = QComboBox()
         self.size.addItems([tr("Ganze Breite"), "1/2", "1/3", "1/4"])
@@ -181,13 +181,13 @@ class PanelDialog(_ListEditor):
 
 
 class OptionsDialog(QDialog):
-    def __init__(self, opts: Options, parent=None):
+    def __init__(self, opts: Options, parent=None, tab: str = ""):
         super().__init__(parent)
         self.opts = copy.deepcopy(opts)
         self.setWindowTitle(tr("Optionen"))
         self.resize(560, 420)
         lay = QVBoxLayout(self)
-        tabs = QTabWidget()
+        tabs = self.tabs = QTabWidget()
         lay.addWidget(tabs)
 
         g = QWidget()
@@ -213,19 +213,6 @@ class OptionsDialog(QDialog):
         self.subfolders = QCheckBox(tr("Unterverzeichnisse einlesen"))
         self.subfolders.setChecked(opts.subfolders)
         f.addRow(self.subfolders)
-        self.last_dir = QCheckBox(tr("Beim Start letztes Verzeichnis öffnen"))
-        self.last_dir.setChecked(opts.start_in_last_dir)
-        f.addRow(self.last_dir)
-        row = QHBoxLayout()
-        self.fav = QLineEdit(opts.favorite_dir)
-        b = QToolButton()
-        b.setText("...")
-        b.clicked.connect(lambda: self.fav.setText(
-            QFileDialog.getExistingDirectory(self, tr("Verzeichnis auswählen"), self.fav.text())
-            or self.fav.text()))
-        row.addWidget(self.fav, 1)
-        row.addWidget(b)
-        f.addRow(tr("Standardverzeichnis:"), row)
         tabs.addTab(g, tr("Verzeichnisse"))
 
         g = QWidget()
@@ -238,21 +225,74 @@ class OptionsDialog(QDialog):
         self.v1.setChecked(opts.write_id3v1)
         f.addRow(self.v1)
         tabs.addTab(g, tr("Tags"))
+        tabs.addTab(self._numbers_tab(), tr("Nummern"))
+        tabs.addTab(self._lastfm_tab(), tr("Last.fm"))
 
         lay.addWidget(_buttons(self))
         tabs.setCurrentIndex(int(config.settings().value("dialogs/options/tab", 0)))
+        for i in range(tabs.count()):
+            if tab and tabs.tabText(i) == tab:
+                tabs.setCurrentIndex(i)
         tabs.currentChanged.connect(lambda i: config.settings().setValue("dialogs/options/tab", i))
         remember(self, "options")
 
+    def _lastfm_tab(self) -> QWidget:
+        s = config.settings()
+        g = QWidget()
+        f = QVBoxLayout(g)
+        stored = s.value("lastfm/api_key", "")
+        self.lastfm_on = QCheckBox(tr("Genres von Last.fm holen"))
+        self.lastfm_on.setChecked(s.value("lastfm/enabled", "false") in (True, "true") or not stored)
+        f.addWidget(self.lastfm_on)
+        link = QLabel(tr("API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>"
+                         "last.fm/api/account/create</a>):"))
+        link.setOpenExternalLinks(True)
+        link.setWordWrap(True)
+        f.addWidget(link)
+        self.lastfm_key = QLineEdit(stored)
+        f.addWidget(self.lastfm_key)
+        f.addStretch(1)
+        return g
+
+    def _numbers_tab(self) -> QWidget:
+        fmt = numbering.NumberFormat.load()
+        g = QWidget()
+        f = QFormLayout(g)
+        self.number_boxes = {}
+        for name, text in (("track_zeros", "Tracknummer mit führender Null"),
+                           ("track_total", "Tracknummer mit Gesamtzahl"),
+                           ("disc_on", "Discnummer schreiben"),
+                           ("disc_zeros", "Discnummer mit führender Null"),
+                           ("disc_total", "Discnummer mit Gesamtzahl")):
+            box = QCheckBox(tr(text))
+            box.setChecked(getattr(fmt, name))
+            box.toggled.connect(self._number_example)
+            self.number_boxes[name] = box
+            f.addRow(box)
+        self.number_sample = QLabel()
+        f.addRow(self.number_sample)
+        self._number_example()
+        return g
+
+    def _number_format(self) -> numbering.NumberFormat:
+        return numbering.NumberFormat(**{name: box.isChecked() for name, box in self.number_boxes.items()})
+
+    def _number_example(self, *_args) -> None:
+        track, disc = numbering.example(self._number_format())
+        self.number_sample.setText(tr("Beispiel: Track {1}, Disc {2}", track, disc) if disc else tr("Beispiel: Track {1}", track))
+
     def accept(self):
+        self._number_format().save()
+        s = config.settings()
+        key = self.lastfm_key.text().strip()
+        s.setValue("lastfm/api_key", key)
+        s.setValue("lastfm/enabled", self.lastfm_on.isChecked() and bool(key))
         o = self.opts
         o.language = "de" if self.lang.currentIndex() == 0 else "en"
         o.theme = "latte" if self.theme.currentIndex() == 1 else "mocha"
         o.save_on_selection_change = self.autosave.isChecked()
         o.keep_mtime = self.keep_mtime.isChecked()
         o.subfolders = self.subfolders.isChecked()
-        o.start_in_last_dir = self.last_dir.isChecked()
-        o.favorite_dir = self.fav.text()
         o.id3_version = 3 if self.id3.currentIndex() == 0 else 4
         o.write_id3v1 = self.v1.isChecked()
         super().accept()

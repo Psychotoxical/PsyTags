@@ -15,7 +15,7 @@ def _track(album, disc, track):
 
 
 class SortTests(unittest.TestCase):
-    def test_click_sorting_is_stable_like_mp3tag(self):
+    def test_click_sorting_is_stable(self):
         tracks = [_track(a, d, n) for a in ("Beta", "Alpha") for d in (2, 1) for n in (3, 1, 2)]
         m = FileListModel([config.Column(**c.__dict__) for c in config.DEFAULT_COLUMNS])
         m.set_tracks(tracks)

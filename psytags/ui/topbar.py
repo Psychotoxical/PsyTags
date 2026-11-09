@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButt
                                QToolButton, QVBoxLayout, QWidget)
 
 from ..i18n import tr
+from .icons import logo_pixmap
 
 
 def shortcut_text(action: QAction) -> str:
@@ -69,6 +70,32 @@ class StepButton(ActionButton):
         row.addLayout(text, 1)
 
 
+class SplitStep(QFrame):
+    """A step with two ways to run it, e.g. on the selection or on the whole list."""
+
+    def __init__(self, number: int, title: str, hint: str, choices: list[tuple[str, QAction]], parent=None):
+        super().__init__(parent)
+        self.setObjectName("StepSplit")
+        row = QHBoxLayout(self)
+        row.setContentsMargins(12, 0, 8, 0)
+        row.setSpacing(10)
+        row.addWidget(_label(str(number), "StepNumber"))
+        text = QVBoxLayout()
+        text.setSpacing(0)
+        text.addStretch(1)
+        text.addWidget(_label(title, "StepTitle"))
+        text.addWidget(_label(hint, "StepKey"))
+        text.addStretch(1)
+        row.addLayout(text, 1)
+        buttons = QVBoxLayout()
+        buttons.setSpacing(2)
+        buttons.addStretch(1)
+        for label, action in choices:
+            buttons.addWidget(ActionButton(action, label, "StepChoice"))
+        buttons.addStretch(1)
+        row.addLayout(buttons)
+
+
 class PrimaryButton(ActionButton):
     def __init__(self, title: str, hint: str, action: QAction, parent=None):
         super().__init__(action, "", "Primary", parent)
@@ -98,8 +125,10 @@ class TopBar(QWidget):
         row = QHBoxLayout(bar)
         row.setContentsMargins(16, 10, 16, 10)
         row.setSpacing(8)
-        title = QLabel("PsyTags")
+        title = QLabel()
         title.setObjectName("Wordmark")
+        title.setPixmap(logo_pixmap(32))
+        title.setAccessibleName("PsyTags")
         row.addWidget(title)
         row.addWidget(ActionButton(w.act_dir, tr("Ordner öffnen")))
         row.addWidget(ActionButton(w.act_add_dir, tr("Ordner hinzufügen")))
@@ -132,12 +161,13 @@ class TopBar(QWidget):
         row.addSpacing(8)
         row.addWidget(divider)
         row.addSpacing(8)
-        steps = [(tr("Moods"), shortcut_text(w.act_moods), w.act_moods),
-                 ("MusicBrainz", shortcut_text(w.act_auto_mb), w.act_auto_mb),
-                 (tr("Nummern"), shortcut_text(w.act_wizard), w.act_wizard),
+        row.addWidget(SplitStep(1, tr("Moods"), shortcut_text(w.act_moods),
+                                [(tr("Auswahl"), w.act_moods), (tr("Alle"), w.act_moods_all)]))
+        steps = [("MusicBrainz", shortcut_text(w.act_auto_mb), w.act_auto_mb),
+                 (tr("Nummern"), shortcut_text(w.act_numbers), w.act_numbers),
                  (tr("Cover"), tr("Eingestellte Quelle"), w.act_cover_fetch),
                  (tr("Genres"), shortcut_text(w.act_lastfm), w.act_lastfm),
                  (tr("Umbenennen"), shortcut_text(w.act_ttf), w.act_ttf)]
-        for number, (title, hint, action) in enumerate(steps, 1):
+        for number, (title, hint, action) in enumerate(steps, 2):
             row.addWidget(StepButton(number, title, hint, action))
         return bar

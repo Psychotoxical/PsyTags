@@ -48,10 +48,12 @@ def _buttons(dlg, back=False, ok_text=None):
     the dialog's default button then; otherwise Qt picks e.g. "Vorschau" on show."""
     bb = QDialogButtonBox(dlg)
     if back:
-        b = bb.addButton(tr("< &Zurück"), QDialogButtonBox.ButtonRole.AcceptRole)
+        b = bb.addButton(tr("< &Zurück").replace("&", ""), QDialogButtonBox.ButtonRole.AcceptRole)
         b.setAutoDefault(False)
         b.clicked.connect(lambda: dlg.done(2))
-    ok = bb.addButton(ok_text or tr("&Weiter >"), QDialogButtonBox.ButtonRole.AcceptRole)
+    ok = QPushButton((ok_text or tr("&Weiter >")).replace("&", ""))
+    ok.setObjectName("DialogPrimary")             # before the box lays it out: the style is cached then
+    bb.addButton(ok, QDialogButtonBox.ButtonRole.AcceptRole)
     ok.setDefault(True)
     ok.clicked.connect(dlg.accept)
     bb.addButton(tr("Abbrechen"), QDialogButtonBox.ButtonRole.RejectRole)
@@ -59,15 +61,46 @@ def _buttons(dlg, back=False, ok_text=None):
     return bb
 
 
+def _source_name(source) -> str:
+    return source.name.replace("&", "").replace("#", " - ")
+
+
+def _roomy(layout: QVBoxLayout) -> None:
+    layout.setContentsMargins(22, 20, 22, 18)
+    layout.setSpacing(14)
+
+
+def _heading(title: str, subtitle: str = "") -> tuple[QWidget, QLabel, QLabel]:
+    box = QWidget()
+    column = QVBoxLayout(box)
+    column.setContentsMargins(0, 0, 0, 0)
+    column.setSpacing(2)
+    head = QLabel(title)
+    head.setObjectName("DialogTitle")
+    head.setWordWrap(True)
+    sub = QLabel(subtitle)
+    sub.setObjectName("DialogSubtitle")
+    sub.setWordWrap(True)
+    column.addWidget(head)
+    column.addWidget(sub)
+    return box, head, sub
+
+
+def _as_list(view) -> None:
+    """Lists in these dialogs look like the file list: calm rows, no stripes."""
+    view.setObjectName("DialogList")
+    view.setAlternatingRowColors(False)
+
+
 class SearchDialog(QDialog):
     def __init__(self, source, tracks, parent=None, values: list[str] | None = None):
         super().__init__(parent)
         self.source = source
-        self.setWindowTitle(source.name.replace("&", "").replace("#", " - "))
-        self.setMinimumWidth(460)
+        self.setWindowTitle(_source_name(source))
+        self.setMinimumWidth(480)
         lay = QVBoxLayout(self)
-        form = QFormLayout()
-        lay.addLayout(form)
+        _roomy(lay)
+        lay.addWidget(_heading(_source_name(source), tr("Welches Album soll gesucht werden?"))[0])
         self.inputs: list[QComboBox] = []
         s = config.settings()
         for i, f in enumerate(source.search_fields):
@@ -79,7 +112,13 @@ class SearchDialog(QDialog):
                 c.setEditText(values[i])
             else:
                 c.setEditText(script.format(f.fmt, tracks[0]).strip() if tracks else "")
-            form.addRow(f.label.replace("&", "&&") + ":", c)
+            field = QVBoxLayout()
+            field.setSpacing(4)
+            label = QLabel(f.label.replace("&", ""))
+            label.setObjectName("FieldLabel")
+            field.addWidget(label)
+            field.addWidget(c)
+            lay.addLayout(field)
             self.inputs.append(c)
         lay.addWidget(_buttons(self, ok_text=tr("&Suchen")))
         remember(self, "ts_search")
@@ -101,17 +140,26 @@ class ResultsDialog(QDialog):
     def __init__(self, source, rows: list[dict[str, str]], parent=None):
         super().__init__(parent)
         self.rows = rows
-        self.setWindowTitle(tr("Suchergebnisse") + f" - {source.name.replace('&', '').replace('#', ' - ')}")
-        self.resize(900, 460)
+        self.setWindowTitle(f"{tr('Suchergebnisse')} - {_source_name(source)}")
+        self.resize(1040, 560)
         cols = [c for c in source.index_columns if not c.startswith("_")]
         self.cols = cols
+        self._hits = tr("{1} Treffer", len(rows))
+        self._lead = _source_name(source)
+        self._note = ""
         lay = QVBoxLayout(self)
+        _roomy(lay)
+        box, self.title_label, self.subtitle_label = _heading(tr("Suchergebnisse"))
+        lay.addWidget(box)
+        self._show_subtitle()
         split = QSplitter()
+        split.setHandleWidth(14)
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(cols)
         self.tree.setRootIsDecorated(False)
         self.tree.setSortingEnabled(True)
-        self.tree.setAlternatingRowColors(True)
+        self.tree.setUniformRowHeights(True)
+        _as_list(self.tree)
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         for i, r in enumerate(rows):
             it = QTreeWidgetItem([r.get(c, "") for c in cols])
@@ -126,12 +174,14 @@ class ResultsDialog(QDialog):
         split.addWidget(self.tree)
         side = QWidget()
         sl = QVBoxLayout(side)
+        sl.setContentsMargins(0, 0, 0, 0)
+        sl.setSpacing(10)
         self.cover = QLabel()
-        self.cover.setFixedSize(200, 200)
+        self.cover.setObjectName("CoverBox")
+        self.cover.setFixedSize(220, 220)
         self.cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.cover.setStyleSheet("background: palette(base); border: 1px solid palette(mid);")
         sl.addWidget(self.cover)
-        self.preview_btn = QPushButton(tr("&Vorschau"))
+        self.preview_btn = QPushButton(tr("&Vorschau").replace("&", ""))
         self.preview_btn.clicked.connect(self._preview)
         sl.addWidget(self.preview_btn)
         sl.addStretch(1)
@@ -143,6 +193,19 @@ class ResultsDialog(QDialog):
         remember(self, "ts_results/" + source.name.replace("/", "_"))
         if rows:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
+
+    def _show_subtitle(self) -> None:
+        self.subtitle_label.setText(" · ".join(p for p in (self._lead, self._hits, self._note) if p))
+
+    def set_heading(self, title: str, lead: str) -> None:
+        self.setWindowTitle(title)
+        self.title_label.setText(title)
+        self._lead = lead
+        self._show_subtitle()
+
+    def add_note(self, note: str) -> None:
+        self._note = note
+        self._show_subtitle()
 
     def selected(self) -> dict[str, str] | None:
         it = self.tree.currentItem()
@@ -168,13 +231,13 @@ class ResultsDialog(QDialog):
                 img = QImage.fromData(data)
                 if not img.isNull():
                     self.cover.setPixmap(QPixmap.fromImage(img).scaled(
-                        200, 200, Qt.AspectRatioMode.KeepAspectRatio,
+                        218, 218, Qt.AspectRatioMode.KeepAspectRatio,
                         Qt.TransformationMode.SmoothTransformation))
         self._jobs.append(run_async(lambda: fetch_bytes(url), done))
 
 
 class AdjustDialog(QDialog):
-    """Mp3tag's "Adjust tag information": choose fields, align tracks with files."""
+    """Adjust a tag source result: choose fields, align tracks with files."""
 
     def __init__(self, album, tracks, cover: bytes | None = None, parent=None):
         super().__init__(parent)
@@ -185,14 +248,23 @@ class AdjustDialog(QDialog):
         # Files are placed by their titles; what has no track stands behind the last one.
         self.files = albumauto.prealign(list(tracks), album)
         self.setWindowTitle(tr("Tag-Informationen anpassen"))
-        self.resize(1000, 560)
+        self.resize(1180, 660)
         lay = QVBoxLayout(self)
+        _roomy(lay)
+        about = " · ".join(v for v in (album.value("ALBUM", 0), album.value("ALBUMARTIST", 0),
+                                       album.value("YEAR", 0)[:4]) if v)
+        lay.addWidget(_heading(tr("Tag-Informationen anpassen"), about)[0])
         split = QSplitter()
+        split.setHandleWidth(14)
         left = QWidget()
         ll = QVBoxLayout(left)
         ll.setContentsMargins(0, 0, 0, 0)
-        ll.addWidget(QLabel(tr("Felder:")))
+        ll.setSpacing(8)
+        fields_label = QLabel(tr("Felder:"))
+        fields_label.setObjectName("FieldLabel")
+        ll.addWidget(fields_label)
         self.fields = QListWidget()
+        _as_list(self.fields)
         s = config.settings()
         disabled = set(config.string_list(s, "tagsources/disabled_fields"))
         for name in album.fields:
@@ -205,14 +277,14 @@ class AdjustDialog(QDialog):
         ll.addWidget(self.fields, 1)
         self.cover_box = QCheckBox(tr("Cover"))
         self.cover_lbl = QLabel()
+        self.cover_lbl.setObjectName("CoverBox")
         self.cover_lbl.setFixedSize(160, 160)
         self.cover_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.cover_lbl.setStyleSheet("background: palette(base); border: 1px solid palette(mid);")
         if cover:
             img = QImage.fromData(cover)
             if not img.isNull():
                 self.cover_lbl.setPixmap(QPixmap.fromImage(img).scaled(
-                    160, 160, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                    158, 158, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.cover_box.setChecked(bool(cover))      # always on; unchecking applies to this import only
         self.cover_box.setEnabled(bool(cover))
         ll.addWidget(self.cover_box)
@@ -222,9 +294,14 @@ class AdjustDialog(QDialog):
         right = QWidget()
         rl = QVBoxLayout(right)
         rl.setContentsMargins(0, 0, 0, 0)
-        rl.addWidget(QLabel(tr("Links die Tracks der Quelle, rechts Ihre Dateien. Dateien per "
-                               "Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben:")))
+        rl.setSpacing(8)
+        explain = QLabel(tr("Links die Tracks der Quelle, rechts Ihre Dateien. Dateien per "
+                            "Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben:"))
+        explain.setObjectName("DialogSubtitle")
+        explain.setWordWrap(True)
+        rl.addWidget(explain)
         pair = QSplitter()
+        pair.setHandleWidth(14)
         self.source_table = _TrackTable([tr("Track"), tr("Titel (Quelle)"), tr("Länge")], 1)
         self.source_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table = _TrackTable([tr("Länge"), tr("Datei")], 1)
@@ -242,7 +319,7 @@ class AdjustDialog(QDialog):
         rl.addWidget(pair, 1)
         row = QHBoxLayout()
         for text, d, key in ((tr("Nach &oben"), -1, "Alt+Up"), (tr("Nach &unten"), 1, "Alt+Down")):
-            b = QPushButton(text)
+            b = QPushButton(text.replace("&", ""))
             b.clicked.connect(lambda _=False, d=d: self._move(d))
             row.addWidget(b)
             QShortcut(QKeySequence(key), self, lambda d=d: self._move(d))
@@ -252,7 +329,8 @@ class AdjustDialog(QDialog):
         row.addWidget(self.hint)
         rl.addLayout(row)
         split.addWidget(right)
-        split.setStretchFactor(1, 2)
+        split.setStretchFactor(1, 3)
+        split.setSizes([300, 860])
         lay.addWidget(split, 1)
         lay.addWidget(_buttons(self, back=True, ok_text=tr("&Speichern")))
         self._fill()
@@ -363,7 +441,7 @@ class _TrackTable(QTreeWidget):
         super().__init__()
         self.setHeaderLabels(headers)
         self.setRootIsDecorated(False)
-        self.setAlternatingRowColors(True)
+        _as_list(self)
         self.setUniformRowHeights(True)
         self.header().setSectionResizeMode(stretch, QHeaderView.ResizeMode.Stretch)
         self.invisibleRootItem().setFlags(self.invisibleRootItem().flags()
@@ -405,34 +483,6 @@ class DiscogsTokenDialog(QDialog):
 
     def accept(self):
         config.settings().setValue("tagsources/discogs_token", self.token.text().strip())
-        super().accept()
-
-
-class LastfmDialog(QDialog):
-    """Switch for fetching genres from Last.fm, plus the user's API key."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        from PySide6.QtWidgets import QCheckBox, QLineEdit
-        s = config.settings()
-        self.setWindowTitle(tr("Genres von Last.fm"))
-        lay = QVBoxLayout(self)
-        self.enabled = QCheckBox(tr("Nach dem Tag-Import Genres von Last.fm holen"))
-        self.enabled.setChecked(s.value("lastfm/enabled", "false") in (True, "true"))
-        lay.addWidget(self.enabled)
-        lbl = QLabel(tr("API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>"
-                        "last.fm/api/account/create</a>):"))
-        lbl.setOpenExternalLinks(True)
-        lbl.setWordWrap(True)
-        lay.addWidget(lbl)
-        self.key = QLineEdit(s.value("lastfm/api_key", ""))
-        lay.addWidget(self.key)
-        lay.addWidget(_buttons(self, ok_text=tr("OK")))
-
-    def accept(self):
-        s = config.settings()
-        s.setValue("lastfm/enabled", self.enabled.isChecked())
-        s.setValue("lastfm/api_key", self.key.text().strip())
         super().accept()
 
 

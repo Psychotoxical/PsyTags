@@ -16,4 +16,4 @@ psytags = "psytags.app:main"
 include = ["psytags*"]
 
 [tool.setuptools.package-data]
-psytags = ["resources/*.txt"]
+psytags = ["resources/*.txt", "resources/*.png"]

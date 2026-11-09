@@ -1,7 +1,6 @@
 """File list (left side of the main window), grouped by album."""
 from __future__ import annotations
 
-import random
 import re
 from dataclasses import dataclass, field
 
@@ -70,6 +69,7 @@ class FileListModel(QAbstractTableModel):
         self.columns = [c for c in columns if c.enabled]
         self.all_columns = columns
         self.sort_keys: list[tuple[int, bool]] = []     # (column, descending)
+        self.keep_scroll = False                        # the next reset is no new list
         self.filter_text = ""
         self._filter = None
         self._cache: dict[tuple[int, int], str] = {}
@@ -183,6 +183,7 @@ class FileListModel(QAbstractTableModel):
         slots = [i for i, t in enumerate(self.all) if id(t) in ids]
         body = sorted((self.all[i] for i in slots if id(self.all[i]) not in last_ids), key=sort_key)
         tail = sorted((self.all[i] for i in slots if id(self.all[i]) in last_ids), key=sort_key)
+        self.keep_scroll = True
         self.beginResetModel()
         for i, t in zip(slots, body + tail):
             self.all[i] = t
@@ -247,26 +248,21 @@ class FileListModel(QAbstractTableModel):
 
     def sort_by(self, col: int, add: bool) -> None:
         self.beginResetModel()
-        if col == ICON_COL:
-            self.sort_keys = []
-            random.shuffle(self.rows)
-            self._number()
+        # The sort is stable on what is shown now: Track, then Disc, then Album gives
+        # albums with discs in order and tracks in order.
+        self._keep_current_order()
+        existing = [i for i, (c, _) in enumerate(self.sort_keys) if c == col]
+        if existing and (add or len(self.sort_keys) == 1 or existing[0] == 0):
+            i = existing[0]
+            c, d = self.sort_keys[i]
+            self.sort_keys[i] = (c, not d)
+            if not add:
+                self.sort_keys = [self.sort_keys[i]]
+        elif add:
+            self.sort_keys.append((col, False))
         else:
-            # Like Mp3tag the sort is stable on what is shown now: Track, then Disc,
-            # then Album gives albums with discs in order and tracks in order.
-            self._keep_current_order()
-            existing = [i for i, (c, _) in enumerate(self.sort_keys) if c == col]
-            if existing and (add or len(self.sort_keys) == 1 or existing[0] == 0):
-                i = existing[0]
-                c, d = self.sort_keys[i]
-                self.sort_keys[i] = (c, not d)
-                if not add:
-                    self.sort_keys = [self.sort_keys[i]]
-            elif add:
-                self.sort_keys.append((col, False))
-            else:
-                self.sort_keys = [(col, False)]
-            self._apply()
+            self.sort_keys = [(col, False)]
+        self._apply()
         self._cache.clear()
         self.endResetModel()
 
@@ -279,18 +275,6 @@ class FileListModel(QAbstractTableModel):
         self.beginResetModel()
         self._apply()
         self._cache.clear()
-        self.endResetModel()
-
-    def move_rows(self, rows: list[int], target: int) -> None:
-        """Manual reordering (Alt+Up/Down/PgUp/PgDn, Alt+drag)."""
-        self.beginResetModel()
-        moving = [self.rows[r] for r in sorted(rows)]
-        rest = [t for i, t in enumerate(self.rows) if i not in set(rows)]
-        target = max(0, min(target, len(rest)))
-        self.rows = rest[:target] + moving + rest[target:]
-        self._keep_current_order()
-        self.sort_keys = []
-        self._number()
         self.endResetModel()
 
     # -- drag & drop ---------------------------------------------------------
@@ -341,10 +325,12 @@ class FileListView(QTableView):
     context_menu = Signal(object)
     columns_changed = Signal()              # width or order changed by the user
     sort_changed = Signal()
+    header_menu = Signal(object)            # global position of a right click on the header
 
     def __init__(self, model: FileListModel, parent=None):
         super().__init__(parent)
         self.bands: dict[int, AlbumBand] = {}
+        self._restore_scroll: int | None = None
         self.setModel(model)
         self.setItemDelegate(_RowDelegate(self))
         self.setFrameShape(QFrame.Shape.NoFrame)
@@ -377,6 +363,8 @@ class FileListView(QTableView):
         hh.setStretchLastSection(False)
         hh.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         hh.setSectionsClickable(True)
+        hh.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        hh.customContextMenuRequested.connect(lambda p: self.header_menu.emit(hh.mapToGlobal(p)))
         hh.setSortIndicatorShown(True)
         hh.sectionClicked.connect(self._header_clicked)
         hh.sectionResized.connect(self._resized)
@@ -387,6 +375,7 @@ class FileListView(QTableView):
         self._band_timer.setSingleShot(True)
         self._band_timer.setInterval(0)
         self._band_timer.timeout.connect(self._refresh_bands)
+        model.modelAboutToBeReset.connect(self._remember_scroll)
         model.modelReset.connect(self._forget_bands)
         model.dataChanged.connect(lambda *_: self._band_timer.start())
 
@@ -412,7 +401,7 @@ class FileListView(QTableView):
         self.columns_changed.emit()
 
     def _reorder(self) -> None:
-        """Turn a header drag into a new column order (stored like Mp3tag's columns.ini)."""
+        """Turn a header drag into a new, saved column order."""
         m = self.model()
         hh = self.horizontalHeader()
         n = len(m.columns)
@@ -457,6 +446,11 @@ class FileListView(QTableView):
         self.sort_changed.emit()
 
     # -- album headings ------------------------------------------------------
+    def _remember_scroll(self) -> None:
+        m = self.model()
+        self._restore_scroll = self.verticalScrollBar().value() if m.keep_scroll else None
+        m.keep_scroll = False
+
     def _forget_bands(self) -> None:
         self.bands = {}                              # a reset already restored the row heights
         self._band_timer.start()
@@ -469,6 +463,10 @@ class FileListView(QTableView):
         for r in set(new) - set(self.bands):
             vh.resizeSection(r, ROW_HEIGHT + BAND_HEIGHT)
         self.bands = new
+        if self._restore_scroll is not None:
+            self.updateGeometries()                  # the range has to know the new row heights
+            self.verticalScrollBar().setValue(self._restore_scroll)
+            self._restore_scroll = None
         self.viewport().update()
 
     def _band_at(self, pos: QPoint) -> AlbumBand | None:
@@ -554,7 +552,7 @@ class FileListView(QTableView):
         m = self.model()
         return [m.rows[r] for r in self.selected_rows()]
 
-    def select_tracks(self, tracks: list[Track], current: Track | None = None) -> None:
+    def select_tracks(self, tracks: list[Track], current: Track | None = None, scroll: bool = True) -> None:
         m = self.model()
         ids = {id(t) for t in tracks}
         sel = QItemSelection()
@@ -574,39 +572,23 @@ class FileListView(QTableView):
         if cur is not None:
             sm.setCurrentIndex(m.index(cur, max(1, self.currentIndex().column())),
                                QItemSelectionModel.SelectionFlag.NoUpdate)
-            self.scrollTo(m.index(cur, 1))
+            if scroll:
+                self.scrollTo(m.index(cur, 1))
 
     # -- drag & drop ---------------------------------------------------------
     def dragEnterEvent(self, e):
-        if e.source() is self:
-            if e.modifiers() & Qt.KeyboardModifier.AltModifier:
-                e.acceptProposedAction()
-                return
-            e.ignore()
-            return
-        if e.mimeData().hasUrls():
+        if e.source() is not self and e.mimeData().hasUrls():
             e.acceptProposedAction()
         else:
-            super().dragEnterEvent(e)
+            e.ignore()
 
     def dragMoveEvent(self, e):
-        if e.source() is self or e.mimeData().hasUrls():
+        if e.source() is not self and e.mimeData().hasUrls():
             e.acceptProposedAction()
         else:
-            super().dragMoveEvent(e)
+            e.ignore()
 
     def dropEvent(self, e):
-        if e.source() is self:
-            target = self.rowAt(e.position().toPoint().y())
-            rows = self.selected_rows()
-            if target < 0:
-                target = self.model().rowCount()
-            sel = self.selected_tracks()
-            before = sum(1 for r in rows if r < target)
-            self.model().move_rows(rows, target - before)
-            self.select_tracks(sel)
-            e.acceptProposedAction()
-            return
         paths = [u.toLocalFile() for u in e.mimeData().urls() if u.isLocalFile()]
         if paths:
             add = bool(e.modifiers() & Qt.KeyboardModifier.ControlModifier)
@@ -614,35 +596,8 @@ class FileListView(QTableView):
             e.acceptProposedAction()
 
     def keyPressEvent(self, e):
-        alt = e.modifiers() & Qt.KeyboardModifier.AltModifier
-        if alt and e.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_PageUp, Qt.Key.Key_PageDown):
-            rows = self.selected_rows()
-            if rows:
-                sel = self.selected_tracks()
-                n = self.model().rowCount()
-                target = {Qt.Key.Key_Up: rows[0] - 1, Qt.Key.Key_Down: rows[0] + 1,
-                          Qt.Key.Key_PageUp: 0, Qt.Key.Key_PageDown: n - len(rows)}[e.key()]
-                self.model().move_rows(rows, target)
-                self.select_tracks(sel)
-            return
         if e.matches(QKeySequence.StandardKey.Copy) or e.matches(QKeySequence.StandardKey.Paste) \
                 or e.matches(QKeySequence.StandardKey.Cut) or e.matches(QKeySequence.StandardKey.SelectAll):
             e.ignore()           # handled by main window actions
             return
         super().keyPressEvent(e)
-
-    def edit_first_editable(self) -> None:
-        """F2: rename (first editable column) of the current file."""
-        idx = self.currentIndex()
-        if not idx.isValid():
-            rows = self.selected_rows()
-            if not rows:
-                return
-            idx = self.model().index(rows[0], 1)
-        m = self.model()
-        for c in range(1, m.columnCount()):
-            i = m.index(idx.row(), c)
-            if m.flags(i) & Qt.ItemFlag.ItemIsEditable:
-                self.setCurrentIndex(i)
-                self.edit(i)
-                return

@@ -238,16 +238,9 @@ class CoverView(QFrame):
         has = self._img is not None
         for key, text, enabled in (
                 ("add", tr("Cover hinzu&fügen..."), True),
-                ("extract", tr("Cover &extrahieren..."), has),
+                ("replace", tr("Cover er&setzen..."), has or self.varies),
                 ("remove", tr("Cover entfe&rnen"), has or self.varies),
-                (None, None, None),
-                ("cut", tr("Cover in Zwischenablage &ausschneiden"), has),
-                ("copy", tr("Cover in Zwischenablage kopieren"), has),
-                ("paste", tr("Cover aus Zwischenablage einfü&gen"),
-                 QApplication.clipboard().mimeData().hasImage())):
-            if key is None:
-                m.addSeparator()
-                continue
+                ("preview", tr("Cover ansehen"), has)):
             a = m.addAction(text)
             a.setEnabled(bool(enabled))
             a.triggered.connect(lambda _=False, k=key: self.request.emit(k))
@@ -439,21 +432,6 @@ class TagPanel(QWidget):
         for c in self.combos.values():
             c.dirty = False
         self.covers_dirty = False
-
-    def reset_inputs(self) -> None:
-        """Ctrl+B: blank all input fields."""
-        for c in self.combos.values():
-            if c.isEnabled():
-                c.setEditText("")
-                c.dirty = True
-        self.changed.emit()
-
-    def default_inputs(self) -> None:
-        """Ctrl+W: put < keep > into all inputs."""
-        for c in self.combos.values():
-            if c.isEnabled():
-                c.setEditText(keep_text())
-                c.dirty = False
 
     def focus_first(self) -> None:
         for c in self.combos.values():

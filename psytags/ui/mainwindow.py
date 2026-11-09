@@ -4,20 +4,18 @@ from __future__ import annotations
 import contextlib
 import copy
 import os
-import subprocess
-import sys
 import threading
 
-from PySide6.QtCore import (QObject, Qt, QThread, QTimer, QUrl, Signal)
+from PySide6.QtCore import (QEvent, QObject, Qt, QThread, QTimer, QUrl, Signal)
 from PySide6.QtGui import (QAction, QActionGroup, QDesktopServices, QKeySequence, QShortcut)
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QInputDialog,
                                QLabel, QMainWindow, QMenu, QMessageBox, QProgressBar,
-                               QProgressDialog, QStatusBar, QVBoxLayout, QWidget)
+                               QDialog, QPushButton, QStatusBar, QVBoxLayout, QWidget)
 
-from .. import albumorder, config, convert, script, tags
+from .. import albumorder, config, convert, namescheme, numbering, tags
 from ..config import Options
 from ..i18n import tr
-from ..track import Track, fmt_length, fmt_size
+from ..track import Track, fmt_size
 from ..undo import Recorder, UndoStack
 from .filelist import FileListModel, FileListView
 from .topbar import TopBar
@@ -28,21 +26,83 @@ AUDIO_EXT = set(tags.SUPPORTED_EXTENSIONS)
 LAYOUT_VERSION = 2                          # a saved window layout from another version is ignored
 
 
-class _StayingProgress(QProgressDialog):
+class _ScrollOnlyGuard(QObject):
+    """While a run works on the list, the main window can only be scrolled: without this,
+    a click or a shortcut could change the files the run is writing to."""
+    BLOCKED = {QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease, QEvent.Type.MouseButtonDblClick,
+               QEvent.Type.KeyPress, QEvent.Type.KeyRelease, QEvent.Type.ShortcutOverride, QEvent.Type.ContextMenu,
+               QEvent.Type.DragEnter, QEvent.Type.DragMove, QEvent.Type.Drop}
+
+    def __init__(self, window):
+        super().__init__(window)
+        self.window = window
+
+    def eventFilter(self, obj, event):
+        kind = event.type()
+        if kind == QEvent.Type.Shortcut:                # the actions of the main window
+            return obj.parent() is self.window
+        if not isinstance(obj, QWidget) or obj.window() is not self.window:
+            return False
+        if kind == QEvent.Type.Close and obj is self.window:
+            event.ignore()
+            return True
+        view = self.window.view
+        bars = (view.verticalScrollBar(), view.horizontalScrollBar())
+        if kind == QEvent.Type.Wheel:
+            return obj is not view.viewport() and not any(obj is b for b in bars)
+        return kind in self.BLOCKED and not any(obj is b for b in bars)
+
+
+class _StayingProgress(QDialog):
     """Stays open and modal after Cancel until the running step has finished."""
+    canceled = Signal()
 
     def __init__(self, text: str, maximum: int, parent):
-        super().__init__(text, tr("Abbrechen"), 0, maximum, parent)
+        super().__init__(parent)
         self.stop = threading.Event()
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setMinimumDuration(0)
-        self.setAutoClose(False)
-        self.setAutoReset(False)
-        self.canceled.disconnect(self.cancel)
+        self.setFixedWidth(560)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(22, 20, 22, 18)
+        column.setSpacing(12)
+        head = QHBoxLayout()
+        self.title_label = QLabel(text)
+        self.title_label.setObjectName("ProgressTitle")
+        self.title_label.setWordWrap(True)
+        self.count_label = QLabel()
+        self.count_label.setObjectName("ProgressCount")
+        head.addWidget(self.title_label, 1)
+        head.addWidget(self.count_label, 0, Qt.AlignmentFlag.AlignTop)
+        column.addLayout(head)
+        self.bar = QProgressBar()
+        self.bar.setObjectName("ProgressBar")
+        self.bar.setTextVisible(False)
+        self.bar.setFixedHeight(10)
+        self.bar.setRange(0, max(1, maximum))
+        column.addWidget(self.bar)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.cancel_button = QPushButton(tr("Abbrechen"))
+        self.cancel_button.clicked.connect(lambda: self.canceled.emit())
+        row.addWidget(self.cancel_button)
+        column.addLayout(row)
         self.canceled.connect(self.request_stop)
+        self.setValue(0)
+        self._guard = _ScrollOnlyGuard(parent) if hasattr(parent, "view") else None
+        if self._guard is not None:
+            QApplication.instance().installEventFilter(self._guard)
+        self.show()
+
+    def setValue(self, value: int) -> None:
+        total = self.bar.maximum()
+        self.bar.setValue(value)
+        self.count_label.setText(f"{tr('{1} von {2}', value, total)} · {value * 100 // total} %")
+
+    def setLabelText(self, text: str) -> None:
+        self.title_label.setText(text)
 
     def request_stop(self):
         self.stop.set()
+        self.cancel_button.setEnabled(False)
         self.setLabelText(tr("Wird abgebrochen ..."))
 
     def closeEvent(self, event):
@@ -53,6 +113,9 @@ class _StayingProgress(QProgressDialog):
         self.request_stop()
 
     def finish(self):
+        if self._guard is not None:
+            QApplication.instance().removeEventFilter(self._guard)
+            self._guard = None
         self.hide()
         self.deleteLater()
         if self.parentWidget() is not None:         # tooltips only appear in an active window
@@ -121,8 +184,6 @@ class MainWindow(QMainWindow):
         # isabs() also drops the single characters older versions stored by mistake.
         self.dir_history: list[str] = [d for d in config.string_list(self.settings, "dirs/history")
                                        if os.path.isabs(d)]
-        self.back_stack: list[str] = []
-        self.fwd_stack: list[str] = []
         self.tag_clipboard: list[tuple[dict, list]] = []
         self.last_action = None
         self._loader_thread = None
@@ -160,13 +221,8 @@ class MainWindow(QMainWindow):
         self._autosave.start()
         QApplication.instance().aboutToQuit.connect(self.save_state)
 
-        paths = start_paths or []
-        if not paths:
-            last = self.settings.value("dirs/last", "")
-            if self.opts.start_in_last_dir and last and os.path.isdir(last):
-                paths = [last]
-        if paths:
-            QTimer.singleShot(0, lambda: self.load_paths(paths, False))
+        if start_paths:
+            QTimer.singleShot(0, lambda: self.load_paths(start_paths, False))
 
     # ------------------------------------------------------------------ layout
     def _build_panel(self):
@@ -217,14 +273,13 @@ class MainWindow(QMainWindow):
             m.addAction(a)
         self.columns_menu = m.addMenu(tr("Spalte&n"))
         self.columns_menu.aboutToShow.connect(self._fill_columns_menu)
-        self.sort_menu = m.addMenu(tr("&Sortieren nach"))
-        self.sort_menu.aboutToShow.connect(self._fill_sort_menu)
+        self.view.header_menu.connect(self.columns_menu.exec)
         m.addAction(self.act_customize_panel)
         m.addSeparator()
         self.sources_menu = m.addMenu(tr("Tag-&Quellen"))
         self.sources_menu.aboutToShow.connect(self._fill_sources_menu)
         m.addSeparator()
-        for a in (self.act_open_cfg, self.act_help, self.act_keys, self.act_about):
+        for a in (self.act_open_cfg, self.act_help, self.act_about):
             m.addAction(a)
         m.addSeparator()
         m.addAction(self.act_exit)
@@ -235,7 +290,8 @@ class MainWindow(QMainWindow):
         self.status_msg = QLabel(tr("Bereit"))
         self.progress = QProgressBar()
         self.progress.setMaximumWidth(200)
-        self.progress.setMaximumHeight(14)
+        self.progress.setMaximumHeight(8)
+        self.progress.setTextVisible(False)
         self.progress.hide()
         self.status_sel = QLabel()
         self.status_all = QLabel()
@@ -272,46 +328,24 @@ class MainWindow(QMainWindow):
         # File
         self.act_save = A("Tag &speichern", self.save_tags, "Ctrl+S", "Speichert den Tag in ausgewählten Dateien.", "save")
         self.act_remove = A("Tag ent&fernen", self.remove_tags, "Ctrl+R", "Entfernt den Tag aus den ausgewählten Dateien.", "remove")
-        self.act_read = A("Tag &auslesen", self.read_tags, "Ctrl+T", "Lädt den Tag der markierten Datei in die Eingabefelder im Tag-Panel.")
         self.act_dir = A("Verzeichnis wechseln...", self.choose_directory, "Ctrl+D", "Verzeichnis wechseln...", "folder-open")
         self.act_add_dir = A("Verzeichnis hinzufügen...", self.add_directory, "Ctrl+H", "Fügt der Dateiansicht ein Verzeichnis hinzu.", "folder-add")
-        self.act_up = A("Übergeordnetes Verzeichnis", self.dir_up, "Ctrl+Shift+D", "Wechselt in das übergeordnete Verzeichnis.", "folder-up")
-        self.act_fav = A("Standardverzeichnis", self.favorite_dir, "Ctrl+M", "Wechselt in das eingestellte Standardverzeichnis.", "favorite")
-        self.act_open_fm = A("Im Dateimanager öffnen", self.open_in_file_manager, None, "Öffnet die ausgewählten Dateien im Dateimanager.")
         self.act_options = A("&Optionen...", self.show_options, "Ctrl+O", "Zeigt den Optionendialog an.", "options")
         self.act_open_cfg = A("Konfigurationsordner öffnen", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(config.config_dir())))
         self.act_exit = A("&Beenden", self.close, "Alt+F4", "Beendet die Anwendung.")
         self.act_refresh = A("&Aktualisieren", self.refresh, "F5", "Aktualisiert die Dateiansicht.", "refresh")
-        self.act_back = A("Zurück", self.dir_back, "Alt+Left")
-        self.act_fwd = A("Vorwärts", self.dir_forward, "Alt+Right")
         # Edit
         self.act_undo = A("&Rückgängig", self.do_undo, "Ctrl+Z", "Macht die letzte Aktion rückgängig.", "undo",
                           extra_shortcuts=["Ctrl+Shift+Z"])
         self.act_redo = A("&Wiederholen", self.do_redo, "Ctrl+Y", "Wiederholt die letzte rückgängig gemachte Aktion.", "redo")
-        self.act_cut = A("Au&sschneiden", self.cut, "Ctrl+X", "Schneidet die Textauswahl oder den Tag der ausgewählten Datei aus.")
         self.act_copy = A("K&opieren", self.copy, "Ctrl+C", "Kopiert die Textauswahl oder den Tag der ausgewählten Datei.")
         self.act_paste = A("&Einfügen", self.paste, "Ctrl+V", "Fügt den Inhalt der Zwischenablage ein.")
         self.act_find = A("S&uchen...", self.focus_search, "Ctrl+F", "Sucht in allen Spalten der Dateiliste.",
                           extra_shortcuts=["F3"])
-        self.act_rename = A("Umbenennen", self.view.edit_first_editable, "F2", "Benennt die ausgewählte Datei um.")
         self.act_remove_files = A("E&ntfernen", self.remove_from_list, "Del", "Entfernt die ausgewählten Dateien aus der Dateiliste.")
-        self.act_delete = A("Löschen...", lambda: self.delete_files(False), None, "Löscht die ausgewählten Dateien.",
-                            extra_shortcuts=["Ctrl+Del"])
-        self.act_delete_perm = A("Endgültig löschen...", lambda: self.delete_files(True), "Ctrl+Shift+Del")
         self.act_select_all = A("&Alle Dateien auswählen", self.view.selectAll, "Ctrl+A", "Wählt alle Dateien in der Dateiansicht aus.")
-        self.act_invert = A("Auswahl &umkehren", self.invert_selection, "Ctrl+Shift+A", "Kehrt die aktuelle Auswahl um.")
-        self.act_unselect = A("Auswahl auf&heben", self.view.clearSelection, "Ctrl+U", "Hebt die aktuelle Auswahl auf.")
-        self.act_next = A("&Nächste Datei auswählen", self.select_next, "Ctrl+N", "Markiert die nächste Datei in der Dateiansicht.",
-                          extra_shortcuts=["Ctrl+Shift+N"])
-        self.act_similar = A("Ähnliche Dateien auswählen", lambda: self.select_similar(False), "Ctrl+G", "Wählt ähnliche Dateien basierend auf dem Sortierkriterium aus.")
-        self.act_similar_next = A("Nächste ähnliche Dateien auswählen", lambda: self.select_similar(True), "Ctrl+Shift+G")
         # Cover
         self.act_cover_add = A("Cover hinzu&fügen...", lambda: self._cover_command("add"), "Ctrl+Alt+A")
-        self.act_cover_replace = A("Cover er&setzen...", lambda: self._cover_command("replace"))
-        self.act_cover_adjust = A("Cover anpassen...", lambda: self._cover_command("adjust"))
-        self.act_cover_remove = A("Cover entfe&rnen", lambda: self._cover_command("remove"))
-        self.act_cover_extract = A("Cover &extrahieren...", lambda: self._cover_command("extract"))
-        self.act_cover_manage = A("Cover &verwalten...", lambda: self._cover_command("manage"), "Ctrl+Alt+M")
         self.act_cover_fetch = A("Cover holen", lambda: self._cover_command("fetch"), None,
                                  "Holt das Cover der ausgewählten Dateien von der eingestellten Quelle.")
         # View
@@ -322,14 +356,11 @@ class MainWindow(QMainWindow):
         self.addAction(self.act_panel)
         self.act_customize_cols = A("Spalten anpassen...", self.customize_columns)
         self.act_customize_panel = A("Tag-Panel anpassen...", self.customize_panel)
-        self.act_autofit = A("Spaltenbreiten anpassen", self.autofit_columns, "Ctrl++",
-                             extra_shortcuts=["Ctrl+="])
-        # Convert
-        self.act_ttf = A("&Tag - Dateiname", self.tag_to_filename, "Alt+1", "Benennt Dateien anhand des Tags nach einem definierten Muster um.", "tag-filename",
-                         extra_shortcuts=["Alt+Shift+1"])
-        self.act_wizard = A("Tracknummern-Assistent...", self.numbering_wizard, "Ctrl+K", "Startet den Assistenten zum Schreiben von Track- und Discnummern.", "numbering",
-                            extra_shortcuts=["Ctrl+Shift+K"])
-        # Actions
+        # Workflow
+        self.act_ttf = A("Umbenennen...", self.rename_files, "Alt+1",
+                         "Benennt die ausgewählten Dateien nach dem eingestellten Schema um.", "tag-filename")
+        self.act_numbers = A("Nummern schreiben", self.number_selected, "Ctrl+K",
+                             "Schreibt Track- und Discnummern der ausgewählten Alben.", "numbering")
         # Tag sources
         self.act_last_source = A("Zuletzt verwendete Tag-Quelle", lambda: self.run_last_source(False),
                                  "Ctrl+I", "Führt die zuletzt verwendete Tag-Quelle aus.", "web")
@@ -339,8 +370,10 @@ class MainWindow(QMainWindow):
                             lambda: self.fetch_lastfm(self.view.selected_tracks()), "Ctrl+Shift+L",
                             "Holt Genres für die ausgewählten Dateien, ohne Tag-Quelle.",
                             "genres")
-        self.act_moods = A("Moods analysieren", self.analyze_all_moods, "Ctrl+Shift+M",
-                           "Ermittelt die Moods aller Dateien in der Liste aus dem Audio.", "moods")
+        self.act_moods = A("Moods der Auswahl analysieren", self.analyze_selected_moods, "Ctrl+Shift+M",
+                           "Ermittelt die Moods der ausgewählten Dateien aus dem Audio.", "moods")
+        self.act_moods_all = A("Moods aller Dateien analysieren", self.analyze_all_moods, "Ctrl+Alt+M",
+                               "Ermittelt die Moods aller Dateien in der Liste aus dem Audio.", "moods")
         self.act_auto_mb = A("MusicBrainz automatisch", self.auto_musicbrainz, "Ctrl+Shift+B",
                              "Taggt das markierte Album, wenn es sicher erkannt wird, sonst öffnet sich die Trefferliste.",
                              "auto-album")
@@ -350,13 +383,9 @@ class MainWindow(QMainWindow):
         self.act_batch_summary = A("Übersicht des letzten Laufs...", self.show_batch_summary, None,
                                    "Zeigt das Ergebnis des letzten automatischen Laufs.", "batch-summary")
         # Tools / misc
-        self.act_reset_inputs = A("Alle &Eingabefelder zurücksetzen", self.panel.reset_inputs, "Ctrl+B")
-        self.act_default_inputs = A("Eingabefelder auf Standard&werte", self.panel.default_inputs, "Ctrl+W")
         self.act_play = A("Abspielen", self.play, "F4", "Spielt die ausgewählten Dateien ab.", extra_shortcuts=["Ctrl+Shift+T"])
-        self.act_props = A("Eigenschaften...", self.properties, "Alt+Return", "Zeigt die Eigenschaften der ausgewählten Datei an.")
         # Help
-        self.act_help = A("&Hilfethemen", lambda: __import__("psytags.ui.help", fromlist=["x"]).show_help(self), "F1", "", "help")
-        self.act_keys = A("&Tastaturkürzel", lambda: __import__("psytags.ui.help", fromlist=["x"]).show_shortcuts(self))
+        self.act_help = A("&Tastaturkürzel", self.show_shortcuts, "F1", "", "help")
         self.act_about = A("Über PsyTags...", self.about)
         # Focus cycling between panes
         QShortcut(QKeySequence("Ctrl+Tab"), self, lambda: self._cycle_focus(1))
@@ -392,7 +421,6 @@ class MainWindow(QMainWindow):
             self.settings.setValue("window/state", self.saveState(LAYOUT_VERSION))
             if self.panel_dock.isVisible() and not self.panel_dock.isFloating():
                 self.settings.setValue("window/panel_width", self.panel_dock.width())
-        self.settings.setValue("dirs/last", self.current_dir)
         self.settings.setValue("dirs/history", self.dir_history[:30])
         self.settings.sync()
 
@@ -435,20 +463,17 @@ class MainWindow(QMainWindow):
 
     def _update_actions(self):
         has_sel = bool(self.view.selectionModel().hasSelection())
-        for a in (self.act_remove, self.act_read, self.act_cut, self.act_copy,
-                  self.act_rename, self.act_remove_files, self.act_delete, self.act_ttf,
-                  self.act_wizard, self.act_ext_tags, self.act_play,
-                  self.act_props, self.act_cover_add, self.act_cover_fetch, self.act_lastfm,
+        for a in (self.act_remove, self.act_copy, self.act_remove_files, self.act_ttf,
+                  self.act_numbers, self.act_moods, self.act_ext_tags, self.act_play,
+                  self.act_cover_add, self.act_cover_fetch, self.act_lastfm,
                   self.act_auto_mb):
             a.setEnabled(has_sel)
-        for a in (self.act_moods, self.act_auto_all):
+        for a in (self.act_auto_all, self.act_moods_all):
             a.setEnabled(bool(self.model.rows))
         self.act_batch_summary.setEnabled(bool(self._last_batch))
         self.act_save.setEnabled(has_sel)
         self.act_undo.setEnabled(self.undo.can_undo())
         self.act_redo.setEnabled(self.undo.can_redo() or self.last_action is not None)
-        self.act_back.setEnabled(bool(self.back_stack))
-        self.act_fwd.setEnabled(bool(self.fwd_stack))
 
     # ------------------------------------------------------------------ loading
     def load_paths(self, paths: list[str], add: bool):
@@ -458,11 +483,8 @@ class MainWindow(QMainWindow):
         if self.panel.dirty and self.panel.tracks:
             self.save_tags()
         if not add:
-            # Several folders dropped: like Mp3tag, the first one becomes the working directory.
+            # Several folders dropped: the first one becomes the working directory.
             d = paths[0] if os.path.isdir(paths[0]) else os.path.dirname(paths[0])
-            if self.current_dir and self.current_dir != d:
-                self.back_stack.append(self.current_dir)
-                self.fwd_stack.clear()
             self._set_current_dir(d)
         if self._loader_thread is not None:
             self._loader.abort = True
@@ -489,7 +511,6 @@ class MainWindow(QMainWindow):
         self.dir_history.insert(0, d)
         self.panel.set_directories(d, self.dir_history)
         self.setWindowTitle(f"PsyTags  -  {d}")
-        self.settings.setValue("dirs/last", d)
         self.settings.setValue("dirs/history", self.dir_history[:30])
 
     def _load_progress(self, i, n):
@@ -537,31 +558,6 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(400, lambda: self.view.select_tracks(
             [t for t in self.model.rows if t.path in sel]))
 
-    def dir_up(self):
-        if self.current_dir:
-            parent = os.path.dirname(self.current_dir.rstrip(os.sep))
-            if parent and parent != self.current_dir:
-                self.load_paths([parent], False)
-
-    def dir_back(self):
-        if self.back_stack:
-            self.fwd_stack.append(self.current_dir)
-            d = self.back_stack.pop()
-            self.current_dir = ""
-            self.load_paths([d], False)
-
-    def dir_forward(self):
-        if self.fwd_stack:
-            self.back_stack.append(self.current_dir)
-            d = self.fwd_stack.pop()
-            self.current_dir = ""
-            self.load_paths([d], False)
-
-    def favorite_dir(self):
-        d = self.opts.favorite_dir or QStandardPathsMusic()
-        if d and os.path.isdir(d):
-            self.load_paths([d], False)
-
     # ------------------------------------------------------------------ selection
     def _selection_changed(self, *_):
         new = self.view.selected_tracks()
@@ -572,36 +568,6 @@ class MainWindow(QMainWindow):
         self.panel.load(new)
         self._update_status()
         self._update_actions()
-
-    def invert_selection(self):
-        sel = {id(t) for t in self.view.selected_tracks()}
-        self.view.select_tracks([t for t in self.model.rows if id(t) not in sel])
-
-    def select_next(self):
-        rows = self.view.selected_rows()
-        r = (rows[-1] + 1) if rows else 0
-        if r < self.model.rowCount():
-            self.view.select_tracks([self.model.rows[r]])
-
-    def select_similar(self, next_group: bool):
-        rows = self.model.rows
-        if not rows:
-            return
-        sel_rows = self.view.selected_rows()
-        if not self.model.sort_keys:
-            return
-        col = self.model.sort_keys[0][0]
-        expr = self.model.columns[col - 1].sort or self.model.columns[col - 1].value
-        start = sel_rows[0] if sel_rows else 0
-        key = script.format(expr, rows[start])
-        if next_group:
-            i = (sel_rows[-1] + 1) if sel_rows else 0
-            while i < len(rows) and script.format(expr, rows[i]) == key:
-                i += 1
-            if i >= len(rows):
-                return
-            key = script.format(expr, rows[i])
-        self.view.select_tracks([t for t in rows if script.format(expr, t) == key])
 
     def _cycle_focus(self, d: int):
         order = [self.panel, self.search, self.view]
@@ -684,13 +650,6 @@ class MainWindow(QMainWindow):
             self.panel.load(tracks)
         self.message(tr("Tag-Informationen gespeichert"), 3000)
 
-    def read_tags(self):
-        tracks = self.view.selected_tracks()
-        for t in tracks:
-            t.load()
-        self.model.refresh_tracks(tracks)
-        self.panel.load(tracks)
-
     def remove_tags(self):
         tracks = self.view.selected_tracks()
         if not tracks:
@@ -759,27 +718,7 @@ class MainWindow(QMainWindow):
         if not tracks:
             return
         self.tag_clipboard = [(copy.deepcopy(t.data.fields), list(t.data.covers)) for t in tracks]
-        lines = []
-        for t in tracks:
-            lines.append(script.format(config.history("copy_text")[0], t))
-        QApplication.clipboard().setText("\n".join(lines))
         self.message(tr("Tag von {1} Datei(en) kopiert", len(tracks)), 3000)
-
-    def cut(self):
-        w = self._text_focus()
-        if w is not None:
-            w.cut()
-            return
-        tracks = self.view.selected_tracks()
-        if not tracks:
-            return
-        self.copy()
-
-        def clear(t):
-            t.data.fields.clear()
-            t.data.covers = []
-        self._write(tr("Ausschneiden"), tracks, clear)
-        self.panel.load(tracks)
 
     def paste(self):
         w = self._text_focus()
@@ -816,6 +755,7 @@ class MainWindow(QMainWindow):
         self.model.refresh_tracks([t for t, _ in pairs])
         if errors:
             QMessageBox.warning(self, tr("Fehler"), "\n".join(errors[:30]))
+        convert.fix_folder_case(moves)
         if remove_old_albums:
             self._trash_old_albums(moves)
         self._update_actions()
@@ -824,37 +764,12 @@ class MainWindow(QMainWindow):
         """The albums now live in their new folders: the old ones, with whatever is left in them
         (images, cue sheets, ...), go to the recycle bin."""
         from PySide6.QtCore import QFile
-        convert.fix_folder_case(moves)
         leftovers = convert.emptied_album_folders(moves) + convert.leftovers_in_renamed_albums(moves)
         failed = [f for f in leftovers if not QFile.moveToTrash(f)]
         if len(leftovers) > len(failed):
             self.message(tr("{1} alte Ordner oder Dateien in den Papierkorb verschoben", len(leftovers) - len(failed)), 8000)
         if failed:
             QMessageBox.warning(self, tr("Fehler"), tr("Diese Ordner konnten nicht entfernt werden:\n{1}", "\n".join(failed)))
-
-    def tag_to_filename(self):
-        from .dialogs.converters import TagToFilenameDialog
-        tracks = self.view.selected_tracks()
-        d = TagToFilenameDialog(tracks, self)
-        if d.exec():
-            fmt = d.format()
-            whole_albums = "\\" in fmt or "/" in fmt      # a format with folders moves the album
-            self._rename([(t, convert.tag_to_filename(t, fmt)) for t in tracks], tr("Tag - Dateiname"),
-                         remove_old_albums=whole_albums)
-            self.last_action = lambda: self._rename(
-                [(t, convert.tag_to_filename(t, fmt)) for t in self.view.selected_tracks()],
-                tr("Tag - Dateiname"), remove_old_albums=whole_albums)
-
-    def numbering_wizard(self):
-        from .dialogs.numbering import NumberingWizard
-        tracks = self.view.selected_tracks()
-        shift = bool(QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier)
-        d = NumberingWizard(tracks, self, per_folder=shift)
-        if d.exec():
-            plan = d.plan()
-            self._write(tr("Tracknummern-Assistent"), tracks,
-                        lambda t: [t.set(k, v) for k, v in plan.get(id(t), {}).items()])
-            self.panel.load(tracks)
 
     # ------------------------------------------------------------------ actions
     # ------------------------------------------------------------------ tag sources
@@ -866,11 +781,10 @@ class MainWindow(QMainWindow):
         self._add_cover_source_menu(m)
         m.addAction(tr("Cover-Mindestgröße ({1} px)...", self._cover_min_size()), self.set_cover_min_size)
         m.addSeparator()
-        for a in (self.act_moods, self.act_auto_mb, self.act_auto_all, self.act_batch_summary):
+        for a in (self.act_moods, self.act_moods_all, self.act_auto_mb, self.act_auto_all, self.act_batch_summary):
             m.addAction(a)
         m.addSeparator()
         m.addAction(self.act_lastfm)
-        m.addAction(tr("Genres von Last.fm..."), self.lastfm_settings)
         m.addAction(tr("Discogs-Zugang..."), self.discogs_token)
 
     def _add_cover_source_menu(self, m: QMenu) -> None:
@@ -1000,7 +914,7 @@ class MainWindow(QMainWindow):
                 self.message(tr("Kein Cover bei {1} gefunden", label), 5000)
                 return tr("Kein Cover bei {1} gefunden", label)
             d = ResultsDialog(src, rest, self)
-            d.setWindowTitle(tr("Cover von {1} – bitte Album wählen", label))
+            d.set_heading(tr("Cover von {1}", label), tr("Bitte das passende Album wählen"))
             if d.exec() != 1 or d.selected() is None:
                 return tr("Abgebrochen")
             row = d.selected()
@@ -1182,7 +1096,7 @@ class MainWindow(QMainWindow):
             if stage == "results":
                 d = ResultsDialog(src, rows, self)
                 if note:
-                    d.setWindowTitle(f"{d.windowTitle()} – {note}")
+                    d.add_note(note)
                 r = d.exec()
                 if r == 2:
                     stage = "search"
@@ -1221,16 +1135,6 @@ class MainWindow(QMainWindow):
                                                   complete=len(plan) == d.album.tracks)
 
     # ------------------------------------------------------------------ views
-    def _fill_sort_menu(self):
-        m = self.sort_menu
-        m.clear()
-        m.addAction(tr("&Zufällig"), lambda: self.view._header_clicked(0))
-        m.addSeparator()
-        for i, c in enumerate(self.model.columns, 1):
-            a = m.addAction(tr(c.name).replace("&", ""), lambda _=False, i=i: self.view._header_clicked(i))
-            a.setCheckable(True)
-            a.setChecked(bool(self.model.sort_keys) and self.model.sort_keys[0][0] == i)
-
     def _fill_columns_menu(self):
         m = self.columns_menu
         m.clear()
@@ -1249,10 +1153,6 @@ class MainWindow(QMainWindow):
         self.view.apply_widths()
         config.save_columns(self.model.all_columns)
 
-    def autofit_columns(self):
-        self.view.resizeColumnsToContents()
-        self.view.setColumnWidth(0, 18)
-
     def customize_columns(self):
         from .dialogs.options import ColumnsDialog
         self.view.store_widths()
@@ -1266,19 +1166,15 @@ class MainWindow(QMainWindow):
         return self.settings.value("lastfm/enabled", "false") in (True, "true")
 
     def _rebuild_panel(self):
-        """Tag Panel from usrfields.ini; with Last.fm on, GENRE and MOOD get full-width rows."""
-        fields = config.load_panel()
-        if self._lastfm_enabled():
-            fields = [f for f in fields if f.value.upper() not in ("GENRE", "MOOD")]
-            fields += [config.PanelField(tr("Genres"), "GENRE", size=12, version=1),
-                       config.PanelField(tr("Moods"), "MOOD", size=12, version=1)]
+        """Tag Panel from usrfields.ini; Genres and Moods always close it with full-width rows."""
+        fields = [f for f in config.load_panel() if f.value.upper() not in ("GENRE", "MOOD")]
+        fields += [config.PanelField(tr("Genres"), "GENRE", size=12, version=1),
+                   config.PanelField(tr("Moods"), "MOOD", size=12, version=1)]
         self.panel.build(fields, config.load_custom_values())
         self.panel.set_directories(self.current_dir, self.dir_history)
 
     def lastfm_settings(self):
-        from .dialogs.tagsources import LastfmDialog
-        if LastfmDialog(self).exec():
-            self._rebuild_panel()
+        self._open_options("Last.fm")
 
     def start_lastfm(self, tracks, interactive: bool = True):
         """Start the Last.fm lookup in the background (one request set per album).
@@ -1331,6 +1227,9 @@ class MainWindow(QMainWindow):
         return "" if any(found.values()) else tr("Last.fm: keine passenden Genres gefunden")
 
     # ------------------------------------------------------------------ moods from the audio
+    def analyze_selected_moods(self):
+        self.analyze_moods(self.view.selected_tracks())
+
     def analyze_all_moods(self):
         self.analyze_moods(list(self.model.rows))
 
@@ -1477,7 +1376,7 @@ class MainWindow(QMainWindow):
         self.model.sort_album(written, last=leftovers)
         if complete:
             self._renumber(written)
-        self.view.select_tracks(selection)
+        self.view.select_tracks(selection, scroll=interactive)     # a batch must not move the user's view
         self.panel.load(selection)
         if interactive and leftovers:
             self._offer_trash(leftovers)
@@ -1488,14 +1387,40 @@ class MainWindow(QMainWindow):
         return cover_result, self.finish_lastfm(job, interactive) if job is not None else None
 
     def _renumber(self, tracks: list[Track]) -> None:
-        """What Ctrl+K would write for this album, with the wizard's saved settings."""
-        from .dialogs.numbering import NumberingWizard
+        """Write track and disc numbers of one album in the format set in the options."""
         ordered = sorted(tracks, key=albumorder.sort_key)
-        wizard = NumberingWizard(ordered, self)
-        plan = wizard.plan()
-        wizard.deleteLater()
-        self._write(tr("Tracknummern-Assistent"), ordered,
+        plan = numbering.plan(ordered, numbering.NumberFormat.load())
+        self._write(tr("Nummern schreiben"), ordered,
                     lambda t: [t.set(k, v) for k, v in plan.get(id(t), {}).items()])
+
+    def number_selected(self) -> None:
+        from ..websources import albumauto
+        tracks = self.view.selected_tracks()
+        if not tracks:
+            return
+        selection = list(tracks)
+        with self._undo_group(tr("Nummern schreiben")):
+            for album in albumauto.group_albums(tracks):
+                self._renumber(album)
+        self.view.select_tracks(selection)
+        self.panel.load(selection)
+
+    def rename_files(self) -> None:
+        from .dialogs.rename import RenameDialog
+        tracks = self.view.selected_tracks()
+        if not tracks:
+            return
+        d = RenameDialog(tracks, self)
+        if not d.exec():
+            return
+        tokens, cleanup = d.tokens(), d.cleanup() and namescheme.FOLDER in d.tokens()
+
+        def run() -> None:
+            chosen = self.view.selected_tracks()
+            self._rename([(t, namescheme.target_path(t, tokens)) for t in chosen], tr("Umbenennen"),
+                         remove_old_albums=cleanup)
+        run()
+        self.last_action = run
 
     def _trash_files(self, tracks: list[Track]) -> list[Track]:
         """Move to the recycle bin and drop from the list; returns the files that stayed."""
@@ -1538,7 +1463,7 @@ class MainWindow(QMainWindow):
             for i, tracks in enumerate(todo):
                 if dlg.stop.is_set():
                     break
-                dlg.setLabelText(tr("{1} von {2}: {3}", i + 1, len(todo), albumauto.album_title(tracks)))
+                dlg.setLabelText(albumauto.album_title(tracks))
                 dlg.setValue(i)
                 entries.append(self._auto_one(src, path, tracks))
         finally:
@@ -1641,42 +1566,6 @@ class MainWindow(QMainWindow):
                 self.view.select_tracks([self.model.rows[min(row, len(self.model.rows) - 1)]])
             self._update_status()
 
-    def delete_files(self, permanent: bool):
-        tracks = self.view.selected_tracks()
-        if not tracks:
-            return
-        q = tr("Möchten Sie die {1} ausgewählte(n) Datei(en) endgültig löschen?", len(tracks)) if permanent \
-            else tr("Möchten Sie die {1} ausgewählte(n) Datei(en) in den Papierkorb verschieben?", len(tracks))
-        if QMessageBox.question(self, "PsyTags", q) != QMessageBox.StandardButton.Yes:
-            return
-        from PySide6.QtCore import QFile
-        failed = []
-        for t in tracks:
-            ok = os.remove(t.path) is None if permanent else QFile.moveToTrash(t.path)
-            if not ok:
-                failed.append(t.filename)
-        self.model.remove_tracks([t for t in tracks if not os.path.exists(t.path)])
-        self._update_status()
-        if failed:
-            QMessageBox.warning(self, tr("Fehler"), "\n".join(failed))
-
-    def open_in_file_manager(self):
-        tracks = self.view.selected_tracks()
-        if tracks and sys.platform == "win32":
-            subprocess.Popen(["explorer", "/select,", os.path.normpath(tracks[0].path)])
-            return
-        if tracks:
-            try:
-                subprocess.Popen(["dbus-send", "--session", "--dest=org.freedesktop.FileManager1",
-                                  "--type=method_call", "/org/freedesktop/FileManager1",
-                                  "org.freedesktop.FileManager1.ShowItems",
-                                  "array:string:" + ",".join(QUrl.fromLocalFile(t.path).toString()
-                                                             for t in tracks[:50]), "string:"])
-                return
-            except OSError:
-                pass
-        QDesktopServices.openUrl(QUrl.fromLocalFile(self.current_dir or os.path.expanduser("~")))
-
     def play(self):
         tracks = self.view.selected_tracks()
         if not tracks:
@@ -1689,20 +1578,6 @@ class MainWindow(QMainWindow):
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write("#EXTM3U\n" + "\n".join(t.path for t in tracks) + "\n")
         QDesktopServices.openUrl(QUrl.fromLocalFile(p))
-
-    def properties(self):
-        tracks = self.view.selected_tracks()
-        if not tracks:
-            return
-        t = tracks[0]
-        i = t.data.info
-        lines = [t.path, "",
-                 f"{tr('Format')}: {i.codec}", f"{tr('Länge')}: {fmt_length(i.length)}",
-                 f"{tr('Bitrate')}: {i.bitrate} kbit/s {i.bitrate_mode}",
-                 f"{tr('Samplerate')}: {i.samplerate} Hz", f"{tr('Kanäle')}: {i.channels} {i.mode}",
-                 f"{tr('Tag')}: {', '.join(t.data.tag_types)}",
-                 f"{tr('Größe')}: {fmt_size(t.size)} ({t.size} Bytes)"]
-        QMessageBox.information(self, tr("Eigenschaften"), "\n".join(lines))
 
     # ------------------------------------------------------------------ cover
     def _cover_command(self, cmd: str):
@@ -1732,69 +1607,45 @@ class MainWindow(QMainWindow):
         elif cmd == "remove":
             cv.remove_current()
             self.save_tags()
-        elif cmd == "extract":
-            if not cv.covers:
-                return
-            c = cv.covers[cv.index]
-            ext = ".png" if c.mime == "image/png" else ".jpg"
-            t = self.view.selected_tracks()[0]
-            p, _ = QFileDialog.getSaveFileName(self, tr("Cover &extrahieren...").replace("&", ""),
-                                               os.path.join(t.folder, "folder" + ext))
-            if p:
-                with open(p, "wb") as fh:
-                    fh.write(c.data)
         elif cmd in ("fetch", "fetch_mb"):
             path = self._manual_cover_source() if cmd == "fetch" else self._mb_cover_source()
             self.fetch_cover_from_source(self.view.selected_tracks(), path=path, manual=True)
         elif cmd == "preview":
             from .dialogs.cover import CoverPreview
             CoverPreview.show_for(self, cv)
-        elif cmd == "adjust":
-            from .dialogs.cover import adjust_cover
-            if cv.covers:
-                new = adjust_cover(self, cv.covers[cv.index])
-                if new is not None:
-                    cv.covers[cv.index] = new
-                    cv._load()
-                    cv.changed.emit()
-                    self.save_tags()
-        elif cmd == "manage":
-            from .dialogs.covers import ManageCoversDialog
-            tracks = self.view.selected_tracks()
-            if tracks:
-                d = ManageCoversDialog(tracks, self)
-                if d.exec():
-                    self._write(tr("Cover verwalten"), tracks, d.apply_to)
-                    self.panel.load(tracks)
 
     # ------------------------------------------------------------------ misc
     def _context_menu(self, pos):
         m = QMenu(self)
-        for a in (self.act_play, self.act_open_fm, self.act_save, self.act_remove, self.act_ext_tags,
-                  self.act_cut, self.act_copy, self.act_paste):
+        for a in (self.act_play, self.act_save, self.act_remove, self.act_ext_tags, self.act_copy, self.act_paste):
             m.addAction(a)
         m.addSeparator()
-        conv = m.addMenu(tr("&Konverter"))
-        for a in (self.act_ttf, self.act_wizard):
-            conv.addAction(a)
+        m.addAction(self.act_ttf)
+        m.addAction(self.act_numbers)
         src = m.addMenu(tr("Tag-&Quellen"))
         src.aboutToShow.connect(lambda: self._fill_sources_submenu(src))
         m.addAction(self.act_lastfm)
-        m.addAction(tr("Moods analysieren (Auswahl)"), lambda: self.analyze_moods(self.view.selected_tracks()))
+        m.addAction(self.act_moods)
+        m.addAction(self.act_moods_all)
         m.addAction(self.act_auto_mb)
         m.addSeparator()
-        for a in (self.act_remove_files, self.act_rename,
-                  None, self.act_delete, None, self.act_props):
-            m.addSeparator() if a is None else m.addAction(a)
+        m.addAction(self.act_remove_files)
         m.exec(pos)
 
     def _fill_sources_submenu(self, menu):
         menu.clear()
         self._add_source_entries(menu)
 
+    def show_shortcuts(self):
+        from .help import show_shortcuts
+        show_shortcuts(self)
+
     def show_options(self):
+        self._open_options()
+
+    def _open_options(self, tab: str = ""):
         from .dialogs.options import OptionsDialog
-        d = OptionsDialog(self.opts, self)
+        d = OptionsDialog(self.opts, self, tab)
         if d.exec():
             self.opts = d.opts
             self.opts.save()

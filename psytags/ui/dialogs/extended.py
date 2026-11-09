@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QDialogBut
 
 from ...i18n import tr
 from ..tagpanel import CoverView, keep_text
-from .converters import FIELDS
+from ...config import FIELDS
 from ..persist import remember
 
 
