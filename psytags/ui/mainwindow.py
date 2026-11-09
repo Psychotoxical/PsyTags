@@ -1,4 +1,4 @@
-"""Main window: menus, toolbar, tag panel, file list, filter and status bar."""
+"""Main window: top bar with the workflow steps, file list, tag panel and status bar."""
 from __future__ import annotations
 
 import contextlib
@@ -8,14 +8,11 @@ import subprocess
 import sys
 import threading
 
-from PySide6.QtCore import QEvent, QObject, QSize, Qt, QThread, QTimer, QUrl, Signal
-from PySide6.QtGui import (QAction, QActionGroup, QCursor, QDesktopServices, QIcon, QKeySequence,
-                           QShortcut)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDockWidget, QFileDialog,
-                               QHBoxLayout, QInputDialog, QLabel, QMainWindow, QMenu,
-                               QMessageBox, QProgressBar, QProgressDialog, QStatusBar, QToolBar, QToolButton,
-                               QToolTip,
-                               QVBoxLayout, QWidget)
+from PySide6.QtCore import (QObject, Qt, QThread, QTimer, QUrl, Signal)
+from PySide6.QtGui import (QAction, QActionGroup, QDesktopServices, QKeySequence, QShortcut)
+from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QInputDialog,
+                               QLabel, QMainWindow, QMenu, QMessageBox, QProgressBar,
+                               QProgressDialog, QStatusBar, QVBoxLayout, QWidget)
 
 from .. import albumorder, config, convert, script, tags
 from ..config import Options
@@ -23,43 +20,12 @@ from ..i18n import tr
 from ..track import Track, fmt_length, fmt_size
 from ..undo import Recorder, UndoStack
 from .filelist import FileListModel, FileListView
-from .docktitle import DockTitle
+from .topbar import TopBar
 from .icons import icon
 from .tagpanel import TagPanel, image_to_bytes
 
 AUDIO_EXT = set(tags.SUPPORTED_EXTENSIONS)
-
-
-class _HoverTips(QObject):
-    """Shows the tooltips of the toolbar buttons itself: on Windows Qt's own hover tip often
-    stayed away for these buttons, while asking for the tip directly always worked."""
-
-    DELAY = 700
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.button = None
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.setInterval(self.DELAY)
-        self.timer.timeout.connect(self.show_tip)
-
-    def eventFilter(self, obj, event):
-        kind = event.type()
-        if kind == QEvent.Type.Enter:
-            self.button = obj
-            self.timer.start()
-        elif kind in (QEvent.Type.Leave, QEvent.Type.MouseButtonPress, QEvent.Type.Hide):
-            self.timer.stop()
-            QToolTip.hideText()
-        elif kind == QEvent.Type.ToolTip:
-            return True                             # no second tip from Qt
-        return False
-
-    def show_tip(self):
-        b = self.button
-        if b is not None and b.underMouse() and b.toolTip():
-            QToolTip.showText(QCursor.pos(), b.toolTip(), b, b.rect())
+LAYOUT_VERSION = 2                          # a saved window layout from another version is ignored
 
 
 class _StayingProgress(QProgressDialog):
@@ -181,10 +147,9 @@ class MainWindow(QMainWindow):
         self.view.sort_changed.connect(self._save_sort)
 
         self._build_panel()
-        self._build_filter()
         self._build_actions()
-        self._build_menus()
-        self._build_toolbar()
+        self._build_app_menu()
+        self._build_topbar()
         self._build_statusbar()
         self._restore_state()
         self._update_actions()
@@ -212,54 +177,57 @@ class MainWindow(QMainWindow):
         self.panel.directory_chosen.connect(lambda d: self.load_paths([os.path.expanduser(d)], False))
         self.panel.cover.request.connect(self._cover_command)
         self.panel.cover.fetch_entries = self._cover_fetch_entries
+        host = QWidget()
+        host.setObjectName("PanelHost")
+        host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        column = QVBoxLayout(host)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        head = QHBoxLayout()
+        head.setContentsMargins(12, 10, 12, 4)
+        title = QLabel(tr("Tag-Panel"))
+        title.setObjectName("PanelTitle")
+        self.panel_count = QLabel()
+        self.panel_count.setObjectName("PanelCount")
+        head.addWidget(title)
+        head.addStretch(1)
+        head.addWidget(self.panel_count)
+        column.addLayout(head)
+        column.addWidget(self.panel, 1)
         self.panel_dock = QDockWidget(tr("Tag-Panel"), self)
         self.panel_dock.setObjectName("TagPanel")
-        self.panel_dock.setWidget(self.panel)
-        self.panel_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable
-                                    | QDockWidget.DockWidgetFeature.DockWidgetMovable
-                                    | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
-        self.panel_dock.setTitleBarWidget(DockTitle(self.panel_dock))
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.panel_dock)
+        self.panel_dock.setWidget(host)
+        self.panel_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable)     # Ctrl+Q hides it
+        self.panel_dock.setTitleBarWidget(QWidget())
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.panel_dock)
 
-    def _build_filter(self):
-        w = QWidget()
-        lay = QHBoxLayout(w)
-        lay.setContentsMargins(6, 3, 6, 3)
-        lay.addWidget(QLabel(tr("Filter:")))
-        self.filter_combo = QComboBox()
-        self.filter_combo.setEditable(True)
-        self.filter_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        self.filter_combo.addItems(config.string_list(self.settings, "filter/history"))
-        self.filter_combo.setEditText("")
-        self.filter_combo.setSizePolicy(self.filter_combo.sizePolicy().horizontalPolicy().Expanding,
-                                        self.filter_combo.sizePolicy().verticalPolicy())
-        lay.addWidget(self.filter_combo, 1)
-        go = QToolButton()
-        go.setArrowType(Qt.ArrowType.RightArrow)
-        go.setAutoRaise(False)
-        go.clicked.connect(self.apply_filter)
-        lay.addWidget(go)
-        self._filter_timer = QTimer(self)
-        self._filter_timer.setSingleShot(True)
-        self._filter_timer.setInterval(300)
-        self._filter_timer.timeout.connect(self.apply_filter)
-        self.filter_combo.editTextChanged.connect(lambda _: self._filter_timer.start()
-                                                  if self.act_filter_auto.isChecked() else None)
-        self.filter_combo.lineEdit().returnPressed.connect(self.apply_filter)
-        self.filter_dock = QDockWidget(tr("Filter"), self)
-        self.filter_dock.setObjectName("Filter")
-        self.filter_dock.setWidget(w)
-        self.filter_dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable
-                                     | QDockWidget.DockWidgetFeature.DockWidgetMovable
-                                     | QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar)
-        self.filter_dock.setTitleBarWidget(DockTitle(self.filter_dock, vertical=True))
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.filter_dock)
-        self.filter_dock.visibilityChanged.connect(self._filter_visibility)
+    def _build_topbar(self):
+        self.topbar = TopBar(self)
+        self.setMenuWidget(self.topbar)
+        self.search = self.topbar.search
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(200)
+        self._search_timer.timeout.connect(self.apply_filter)
+        self.search.textChanged.connect(lambda _: self._search_timer.start())
 
-    def _filter_visibility(self, visible: bool):
-        if not visible and self.model.filter_text and not self.filter_dock.isVisible():
-            self.model.set_filter("")
-            self._update_status()
+    def _build_app_menu(self):
+        m = self.app_menu = QMenu(self)
+        for a in (self.act_options, self.act_ext_tags, self.act_panel):
+            m.addAction(a)
+        self.columns_menu = m.addMenu(tr("Spalte&n"))
+        self.columns_menu.aboutToShow.connect(self._fill_columns_menu)
+        self.sort_menu = m.addMenu(tr("&Sortieren nach"))
+        self.sort_menu.aboutToShow.connect(self._fill_sort_menu)
+        m.addAction(self.act_customize_panel)
+        m.addSeparator()
+        self.sources_menu = m.addMenu(tr("Tag-&Quellen"))
+        self.sources_menu.aboutToShow.connect(self._fill_sources_menu)
+        m.addSeparator()
+        for a in (self.act_open_cfg, self.act_help, self.act_keys, self.act_about):
+            m.addAction(a)
+        m.addSeparator()
+        m.addAction(self.act_exit)
 
     def _build_statusbar(self):
         sb = QStatusBar()
@@ -271,10 +239,6 @@ class MainWindow(QMainWindow):
         self.progress.hide()
         self.status_sel = QLabel()
         self.status_all = QLabel()
-        for l in (self.status_sel, self.status_all):
-            l.setFrameShape(QLabel.Shape.Panel)
-            l.setFrameShadow(QLabel.Shadow.Sunken)
-            l.setContentsMargins(4, 0, 4, 0)
         sb.addWidget(self.status_msg, 1)
         sb.addPermanentWidget(self.progress)
         sb.addPermanentWidget(self.status_sel)
@@ -327,7 +291,8 @@ class MainWindow(QMainWindow):
         self.act_cut = A("Au&sschneiden", self.cut, "Ctrl+X", "Schneidet die Textauswahl oder den Tag der ausgewählten Datei aus.")
         self.act_copy = A("K&opieren", self.copy, "Ctrl+C", "Kopiert die Textauswahl oder den Tag der ausgewählten Datei.")
         self.act_paste = A("&Einfügen", self.paste, "Ctrl+V", "Fügt den Inhalt der Zwischenablage ein.")
-        self.act_find = A("S&uchen...", self.find, "Ctrl+F", "Sucht Dateien in der Dateiliste.")
+        self.act_find = A("S&uchen...", self.focus_search, "Ctrl+F", "Sucht in allen Spalten der Dateiliste.",
+                          extra_shortcuts=["F3"])
         self.act_rename = A("Umbenennen", self.view.edit_first_editable, "F2", "Benennt die ausgewählte Datei um.")
         self.act_remove_files = A("E&ntfernen", self.remove_from_list, "Del", "Entfernt die ausgewählten Dateien aus der Dateiliste.")
         self.act_delete = A("Löschen...", lambda: self.delete_files(False), None, "Löscht die ausgewählten Dateien.",
@@ -347,19 +312,14 @@ class MainWindow(QMainWindow):
         self.act_cover_remove = A("Cover entfe&rnen", lambda: self._cover_command("remove"))
         self.act_cover_extract = A("Cover &extrahieren...", lambda: self._cover_command("extract"))
         self.act_cover_manage = A("Cover &verwalten...", lambda: self._cover_command("manage"), "Ctrl+Alt+M")
+        self.act_cover_fetch = A("Cover holen", lambda: self._cover_command("fetch"), None,
+                                 "Holt das Cover der ausgewählten Dateien von der eingestellten Quelle.")
         # View
         self.act_ext_tags = A("&Erweiterte Tags...", self.extended_tags, "Alt+T", "Zeigt den erweiterten Tag-Dialog an.", "extended")
         self.act_panel = self.panel_dock.toggleViewAction()
         self.act_panel.setText(tr("&Tag-Panel"))
         self.act_panel.setShortcut(QKeySequence("Ctrl+Q"))
         self.addAction(self.act_panel)
-        self.act_filter = self.filter_dock.toggleViewAction()
-        self.act_filter.setText(tr("&Filter"))
-        self.act_filter.setShortcut(QKeySequence("F3"))
-        self.act_filter.triggered.connect(lambda on: self.filter_combo.setFocus() if on else None)
-        self.addAction(self.act_filter)
-        self.act_filter_auto = A("Filter automatisch anwenden", None, checkable=True)
-        self.act_filter_auto.setChecked(self.settings.value("filter/auto", True) in (True, "true"))
         self.act_customize_cols = A("Spalten anpassen...", self.customize_columns)
         self.act_customize_panel = A("Tag-Panel anpassen...", self.customize_panel)
         self.act_autofit = A("Spaltenbreiten anpassen", self.autofit_columns, "Ctrl++",
@@ -402,86 +362,6 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Tab"), self, lambda: self._cycle_focus(1))
         QShortcut(QKeySequence("Ctrl+Shift+Tab"), self, lambda: self._cycle_focus(-1))
 
-    def _build_menus(self):
-        mb = self.menuBar()
-        m = mb.addMenu(tr("&Datei"))
-        for a in (self.act_save, self.act_remove, self.act_read, None, self.act_dir, self.act_add_dir,
-                  self.act_fav, self.act_open_fm, None, self.act_options, self.act_open_cfg, None, self.act_exit):
-            m.addSeparator() if a is None else m.addAction(a)
-
-        m = mb.addMenu(tr("&Bearbeiten"))
-        for a in (self.act_undo, self.act_redo, None, self.act_cut, self.act_copy,
-                  self.act_paste, None, self.act_find, None):
-            m.addSeparator() if a is None else m.addAction(a)
-        cm = m.addMenu(tr("Cover"))
-        for a in (self.act_cover_add, self.act_cover_replace, self.act_cover_adjust,
-                  self.act_cover_remove, self.act_cover_extract, None, self.act_cover_manage):
-            cm.addSeparator() if a is None else cm.addAction(a)
-        m.addSeparator()
-        for a in (self.act_rename, self.act_remove_files,
-                  self.act_delete, None, self.act_select_all, self.act_invert, self.act_unselect,
-                  self.act_next, self.act_similar, self.act_similar_next):
-            m.addSeparator() if a is None else m.addAction(a)
-
-        m = mb.addMenu(tr("A&nsicht"))
-        m.addAction(self.act_refresh)
-        self.sort_menu = m.addMenu(tr("&Sortieren nach"))
-        self.sort_menu.aboutToShow.connect(self._fill_sort_menu)
-        m.addSeparator()
-        m.addAction(self.act_ext_tags)
-        m.addAction(self.act_panel)
-        m.addAction(self.act_filter)
-        m.addAction(self.act_filter_auto)
-        tb = m.addMenu(tr("Sym&bolleisten"))
-        self.toolbar_menu = tb
-        cols = m.addMenu(tr("Spalte&n"))
-        self.columns_menu = cols
-        cols.aboutToShow.connect(self._fill_columns_menu)
-        m.addAction(self.act_customize_panel)
-
-        m = mb.addMenu(tr("&Konverter"))
-        for a in (self.act_ttf, self.act_wizard):
-            m.addAction(a)
-
-        m = mb.addMenu(tr("Tag-&Quellen"))
-        self.sources_menu = m
-        m.aboutToShow.connect(self._fill_sources_menu)
-
-        m = mb.addMenu(tr("&Hilfe"))
-        for a in (self.act_help, self.act_keys, None, self.act_about):
-            m.addSeparator() if a is None else m.addAction(a)
-
-    def _build_toolbar(self):
-        tb = QToolBar(tr("&Hauptsymbolleiste"), self)
-        tb.setObjectName("MainToolbar")
-        tb.setIconSize(QSize(42, 42))
-        tb.setMovable(True)
-        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        for a in (self.act_save, self.act_remove, self.act_undo, self.act_redo, None,
-                  self.act_dir, self.act_add_dir, self.act_up, self.act_fav,
-                  self.act_refresh, None, self.act_ttf, None,
-                  self.act_ext_tags, None,
-                  self.act_wizard, None, self.act_moods, self.act_auto_mb, self.act_auto_all, self.act_batch_summary,
-                  self.act_last_source, self.act_lastfm, None,
-                  self.act_options):
-            tb.addSeparator() if a is None else tb.addAction(a)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
-        self.toolbar = tb
-        self._hover_tips = _HoverTips(self)
-        for a in tb.actions():
-            button = tb.widgetForAction(a)
-            if button is not None:
-                button.installEventFilter(self._hover_tips)
-        btn = tb.widgetForAction(self.act_last_source)
-        if isinstance(btn, QToolButton):
-            self.sources_popup = QMenu(self)
-            self.sources_popup.aboutToShow.connect(lambda: self._fill_sources_submenu(self.sources_popup))
-            btn.setMenu(self.sources_popup)
-            btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-        self._update_last_source_tip()
-        self.toolbar_menu.addAction(tb.toggleViewAction())
-        tb.toggleViewAction().setText(tr("&Hauptsymbolleiste"))
-
     def _restore_state(self):
         g = self.settings.value("window/geometry")
         if g is not None:
@@ -490,13 +370,12 @@ class MainWindow(QMainWindow):
             self.resize(1400, 850)
         s = self.settings.value("window/state")
         if s is not None:
-            self.restoreState(s)
+            self.restoreState(s, LAYOUT_VERSION)
         w = self.settings.value("window/panel_width")
         if w:
             self.resizeDocks([self.panel_dock], [int(w)], Qt.Orientation.Horizontal)
         else:
             self.resizeDocks([self.panel_dock], [355], Qt.Orientation.Horizontal)
-        self.filter_dock.setVisible(self.settings.value("window/filter_visible", "true") in (True, "true"))
 
     def closeEvent(self, e):
         if self.panel.dirty and self.panel.tracks:
@@ -510,11 +389,9 @@ class MainWindow(QMainWindow):
         self._save_sort()
         if not self.isMinimized():
             self.settings.setValue("window/geometry", self.saveGeometry())
-            self.settings.setValue("window/state", self.saveState())
+            self.settings.setValue("window/state", self.saveState(LAYOUT_VERSION))
             if self.panel_dock.isVisible() and not self.panel_dock.isFloating():
                 self.settings.setValue("window/panel_width", self.panel_dock.width())
-        self.settings.setValue("window/filter_visible", self.filter_dock.isVisible())
-        self.settings.setValue("filter/auto", self.act_filter_auto.isChecked())
         self.settings.setValue("dirs/last", self.current_dir)
         self.settings.setValue("dirs/history", self.dir_history[:30])
         self.settings.sync()
@@ -544,14 +421,12 @@ class MainWindow(QMainWindow):
         def seg(ts):
             secs = int(round(sum(t.data.info.length for t in ts)))
             h, rem = divmod(secs, 3600)
-            return f"{len(ts)} ({h:02d}:{rem // 60:02d}:{rem % 60:02d} | " \
-                   f"{fmt_size(sum(t.size for t in ts))})"
-        self.status_sel.setText(seg(sel))
-        if self.model.filter_text:
-            self.status_all.setText(f"{len(rows)}/{len(self.model.all)} "
-                                    + seg(rows)[len(str(len(rows))) + 1:])
-        else:
-            self.status_all.setText(seg(rows))
+            return f"{h:02d}:{rem // 60:02d}:{rem % 60:02d} · {fmt_size(sum(t.size for t in ts))}"
+        chosen = tr("{1} ausgewählt", len(sel)) if sel else ""
+        self.status_sel.setText(f"{chosen} · {seg(sel)}" if sel else "")
+        self.panel_count.setText(chosen)
+        count = f"{len(rows)}/{len(self.model.all)}" if self.model.filter_text else str(len(rows))
+        self.status_all.setText(f"{tr('{1} Dateien', count)} · {seg(rows)}")
 
     def message(self, text: str, timeout: int = 0):
         self.status_msg.setText(text or tr("Bereit"))
@@ -563,7 +438,7 @@ class MainWindow(QMainWindow):
         for a in (self.act_remove, self.act_read, self.act_cut, self.act_copy,
                   self.act_rename, self.act_remove_files, self.act_delete, self.act_ttf,
                   self.act_wizard, self.act_ext_tags, self.act_play,
-                  self.act_props, self.act_cover_add, self.act_lastfm,
+                  self.act_props, self.act_cover_add, self.act_cover_fetch, self.act_lastfm,
                   self.act_auto_mb):
             a.setEnabled(has_sel)
         for a in (self.act_moods, self.act_auto_all):
@@ -729,7 +604,7 @@ class MainWindow(QMainWindow):
         self.view.select_tracks([t for t in rows if script.format(expr, t) == key])
 
     def _cycle_focus(self, d: int):
-        order = [self.panel, self.filter_combo, self.view]
+        order = [self.panel, self.search, self.view]
         order = [w for w in order if w.isVisible()]
         fw = QApplication.focusWidget()
         idx = 0
@@ -1747,18 +1622,14 @@ class MainWindow(QMainWindow):
             self.panel.load(tracks)
 
     def apply_filter(self):
-        text = self.filter_combo.currentText()
         sel = self.view.selected_tracks()
-        self.model.set_filter(text)
+        self.model.set_filter(self.search.text())
         self.view.select_tracks([t for t in sel if t in self.model.rows])
-        if text:
-            h = [x for x in config.string_list(self.settings, "filter/history") if x != text]
-            self.settings.setValue("filter/history", [text] + h[:29])
         self._update_status()
 
-    def find(self):
-        from .dialogs.find import FindDialog
-        FindDialog(self).exec()
+    def focus_search(self):
+        self.search.setFocus()
+        self.search.selectAll()
 
     # ------------------------------------------------------------------ files
     def remove_from_list(self):
@@ -1932,7 +1803,7 @@ class MainWindow(QMainWindow):
         from .. import __version__
         QMessageBox.about(self, tr("Über PsyTags..."),
                           f"<b>PsyTags {__version__}</b><br>"
-                          + tr("Tag-Editor für Linux, Bedienung nach dem Vorbild von Mp3tag."))
+                          + tr("Schlanker Tag-Editor mit Automatik und Mood-Analyse aus dem Audio."))
 
 
 def QStandardPathsMusic() -> str:

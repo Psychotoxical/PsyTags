@@ -32,8 +32,7 @@ def _ui_texts() -> dict[str, str]:
 def _dynamic_texts() -> list[str]:
     """Texts kept in lists and translated with tr(variable) when shown."""
     from psytags.ui import help as uihelp
-    from psytags.ui.dialogs import find
-    out = list(find.STRATEGIES)
+    out = []
     for group, items in uihelp.SHORTCUTS:
         out.append(group)
         out += [text for _key, text in items]

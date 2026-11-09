@@ -25,7 +25,7 @@ SHORTCUTS = [
         ("Strg+V", "Tag oder Text einfügen"),
         ("Strg+X", "Tag oder Text ausschneiden"), ("Strg+Z", "Rückgängig"),
         ("Strg+Y", "Wiederholen"),
-        ("F2", "Umbenennen"), ("F3", "Filter"), ("F5", "Aktualisieren"),
+        ("F2", "Umbenennen"), ("F3", "Suchen"), ("F5", "Aktualisieren"),
         ("Alt+←/→", "Verzeichnisverlauf zurück/vor"), ("Alt+Enter", "Eigenschaften"),
         ("Alt+T", "Erweiterte Tags"), ("Alt+↑/↓", "Datei in der Liste verschieben"),
         ("Alt+Bild↑/↓", "Dateien an Anfang/Ende der Liste"),
@@ -35,7 +35,7 @@ SHORTCUTS = [
     ]),
     ("Hilfen", [
         ("Strg+Leertaste", "Formatstring-Hilfsmenü"),
-        ("Strg+Tab / Strg+Shift+Tab", "Zwischen Tag-Panel, Filter und Dateiliste wechseln"),
+        ("Strg+Tab / Strg+Shift+Tab", "Zwischen Tag-Panel, Suchfeld und Dateiliste wechseln"),
         ("Strg+Num+", "Spaltenbreiten an Inhalt anpassen"),
         ("Shift+Entf", "Eintrag aus Formatstring-Liste löschen"),
         ("Shift+Enter", "Feldinhalt als benutzerdefinierten Wert speichern"),

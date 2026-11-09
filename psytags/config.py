@@ -241,7 +241,7 @@ def push_history(key: str, value: str, limit: int = 30) -> None:
 
 @dataclass
 class Options:
-    """General options (Mp3tag: Options dialog)."""
+    """General options."""
     id3_version: int = 3
     write_id3v1: bool = False
     keep_mtime: bool = False
@@ -252,6 +252,7 @@ class Options:
     confirm_delete: bool = True
     alt_row_colors: bool = True
     language: str = "de"
+    theme: str = "mocha"
     extensions: list[str] = field(default_factory=list)
 
     @classmethod

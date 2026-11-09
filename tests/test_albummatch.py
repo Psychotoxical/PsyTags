@@ -541,49 +541,6 @@ class FollowUpTests(unittest.TestCase):
         win.analyze_moods.assert_called_once_with([])
 
 
-class HoverTipTests(unittest.TestCase):
-    def _make(self):
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from unittest import mock
-        from PySide6.QtWidgets import QApplication
-        QApplication.instance() or QApplication([])
-        from psytags.ui import mainwindow as mw
-        button = mock.MagicMock()
-        button.underMouse.return_value = True
-        button.toolTip.return_value = "Tip"
-        return mw, mw._HoverTips(), button, mock
-
-    def test_tip_appears_after_hovering(self):
-        from PySide6.QtCore import QEvent
-        mw, tips, button, mock = self._make()
-        tips.eventFilter(button, QEvent(QEvent.Type.Enter))
-        self.assertTrue(tips.timer.isActive())
-        with mock.patch.object(mw.QToolTip, "showText") as show:
-            tips.show_tip()
-        self.assertEqual(show.call_args.args[1], "Tip")
-
-    def test_leaving_cancels_the_tip(self):
-        from PySide6.QtCore import QEvent
-        _mw, tips, button, _mock = self._make()
-        tips.eventFilter(button, QEvent(QEvent.Type.Enter))
-        tips.eventFilter(button, QEvent(QEvent.Type.Leave))
-        self.assertFalse(tips.timer.isActive())
-
-    def test_no_second_tip_from_qt(self):
-        from PySide6.QtCore import QEvent
-        _mw, tips, button, _mock = self._make()
-        self.assertTrue(tips.eventFilter(button, QEvent(QEvent.Type.ToolTip)))
-        self.assertFalse(tips.eventFilter(button, QEvent(QEvent.Type.Paint)))
-
-    def test_no_tip_when_the_mouse_left(self):
-        mw, tips, button, mock = self._make()
-        button.underMouse.return_value = False
-        tips.button = button
-        with mock.patch.object(mw.QToolTip, "showText") as show:
-            tips.show_tip()
-        show.assert_not_called()
-
-
 class SummaryOutcomeTests(unittest.TestCase):
     def test_marks(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

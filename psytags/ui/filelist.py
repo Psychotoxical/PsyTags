@@ -1,25 +1,63 @@
-"""File list (right side of the main window)."""
+"""File list (left side of the main window), grouped by album."""
 from __future__ import annotations
 
-import os
 import random
 import re
+from dataclasses import dataclass, field
 
 from PySide6.QtCore import (QAbstractTableModel, QItemSelection, QItemSelectionModel,
-                            QModelIndex, QMimeData, Qt, QTimer, QUrl, Signal)
-from PySide6.QtGui import QColor, QKeySequence, QPalette
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFileIconProvider,
-                               QHeaderView, QStyledItemDelegate, QTableView, QLineEdit)
+                            QModelIndex, QMimeData, QPoint, QRect, QRectF, Qt, QTimer, QUrl, Signal)
+from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QPen
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFileIconProvider, QFrame,
+                               QHeaderView, QStyledItemDelegate, QStyleOptionViewItem, QTableView, QLineEdit)
 
-from .theme import ERROR
+from . import theme
 from .. import script
 from ..i18n import tr
 from ..config import Column
-from ..filterexpr import compile_filter
 from ..albumorder import natural_key as _natural_key, sort_key
 from ..track import Track
 
 ICON_COL = 0
+ROW_HEIGHT = 28
+BAND_HEIGHT = 36
+
+
+@dataclass
+class AlbumBand:
+    """The heading above an album in the list."""
+    tracks: list
+    title: str
+    info: str
+    status: list[tuple[str, bool]] = field(default_factory=list)
+
+
+def _status(tracks: list) -> list[tuple[str, bool]]:
+    return [("Album", all(t.get("MUSICBRAINZ_ALBUMID") for t in tracks)),
+            ("Cover", all(getattr(t.data, "covers", None) for t in tracks)),
+            ("Genres", all(t.get("GENRE") for t in tracks)),
+            ("Moods", any(t.get("MOOD") for t in tracks))]
+
+
+def album_bands(rows: list) -> dict[int, AlbumBand]:
+    """First row of each album run -> its heading. A sort that tears the albums apart gets
+    none, because a heading above nearly every row would only be in the way."""
+    from ..websources.albumauto import album_title, group_albums
+    owner = {id(t): i for i, group in enumerate(group_albums(list(rows))) for t in group}
+    runs: list[tuple[int, list]] = []
+    for r, t in enumerate(rows):
+        if runs and owner[id(runs[-1][1][-1])] == owner[id(t)]:
+            runs[-1][1].append(t)
+        else:
+            runs.append((r, [t]))
+    if len(runs) > 1 and len(runs) * 3 > len(rows) * 2:
+        return {}
+    out = {}
+    for start, tracks in runs:
+        year = next((y[0][:4] for y in (t.get("YEAR") or t.get("ORIGYEAR") for t in tracks) if y), "")
+        count = tr("{1} Titel", len(tracks))
+        out[start] = AlbumBand(tracks, album_title(tracks), f"{year} · {count}" if year else count, _status(tracks))
+    return out
 
 
 class FileListModel(QAbstractTableModel):
@@ -101,7 +139,7 @@ class FileListModel(QAbstractTableModel):
             return (Qt.AlignmentFlag.AlignRight if self.columns[c - 1].numeric
                     else Qt.AlignmentFlag.AlignLeft) | Qt.AlignmentFlag.AlignVCenter
         if role == Qt.ItemDataRole.ForegroundRole and t.error:
-            return QColor(ERROR)
+            return QColor(theme.ERROR)
         return None
 
     def flags(self, index):
@@ -197,9 +235,15 @@ class FileListModel(QAbstractTableModel):
     def set_filter(self, text: str) -> None:
         self.beginResetModel()
         self.filter_text = text
-        self._filter = compile_filter(text) if text.strip() else None
+        words = text.casefold().split()
+        self._filter = (lambda t: self._matches(t, words)) if words else None
         self._apply()
         self.endResetModel()
+
+    def _matches(self, t: Track, words: list[str]) -> bool:
+        """Every word has to appear somewhere in the visible columns or the file name."""
+        text = " ".join([script.format(c.value, t) for c in self.columns] + [t.filename]).casefold()
+        return all(w in text for w in words)
 
     def sort_by(self, col: int, add: bool) -> None:
         self.beginResetModel()
@@ -270,6 +314,28 @@ class _EditDelegate(QStyledItemDelegate):
         return e
 
 
+class _RowDelegate(_EditDelegate):
+    """Keeps the cells of an album's first row below its heading."""
+
+    def __init__(self, view: "FileListView"):
+        super().__init__(view)
+        self.view = view
+
+    def _cell(self, option, index) -> QRect:
+        rect = QRect(option.rect)
+        if index.row() in self.view.bands:
+            rect.setTop(rect.top() + BAND_HEIGHT)
+        return rect
+
+    def paint(self, painter, option, index):
+        cell = QStyleOptionViewItem(option)
+        cell.rect = self._cell(option, index)
+        super().paint(painter, cell, index)
+
+    def updateEditorGeometry(self, editor, option, index):
+        editor.setGeometry(self._cell(option, index))
+
+
 class FileListView(QTableView):
     files_dropped = Signal(list, bool)      # paths, add (Ctrl held)
     context_menu = Signal(object)
@@ -278,18 +344,20 @@ class FileListView(QTableView):
 
     def __init__(self, model: FileListModel, parent=None):
         super().__init__(parent)
+        self.bands: dict[int, AlbumBand] = {}
         self.setModel(model)
-        self.setItemDelegate(_EditDelegate(self))
+        self.setItemDelegate(_RowDelegate(self))
+        self.setFrameShape(QFrame.Shape.NoFrame)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.setEditTriggers(QAbstractItemView.EditTrigger.SelectedClicked
                              | QAbstractItemView.EditTrigger.EditKeyPressed)
         self.setShowGrid(False)
-        self.setAlternatingRowColors(True)
+        self.setAlternatingRowColors(False)
         self.setWordWrap(False)
         self.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
-        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerItem)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(False)
@@ -302,7 +370,7 @@ class FileListView(QTableView):
         vh.setVisible(False)
         vh.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
         vh.setMinimumSectionSize(1)
-        vh.setDefaultSectionSize(self.fontMetrics().height() + 1)
+        vh.setDefaultSectionSize(ROW_HEIGHT)
         hh = self.horizontalHeader()
         hh.setSectionsMovable(True)
         hh.setHighlightSections(False)
@@ -315,6 +383,12 @@ class FileListView(QTableView):
         hh.sectionMoved.connect(lambda *_: QTimer.singleShot(0, self._reorder))
         self._applying = False
         self.apply_widths()
+        self._band_timer = QTimer(self)
+        self._band_timer.setSingleShot(True)
+        self._band_timer.setInterval(0)
+        self._band_timer.timeout.connect(self._refresh_bands)
+        model.modelReset.connect(self._forget_bands)
+        model.dataChanged.connect(lambda *_: self._band_timer.start())
 
     def model(self) -> FileListModel:      # type: ignore[override]
         return super().model()
@@ -323,8 +397,7 @@ class FileListView(QTableView):
         m = self.model()
         self._applying = True
         try:
-            self.setColumnWidth(ICON_COL, 18)
-            self.horizontalHeader().setSectionResizeMode(ICON_COL, QHeaderView.ResizeMode.Fixed)
+            self.setColumnHidden(ICON_COL, True)
             for i, c in enumerate(m.columns, 1):
                 self.setColumnWidth(i, c.width)
         finally:
@@ -382,6 +455,96 @@ class FileListView(QTableView):
         self._update_indicator()
         self.select_tracks(sel)
         self.sort_changed.emit()
+
+    # -- album headings ------------------------------------------------------
+    def _forget_bands(self) -> None:
+        self.bands = {}                              # a reset already restored the row heights
+        self._band_timer.start()
+
+    def _refresh_bands(self) -> None:
+        new = album_bands(self.model().rows)
+        vh = self.verticalHeader()
+        for r in set(self.bands) - set(new):
+            vh.resizeSection(r, ROW_HEIGHT)
+        for r in set(new) - set(self.bands):
+            vh.resizeSection(r, ROW_HEIGHT + BAND_HEIGHT)
+        self.bands = new
+        self.viewport().update()
+
+    def _band_at(self, pos: QPoint) -> AlbumBand | None:
+        r = self.rowAt(pos.y())
+        if r in self.bands and pos.y() < self.rowViewportPosition(r) + BAND_HEIGHT:
+            return self.bands[r]
+        return None
+
+    def mousePressEvent(self, e):
+        band = self._band_at(e.position().toPoint()) if e.button() == Qt.MouseButton.LeftButton else None
+        if band is not None:                         # a click on the heading selects the album
+            self.select_tracks(band.tracks, band.tracks[0])
+            return
+        super().mousePressEvent(e)
+
+    def paintEvent(self, e):
+        super().paintEvent(e)
+        if not self.bands:
+            return
+        first, last = self.rowAt(0), self.rowAt(self.viewport().height() - 1)
+        if first < 0:
+            return
+        last = self.model().rowCount() - 1 if last < 0 else last
+        p = QPainter(self.viewport())
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        for r in range(first, last + 1):
+            if r in self.bands:
+                self._paint_band(p, r)
+        p.end()
+
+    def _paint_band(self, p: QPainter, row: int) -> None:
+        band = self.bands[row]
+        rect = QRect(0, self.rowViewportPosition(row), self.viewport().width(), BAND_HEIGHT)
+        p.fillRect(rect, QColor(theme.CHROME))
+        p.fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), QColor(theme.BORDER))
+        right = self._paint_chips(p, rect, band.status)
+        strong = QFont(self.font())
+        strong.setWeight(QFont.Weight.DemiBold)
+        p.setFont(strong)
+        p.setPen(QColor(theme.TEXT))
+        room = QRect(rect.left() + 14, rect.top(), max(0, right - rect.left() - 24), rect.height())
+        title = p.fontMetrics().elidedText(band.title, Qt.TextElideMode.ElideRight, room.width())
+        p.drawText(room, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, title)
+        used = p.fontMetrics().horizontalAdvance(title) + 12
+        p.setFont(self.font())
+        p.setPen(QColor(theme.SECONDARY))
+        rest = room.adjusted(used, 0, 0, 0)
+        info = p.fontMetrics().elidedText(band.info, Qt.TextElideMode.ElideRight, max(0, rest.width()))
+        p.drawText(rest, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, info)
+
+    def _paint_chips(self, p: QPainter, rect: QRect, status: list[tuple[str, bool]]) -> int:
+        """Paints from the right edge inward; returns the free space's right end."""
+        small = QFont(self.font())
+        small.setPixelSize(11)
+        small.setWeight(QFont.Weight.Medium)
+        p.setFont(small)
+        x = rect.right() - 12
+        for name, ok in reversed(status):
+            text = tr(name)
+            width = p.fontMetrics().horizontalAdvance(text) + 32
+            chip = QRectF(x - width, rect.center().y() - 10, width, 20)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(theme.OK_BACKGROUND if ok else theme.BAD_BACKGROUND))
+            p.drawRoundedRect(chip, 10, 10)
+            ink = QColor(theme.OK_TEXT if ok else theme.BAD_TEXT)
+            p.setPen(QPen(ink, 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+            mx, my = chip.left() + 13, chip.center().y()
+            if ok:
+                p.drawPolyline([QPoint(int(mx - 4), int(my)), QPoint(int(mx - 1), int(my + 3)), QPoint(int(mx + 4), int(my - 3))])
+            else:
+                p.drawLine(QPoint(int(mx - 3), int(my - 3)), QPoint(int(mx + 3), int(my + 3)))
+                p.drawLine(QPoint(int(mx + 3), int(my - 3)), QPoint(int(mx - 3), int(my + 3)))
+            p.setPen(ink)
+            p.drawText(chip.adjusted(22, 0, 0, 0), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
+            x -= width + 6
+        return x
 
     # -- selection helpers ---------------------------------------------------
     def selected_rows(self) -> list[int]:

@@ -71,7 +71,7 @@ class FieldCombo(QComboBox):
 
 
 class CoverView(QFrame):
-    """Cover art area at the bottom of the tag panel."""
+    """Cover art at the top of the tag panel."""
     changed = Signal()
     request = Signal(str)        # menu command name
 
@@ -80,7 +80,7 @@ class CoverView(QFrame):
         self.setFrameShape(QFrame.Shape.Box)
         self.setFrameShadow(QFrame.Shadow.Plain)
         self.setStyleSheet("CoverView { background: palette(base); border: 1px solid palette(mid); }")
-        self.setFixedSize(250, 250)
+        self.setFixedSize(112, 112)
         self.setAcceptDrops(True)
         self.covers: list[tags.Cover] = []
         self.varies = False
@@ -160,7 +160,7 @@ class CoverView(QFrame):
         p.end()
 
     def _paint_placeholder(self, p: QPainter, r: QRect):
-        # Grey disc symbol, similar to Mp3tag's empty cover placeholder.
+        # Grey disc symbol for "no cover".
         c = r.center()
         col = self.palette().color(self.palette().ColorRole.PlaceholderText)
         p.setPen(QPen(col, 2))
@@ -290,12 +290,19 @@ class TagPanel(QWidget):
         self.inner = QWidget()
         self.scroll.setWidget(self.inner)
         self.grid = QVBoxLayout(self.inner)
-        self.grid.setContentsMargins(6, 4, 6, 6)
-        self.grid.setSpacing(2)
+        self.grid.setContentsMargins(12, 4, 12, 10)
+        self.grid.setSpacing(8)
         self.cover = CoverView()
         self.cover.changed.connect(self._cover_changed)
         self.cover_info = QLabel()
-        self.cover_info.setStyleSheet("color: palette(placeholder-text);")
+        self.cover_info.setObjectName("FieldLabel")
+        self.cover_info.setWordWrap(True)
+        self.cover_row = QWidget()
+        top = QHBoxLayout(self.cover_row)
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(12)
+        top.addWidget(self.cover)
+        top.addWidget(self.cover_info, 1, Qt.AlignmentFlag.AlignBottom)
         self.setMinimumWidth(200)
 
     # -- layout ----------------------------------------------------------------
@@ -310,6 +317,7 @@ class TagPanel(QWidget):
                 _clear_layout(it.layout())
         self.combos.clear()
         self.dir_combo = None
+        self.grid.addWidget(self.cover_row)
         row: QHBoxLayout | None = None
         used = 0.0
         for f in self.fields:
@@ -323,8 +331,9 @@ class TagPanel(QWidget):
                 used = 0.0
             used += frac
             box = QVBoxLayout()
-            box.setSpacing(1)
-            lab = QLabel(tr(f.name))                 # default labels are translated, own ones stay
+            box.setSpacing(3)
+            lab = QLabel(tr(f.name).replace("&", ""))   # default labels are translated, own ones stay
+            lab.setObjectName("FieldLabel")
             box.addWidget(lab)
             if f.value.upper() == "_DIRECTORY":
                 combo = QComboBox()
@@ -347,9 +356,6 @@ class TagPanel(QWidget):
             row.addLayout(box, int(round(frac * 1000)))
         if row is not None and used < 0.999:
             row.addStretch(int(round((1 - used) * 1000)))
-        self.grid.addSpacing(8)
-        self.grid.addWidget(self.cover)
-        self.grid.addWidget(self.cover_info)
         self.grid.addStretch(1)
         self.load(self.tracks)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import sys
 
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication
 
 from . import config
@@ -103,10 +103,11 @@ def main(argv: list[str] | None = None) -> int:
     app.setDesktopFileName("psytags")
     opts = config.Options.load()
     set_language(opts.language)
-    apply_theme(app)
-    # Mp3tag uses the 9pt Windows UI font (12 px at 96 dpi).
+    apply_theme(app, opts.theme)
     f = QFont(app.font())
-    f.setPixelSize(12)
+    if "Inter" in QFontDatabase.families():
+        f.setFamily("Inter")
+    f.setPixelSize(13)
     app.setFont(f)
 
     from .ui.mainwindow import MainWindow

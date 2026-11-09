@@ -196,6 +196,10 @@ class OptionsDialog(QDialog):
         self.lang.addItems(["Deutsch", "English"])
         self.lang.setCurrentIndex(0 if opts.language == "de" else 1)
         f.addRow(tr("Sprache (nach Neustart):"), self.lang)
+        self.theme = QComboBox()
+        self.theme.addItems([tr("Catppuccin Mocha (dunkel)"), tr("Catppuccin Latte (hell)")])
+        self.theme.setCurrentIndex(1 if opts.theme == "latte" else 0)
+        f.addRow(tr("Design (nach Neustart):"), self.theme)
         self.autosave = QCheckBox(tr("Tags beim Wechsel der Auswahl speichern"))
         self.autosave.setChecked(opts.save_on_selection_change)
         f.addRow(self.autosave)
@@ -243,6 +247,7 @@ class OptionsDialog(QDialog):
     def accept(self):
         o = self.opts
         o.language = "de" if self.lang.currentIndex() == 0 else "en"
+        o.theme = "latte" if self.theme.currentIndex() == 1 else "mocha"
         o.save_on_selection_change = self.autosave.isChecked()
         o.keep_mtime = self.keep_mtime.isChecked()
         o.subfolders = self.subfolders.isChecked()

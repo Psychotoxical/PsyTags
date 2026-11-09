@@ -5,7 +5,6 @@ import tempfile
 import unittest
 
 from psytags import convert, script, tags
-from psytags.filterexpr import compile_filter
 from psytags.track import Track
 
 
@@ -158,25 +157,6 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(config.string_list(s, "dirs/missing"), [])
         finally:
             shutil.rmtree(d)
-
-
-class FilterTests(unittest.TestCase):
-    def ok(self, expr, t=T):
-        return compile_filter(expr)(t)
-
-    def test_filter(self):
-        self.assertTrue(self.ok("black"))
-        self.assertTrue(self.ok("back black"))
-        self.assertFalse(self.ok("back white"))
-        self.assertTrue(self.ok("artist HAS ac/dc"))
-        self.assertTrue(self.ok("artist IS guest"))
-        self.assertTrue(self.ok('title IS "back in black"'))
-        self.assertTrue(self.ok("title IS Back in Black OR artist IS x"))
-        self.assertTrue(self.ok("year GREATER 1970 AND year LESS 1990"))
-        self.assertTrue(self.ok("genre MISSING AND NOT title MISSING"))
-        self.assertTrue(self.ok("track MATCHES \\d/\\d+"))
-        self.assertTrue(self.ok('"$len(%title%)" GREATER 10'))
-        self.assertFalse(self.ok("(artist IS x OR artist IS y) AND year PRESENT"))
 
 
 class TagWriteTests(unittest.TestCase):
