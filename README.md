@@ -8,6 +8,12 @@ PsyTags is still in development. There are no releases yet.
 
 ![Main window of PsyTags with the file list on the left and the tag panel on the right](docs/screenshot.png)
 
+## Why PsyTags
+
+For about 25 years Mp3tag by Florian Heidenreich has been one of the programs I use most. What I came to miss was automation for a large collection. PsyTags is built for my own workflow first: it does as much as possible on its own, and the final check stays as simple and clear as in Mp3tag, which inspired it. I am grateful for those years and for that inspiration.
+
+PsyTags is an independent project and is not affiliated with or endorsed by Mp3tag or its author.
+
 ## Before you start
 
 PsyTags writes to your music files and renames them. Try it on copies of a few albums first.
@@ -76,6 +82,10 @@ On Windows the scripts are in `.venv\Scripts`.
 pip install -e .
 QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests
 ```
+
+## Acknowledgements
+
+The color themes Mocha and Latte come from Catppuccin and are licensed under MIT.
 
 ## License
 

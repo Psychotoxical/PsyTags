@@ -1,4 +1,4 @@
-"""Extended Tags dialog (View > Extended Tags, Alt+T)."""
+"""The dialog with every field of a file (All fields, Alt+T)."""
 from __future__ import annotations
 
 import copy
@@ -18,7 +18,7 @@ from ..persist import remember
 class FieldEditor(QDialog):
     def __init__(self, name: str, value: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(tr("Tag-Feld bearbeiten"))
+        self.setWindowTitle(tr("Feld bearbeiten"))
         self.resize(420, 240)
         lay = QVBoxLayout(self)
         lay.addWidget(QLabel(tr("Feld:")))
@@ -44,7 +44,7 @@ class ExtendedTagsDialog(QDialog):
     def __init__(self, tracks, parent=None):
         super().__init__(parent)
         self.tracks = tracks
-        self.setWindowTitle(tr("Erweiterte Tags") + (f" - {tracks[0].filename}" if len(tracks) == 1
+        self.setWindowTitle(tr("Alle Felder") + (f" - {tracks[0].filename}" if len(tracks) == 1
                                                       else f" - {len(tracks)} " + tr("Dateien")))
         self.resize(760, 480)
         # rows: (field, value or KEEP); one row per value of multi-value fields
@@ -67,7 +67,7 @@ class ExtendedTagsDialog(QDialog):
         lay = QHBoxLayout(self)
         left = QVBoxLayout()
         self.table = QTableWidget(0, 2)
-        self.table.setHorizontalHeaderLabels([tr("Tag-Feld"), tr("Wert")])
+        self.table.setHorizontalHeaderLabels([tr("Feld"), tr("Wert")])
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.table.setColumnWidth(0, 200)
         self.table.verticalHeader().setVisible(False)
@@ -76,9 +76,9 @@ class ExtendedTagsDialog(QDialog):
         self.table.doubleClicked.connect(lambda _: self.edit())
         left.addWidget(self.table, 1)
         row = QHBoxLayout()
-        for text, slot, key in ((tr("Tag-Feld hinzufügen..."), self.new, "Ins"),
-                                (tr("Tag-Feld bearbeiten..."), self.edit, "F2"),
-                                (tr("Tag-Feld entfernen"), self.remove, "Del")):
+        for text, slot, key in ((tr("Feld hinzufügen..."), self.new, "Ins"),
+                                (tr("Feld bearbeiten..."), self.edit, "F2"),
+                                (tr("Feld löschen"), self.remove, "Del")):
             b = QPushButton(text)
             b.clicked.connect(slot)
             row.addWidget(b)

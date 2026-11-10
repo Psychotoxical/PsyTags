@@ -241,17 +241,17 @@ class AdjustDialog(QDialog):
         super().__init__(parent)
         self.album = album
         self.cover = cover
-        # Fewer files than tracks: empty slots ("< keine Zuordnung >") fill the rest. They
+        # Fewer files than tracks: empty slots ("(ohne Datei)") fill the rest. They
         # can be moved like files, e.g. to the top when the first song is missing.
         # Files are placed by their titles; what has no track stands behind the last one.
         self.files = albumauto.prealign(list(tracks), album)
-        self.setWindowTitle(tr("Tag-Informationen anpassen"))
+        self.setWindowTitle(tr("Zuordnung prüfen"))
         self.resize(1180, 660)
         lay = QVBoxLayout(self)
         _roomy(lay)
         about = " · ".join(v for v in (album.value("ALBUM", 0), album.value("ALBUMARTIST", 0),
                                        album.value("YEAR", 0)[:4]) if v)
-        lay.addWidget(_heading(tr("Tag-Informationen anpassen"), about)[0])
+        lay.addWidget(_heading(tr("Zuordnung prüfen"), about)[0])
         split = QSplitter()
         split.setHandleWidth(14)
         left = QWidget()
@@ -266,7 +266,7 @@ class AdjustDialog(QDialog):
         s = config.settings()
         disabled = set(config.string_list(s, "tagsources/disabled_fields"))
         for name in album.fields:
-            shown = tr("< mehrere Werte >") if name in album.per_track else album.value(name, 0)
+            shown = tr("(je Track verschieden)") if name in album.per_track else album.value(name, 0)
             it = QListWidgetItem(f"{name}: {shown}")
             it.setData(Qt.ItemDataRole.UserRole, name)
             it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
@@ -352,7 +352,7 @@ class AdjustDialog(QDialog):
                 t = self.files[i]
                 file_len = t.data.info.length if t is not None else 0
                 it = QTreeWidgetItem([_fmt_secs(file_len) if file_len else "",
-                                      t.filename if t is not None else tr("< keine Zuordnung >")])
+                                      t.filename if t is not None else tr("(ohne Datei)")])
                 if t is None:
                     it.setForeground(1, QBrush(self.palette().color(self.palette().ColorRole.PlaceholderText)))
                 it.setData(0, Qt.ItemDataRole.UserRole, i)
@@ -412,7 +412,7 @@ class AdjustDialog(QDialog):
         out = []
         n = self.album.tracks or len(self.files)
         for i, t in enumerate(self.files[:n]):
-            if t is None:                          # "< keine Zuordnung >": track without file
+            if t is None:                          # "(ohne Datei)": track without file
                 continue
             vals = {k: self.album.value(k, i) for k in names}
             out.append((t, {k: v for k, v in vals.items() if v != "" or k not in self.album.per_track}))

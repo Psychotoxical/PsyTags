@@ -26,7 +26,7 @@ The same rules apply to Discogs, and all track lengths must be known as well. On
 
 **Search MusicBrainz** (Ctrl+I) or **Tag Sources → Discogs** open the search form. Then you choose from the results.
 
-In the window **Adjust tag information**, the tracks of the source are on the left and your files on the right. Move files into the right row by drag and drop or with Alt+↑/↓. Rows marked in yellow differ by more than 3 seconds. On the left you choose which fields are written.
+In the window **Check the assignment**, the tracks of the source are on the left and your files on the right. Move files into the right row by drag and drop or with Alt+↑/↓. Rows marked in yellow differ by more than 3 seconds. On the left you choose which fields are written.
 
 **Search MusicBrainz (Quick)** (Ctrl+Shift+I) skips the search form.
 

@@ -14,8 +14,8 @@ from .. import genremood, tags
 from ..config import PanelField
 from ..i18n import tr
 
-KEEP = "< beibehalten >"
-BLANK = "< leer >"
+KEEP = "(je Datei lassen)"
+BLANK = "(leeren)"
 
 
 def keep_text() -> str:
@@ -124,7 +124,7 @@ class CoverView(QFrame):
 
     def info_text(self) -> str:
         if not self.covers:
-            return tr("Unterschiedliche Cover") if self.varies else ""
+            return tr("Verschiedene Cover") if self.varies else ""
         c = self.covers[self.index]
         typ = tags.COVER_TYPES[c.type] if c.type < len(tags.COVER_TYPES) else str(c.type)
         dims = f"{self._img.width()}x{self._img.height()}" if self._img else "?"
@@ -156,7 +156,7 @@ class CoverView(QFrame):
             if self.varies:
                 p.setPen(self.palette().color(self.palette().ColorRole.PlaceholderText))
                 p.drawText(r.adjusted(0, 0, 0, -12), Qt.AlignmentFlag.AlignHCenter
-                           | Qt.AlignmentFlag.AlignBottom, tr("Unterschiedliche Cover"))
+                           | Qt.AlignmentFlag.AlignBottom, tr("Verschiedene Cover"))
         p.end()
 
     def _paint_placeholder(self, p: QPainter, r: QRect):

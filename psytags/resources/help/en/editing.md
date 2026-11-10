@@ -12,7 +12,7 @@
 
 On the right are the fields of the selected files. If several files are selected and their values differ, the field says so, and a change applies to all selected files. **Save tag** (Ctrl+S) writes it. Ctrl+Q hides and shows the panel, **Customize Tag Panel...** in the ≡ menu decides which fields it has.
 
-**Extended Tags** (Alt+T) shows all fields of a file, even rare ones.
+**All fields** (Alt+T) shows all fields of a file, even rare ones.
 
 ## Copy and undo
 

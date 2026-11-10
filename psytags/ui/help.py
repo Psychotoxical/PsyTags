@@ -27,7 +27,7 @@ SHORTCUTS = [
         ("Strg+C", "Tag oder markierten Text kopieren"), ("Strg+V", "Tag oder Text einfügen"),
         ("Strg+Z", "Rückgängig"), ("Strg+Y", "Wiederholen"), ("Strg+A", "Alle Dateien auswählen"),
         ("Entf", "Dateien aus der Liste entfernen (bleiben auf der Festplatte)"),
-        ("F4 / Strg+Shift+T", "Abspielen"), ("Alt+T", "Erweiterte Tags"), ("Strg+Q", "Tag-Panel ein-/ausblenden"),
+        ("F4 / Strg+Shift+T", "Abspielen"), ("Alt+T", "Alle Felder"), ("Strg+Q", "Tag-Panel ein-/ausblenden"),
         ("Strg+Alt+A", "Cover hinzufügen"), ("Strg+O", "Optionen"),
         ("Strg+Tab / Strg+Shift+Tab", "Zwischen Tag-Panel, Suchfeld und Dateiliste wechseln"),
     ]),

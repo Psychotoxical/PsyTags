@@ -10,9 +10,9 @@
 | Nummern | Format von Track und Disc |
 | Cover | Quellen und ihre Reihenfolge, [Plugins](help:plugins) |
 | Genres | Last.fm ein oder aus, API-Key |
-| Dateien | ID3-Version für MP3, zusätzliches ID3v1, Unterordner einlesen, automatisch speichern beim Wechsel der Auswahl, Zeitstempel beibehalten |
+| Dateien | ID3-Version für MP3, zusätzliches ID3v1, Unterordner einlesen, automatisch speichern beim Wechsel der Auswahl, Änderungsdatum der Dateien nicht anfassen |
 | Programm | Sprache und Design, sie gelten nach einem Neustart |
 
 Hinter dem Last.fm- und dem Discogs-Feld zeigt ein grüner Haken, dass der Server den Schlüssel annimmt. Ein rotes Kreuz heißt: nicht angenommen, oder der Server ist gerade nicht erreichbar.
 
-**Konfigurationsordner öffnen** im Menü ≡ zeigt, wo PsyTags seine Einstellungen speichert.
+**Einstellungsordner öffnen** im Menü ≡ zeigt, wo PsyTags seine Einstellungen speichert.

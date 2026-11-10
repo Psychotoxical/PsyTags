@@ -388,31 +388,31 @@ class MainWindow(QMainWindow):
     def _build_actions(self):
         A = self._act
         # File
-        self.act_save = A("Tag &speichern", self.save_by_user, "Ctrl+S", "Speichert den Tag in ausgewählten Dateien.", "save")
-        self.act_remove = A("Tag ent&fernen", self.remove_tags, "Ctrl+R", "Entfernt den Tag aus den ausgewählten Dateien.", "remove")
-        self.act_dir = A("Verzeichnis wechseln...", self.choose_directory, "Ctrl+D", "Verzeichnis wechseln...", "folder-open")
-        self.act_add_dir = A("Verzeichnis hinzufügen...", self.add_directory, "Ctrl+H", "Fügt der Dateiansicht ein Verzeichnis hinzu.", "folder-add")
-        self.act_options = A("&Optionen...", self.show_options, "Ctrl+O", "Zeigt den Optionendialog an.", "options")
+        self.act_save = A("Tag &speichern", self.save_by_user, "Ctrl+S", "Schreibt die Änderungen in die markierten Dateien.", "save")
+        self.act_remove = A("Tag ent&fernen", self.remove_tags, "Ctrl+R", "Löscht alle Tags der markierten Dateien.", "remove")
+        self.act_dir = A("Ordner öffnen...", self.choose_directory, "Ctrl+D", "Ersetzt die Liste durch einen anderen Ordner.", "folder-open")
+        self.act_add_dir = A("Ordner hinzufügen...", self.add_directory, "Ctrl+H", "Lädt einen weiteren Ordner in die Liste.", "folder-add")
+        self.act_options = A("&Optionen...", self.show_options, "Ctrl+O", "Öffnet die Einstellungen.", "options")
         self.act_setup = A("&Einrichtung...", self.show_setup)
-        self.act_open_cfg = A("Konfigurationsordner öffnen", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(config.config_dir())))
-        self.act_exit = A("&Beenden", self.close, "Alt+F4", "Beendet die Anwendung.")
-        self.act_refresh = A("&Aktualisieren", self.refresh, "F5", "Aktualisiert die Dateiansicht.", "refresh")
+        self.act_open_cfg = A("Einstellungsordner öffnen", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(config.config_dir())))
+        self.act_exit = A("&Beenden", self.close, "Alt+F4", "Schließt PsyTags.")
+        self.act_refresh = A("&Aktualisieren", self.refresh, "F5", "Liest die Dateien der Liste neu ein.", "refresh")
         # Edit
-        self.act_undo = A("&Rückgängig", self.do_undo, "Ctrl+Z", "Macht die letzte Aktion rückgängig.", "undo",
+        self.act_undo = A("&Rückgängig", self.do_undo, "Ctrl+Z", "Nimmt den letzten Schritt zurück.", "undo",
                           extra_shortcuts=["Ctrl+Shift+Z"])
-        self.act_redo = A("&Wiederholen", self.do_redo, "Ctrl+Y", "Wiederholt die letzte rückgängig gemachte Aktion.", "redo")
-        self.act_copy = A("K&opieren", self.copy, "Ctrl+C", "Kopiert die Textauswahl oder den Tag der ausgewählten Datei.")
+        self.act_redo = A("&Wiederholen", self.do_redo, "Ctrl+Y", "Holt den zuletzt zurückgenommenen Schritt zurück.", "redo")
+        self.act_copy = A("K&opieren", self.copy, "Ctrl+C", "Legt den markierten Text oder die Tags der Datei in die Zwischenablage.")
         self.act_paste = A("&Einfügen", self.paste, "Ctrl+V", "Fügt den Inhalt der Zwischenablage ein.")
         self.act_find = A("S&uchen...", self.focus_search, "Ctrl+F", "Sucht in allen Spalten der Dateiliste.",
                           extra_shortcuts=["F3"])
-        self.act_remove_files = A("E&ntfernen", self.remove_from_list, "Del", "Entfernt die ausgewählten Dateien aus der Dateiliste.")
-        self.act_select_all = A("&Alle Dateien auswählen", self.view.selectAll, "Ctrl+A", "Wählt alle Dateien in der Dateiansicht aus.")
+        self.act_remove_files = A("E&ntfernen", self.remove_from_list, "Del", "Nimmt die markierten Dateien aus der Liste. Auf der Festplatte bleiben sie.")
+        self.act_select_all = A("&Alle Dateien auswählen", self.view.selectAll, "Ctrl+A", "Markiert jede Datei in der Liste.")
         # Cover
         self.act_cover_add = A("Cover hinzu&fügen...", lambda: self._cover_command("add"), "Ctrl+Alt+A")
         self.act_cover_fetch = A("Cover holen", self.fetch_covers, None,
                                  "Holt die Cover der ausgewählten Alben aus dem Cover Art Archive.")
         # View
-        self.act_ext_tags = A("&Erweiterte Tags...", self.extended_tags, "Alt+T", "Zeigt den erweiterten Tag-Dialog an.", "extended")
+        self.act_ext_tags = A("&Alle Felder...", self.extended_tags, "Alt+T", "Zeigt alle Felder der markierten Datei.", "extended")
         self.act_panel = self.panel_dock.toggleViewAction()
         self.act_panel.setText(tr("&Tag-Panel"))
         self.act_panel.setShortcut(QKeySequence("Ctrl+Q"))
@@ -448,7 +448,7 @@ class MainWindow(QMainWindow):
         self.act_batch_summary = A("Übersicht des letzten Laufs...", self.show_batch_summary, None,
                                    "Zeigt das Ergebnis des letzten automatischen Laufs.", "batch-summary")
         # Tools / misc
-        self.act_play = A("Abspielen", self.play, "F4", "Spielt die ausgewählten Dateien ab.", extra_shortcuts=["Ctrl+Shift+T"])
+        self.act_play = A("Abspielen", self.play, "F4", "Öffnet die markierten Dateien im Standard-Player.", extra_shortcuts=["Ctrl+Shift+T"])
         # Help
         self.act_help = A("&Hilfe", self.show_help, "F1", "", "help")
         self.act_about = A("Über PsyTags...", self.about)
@@ -555,7 +555,7 @@ class MainWindow(QMainWindow):
             self._loader.abort = True
             self._loader_thread.quit()
             self._loader_thread.wait()
-        self.message(tr("Einlesen des Verzeichnisses"))
+        self.message(tr("Ordner wird gelesen"))
         self.progress.setValue(0)
         self.progress.show()
         self._loader = Loader(paths, self.opts.subfolders, add)
@@ -581,7 +581,7 @@ class MainWindow(QMainWindow):
     def _load_progress(self, i, n):
         self.progress.setMaximum(n)
         self.progress.setValue(i)
-        self.message(tr("Lese Tag-Informationen ... {1} von {2}", i, n))
+        self.message(tr("Dateien laden … {1} von {2}", i, n))
 
     def _load_finished(self, tracks: list[Track], add: bool):
         self.progress.hide()
@@ -599,13 +599,13 @@ class MainWindow(QMainWindow):
         self._selection_changed()
 
     def choose_directory(self):
-        d = QFileDialog.getExistingDirectory(self, tr("Verzeichnis auswählen"), self.current_dir
+        d = QFileDialog.getExistingDirectory(self, tr("Ordner öffnen"), self.current_dir
                                              or os.path.expanduser("~"))
         if d:
             self.load_paths([d], False)
 
     def add_directory(self):
-        d = QFileDialog.getExistingDirectory(self, tr("Verzeichnis hinzufügen..."), self.current_dir
+        d = QFileDialog.getExistingDirectory(self, tr("Ordner hinzufügen..."), self.current_dir
                                              or os.path.expanduser("~"))
         if d:
             self.load_paths([d], True)
@@ -666,7 +666,7 @@ class MainWindow(QMainWindow):
                 errors.append(f"{t.filename}: {e}")
             if n > 20:
                 self.progress.setValue(i)
-                self.message(tr("Schreibe Tag-Informationen ... {1} von {2}", i, n))
+                self.message(tr("Tags schreiben … {1} von {2}", i, n))
                 QApplication.processEvents()
         self.progress.hide()
         if self._group_rec is None:
@@ -726,7 +726,7 @@ class MainWindow(QMainWindow):
         tracks = self.view.selected_tracks()
         if not tracks:
             return
-        if QMessageBox.question(self, "PsyTags", tr("Möchten Sie den Tag wirklich aus {1} Datei(en) entfernen?",
+        if QMessageBox.question(self, "PsyTags", tr("Alle Tags aus {1} Dateien löschen?",
                                                    len(tracks))) != QMessageBox.StandardButton.Yes:
             return
         rec = Recorder(tr("Tag entfernen"))
@@ -1175,7 +1175,7 @@ class MainWindow(QMainWindow):
                     values = d.values()
                 quick = False
                 try:
-                    rows = self._background(tr("Suchergebnisse von {1} abrufen", name),
+                    rows = self._background(tr("Suche bei {1}", name),
                                             lambda: src.search(values))
                 except wshttp.FetchError as e:
                     if QMessageBox.warning(self, name, str(e), QMessageBox.StandardButton.Retry
@@ -1187,7 +1187,7 @@ class MainWindow(QMainWindow):
                     # e.g. "Album (Bonus Tracks Edition)" when the database only knows "Album"
                     for second in albumauto.fallback_searches(src, tracks):
                         try:
-                            more = self._background(tr("Suchergebnisse von {1} abrufen", name),
+                            more = self._background(tr("Suche bei {1}", name),
                                                     lambda: src.search(second))
                         except wshttp.FetchError:
                             more = []
@@ -1196,7 +1196,7 @@ class MainWindow(QMainWindow):
                             break
                 if not rows:
                     if QMessageBox.information(
-                            self, name, tr("Leider entsprechen keine Einträge den Suchkriterien."),
+                            self, name, tr("Keine Treffer."),
                             QMessageBox.StandardButton.Retry | QMessageBox.StandardButton.Cancel) \
                             == QMessageBox.StandardButton.Retry:
                         continue
@@ -1217,7 +1217,7 @@ class MainWindow(QMainWindow):
                 stage = "album"
             if stage == "album":
                 try:
-                    album = self._background(tr("Metadaten von {1} abrufen", name), lambda: src.album(row))
+                    album = self._background(tr("Album von {1} laden", name), lambda: src.album(row))
                     cover = None
                     if album.cover_url:
                         try:
@@ -1651,7 +1651,7 @@ class MainWindow(QMainWindow):
             return
         d = ExtendedTagsDialog(tracks, self)
         if d.exec():
-            self._write(tr("Erweiterte Tags"), tracks, d.apply_to)
+            self._write(tr("Alle Felder"), tracks, d.apply_to)
             self.panel.load(tracks)
 
     def apply_filter(self):
@@ -1704,7 +1704,7 @@ class MainWindow(QMainWindow):
                 data, mime = image_to_bytes(QImage(p)), "image/jpeg"
             replace = cmd == "replace" or not cv.covers
             if cmd == "add" and cv.covers:
-                r = QMessageBox.question(self, "PsyTags", tr("Möchten Sie bereits existierende Cover behalten?"),
+                r = QMessageBox.question(self, "PsyTags", tr("Sollen die vorhandenen Cover bleiben?"),
                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                                          | QMessageBox.StandardButton.Cancel)
                 if r == QMessageBox.StandardButton.Cancel:

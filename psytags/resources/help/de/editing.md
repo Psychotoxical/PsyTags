@@ -12,7 +12,7 @@
 
 Rechts stehen die Felder der markierten Dateien. Sind mehrere Dateien markiert und die Werte verschieden, steht das im Feld, und eine Änderung gilt für alle markierten. **Tag speichern** (Strg+S) schreibt sie. Das Panel blenden Sie mit Strg+Q aus und ein, **Tag-Panel anpassen...** im Menü ≡ bestimmt die Felder.
 
-**Erweiterte Tags** (Alt+T) zeigt alle Felder einer Datei, auch seltene.
+**Alle Felder** (Alt+T) zeigt alle Felder einer Datei, auch seltene.
 
 ## Kopieren und Rückgängig
 

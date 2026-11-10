@@ -26,7 +26,7 @@ Bei Discogs gelten dieselben Regeln, zusätzlich müssen alle Tracklängen bekan
 
 **MusicBrainz durchsuchen** (Strg+I) oder **Tag-Quellen → Discogs** öffnen das Suchformular. Danach wählen Sie aus der Trefferliste.
 
-Im Fenster **Tag-Informationen anpassen** stehen links die Tracks der Quelle und rechts Ihre Dateien. Dateien lassen sich per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben. Gelb markierte Zeilen weichen um mehr als 3 Sekunden ab. Links wählen Sie, welche Felder geschrieben werden.
+Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts Ihre Dateien. Dateien lassen sich per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben. Gelb markierte Zeilen weichen um mehr als 3 Sekunden ab. Links wählen Sie, welche Felder geschrieben werden.
 
 **MusicBrainz durchsuchen (Schnell)** (Strg+Shift+I) überspringt das Suchformular.
 

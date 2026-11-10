@@ -88,6 +88,11 @@ class AboutTests(unittest.TestCase):
     def test_without_a_package_it_depends_on_the_build(self):
         self.assertEqual(self._ffmpeg_label(None), "je nach Build")
 
+    def test_the_repository_carries_the_full_license(self):
+        repository = (ROOT / "LICENSE").read_text(encoding="utf-8")
+        self.assertIn("TERMS AND CONDITIONS", repository)
+        self.assertEqual(repository, (ROOT / "psytags" / "resources" / "licenses" / "gpl-3.0.txt").read_text(encoding="utf-8"))
+
     def test_the_license_texts_are_part_of_an_installation(self):
         self.assertIn("resources/licenses/*.txt", (ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 

@@ -566,7 +566,7 @@ class OptionsDialog(QDialog):
         self.v1 = self._switch(area, tr("Zusätzlich ID3v1 schreiben"), o.write_id3v1)
         self.subfolders = self._switch(area, tr("Unterordner mit einlesen"), o.subfolders)
         self.autosave = self._switch(area, tr("Tags beim Wechsel der Auswahl speichern"), o.save_on_selection_change)
-        self.keep_mtime = self._switch(area, tr("Zeitstempel der Dateien beibehalten"), o.keep_mtime)
+        self.keep_mtime = self._switch(area, tr("Änderungsdatum der Dateien nicht anfassen"), o.keep_mtime)
 
     def _program(self, area: QVBoxLayout) -> None:
         o = self.opts
