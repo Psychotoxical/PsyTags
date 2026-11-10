@@ -97,5 +97,14 @@ class AboutTests(unittest.TestCase):
         self.assertIn("resources/licenses/*.txt", (ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
+class VersionTests(unittest.TestCase):
+    def test_one_version_number_everywhere(self):
+        """About, installer and package must show the same number; bump both before a release."""
+        import re
+        import psytags
+        project = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertEqual(re.search(r'^version = "([^"]+)"', project, re.M).group(1), psytags.__version__)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -4,7 +4,7 @@ PsyTags is a tag editor for music collections. It runs on Windows and Linux, and
 
 The main window has a file list and a tag panel. One command tags every loaded album, and each step can also be run on its own. Moods are determined locally from the audio.
 
-PsyTags is still in development. There are no releases yet.
+PsyTags is young. Downloads for Windows and Linux are on the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page.
 
 ![Main window of PsyTags with the file list on the left and the tag panel on the right](docs/screenshot.png)
 
