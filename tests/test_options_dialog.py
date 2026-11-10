@@ -245,7 +245,7 @@ class DialogTests(Base):
             option.rect.setRect(0, 0, 400, 46)
         pos = QPointF(delegate.switch_rect(option.rect).center())
         before = view.item(0).checkState()
-        event = QMouseEvent(QEvent.Type.MouseButtonRelease, pos, Qt.MouseButton.LeftButton,
+        event = QMouseEvent(QEvent.Type.MouseButtonRelease, pos, pos, Qt.MouseButton.LeftButton,
                             Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier)
         self.assertTrue(delegate.editorEvent(event, view.model(), option, index))
         self.assertNotEqual(view.item(0).checkState(), before)

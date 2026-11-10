@@ -11,10 +11,13 @@ from psytags import config, convert, namescheme, numbering
 
 
 class Fake:
+    size = 0                                   # the status bar sums sizes and lengths
+
     def __init__(self, path="/music/Old/01.mp3", **fields):
         self.fields = {k.upper(): (v if isinstance(v, list) else [v]) for k, v in fields.items()}
         self.path = path
         self.data = mock.MagicMock(covers=[])
+        self.data.info.length = 0
 
     @property
     def folder(self):
