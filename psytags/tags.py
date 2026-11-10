@@ -372,7 +372,7 @@ def _read_asf(f: ASF, td: TagData) -> None:
 
 def _asf_picture_read(data: bytes) -> "Cover | None":
     """WM/Picture: type (1 byte), size (4 bytes), MIME and description as
-    null-terminated UTF-16LE, then the image."""
+    null-terminated UTF-16LE, then the image. A damaged entry gives None."""
     import struct
     try:
         kind, size = struct.unpack_from("<BI", data)
@@ -382,10 +382,14 @@ def _asf_picture_read(data: bytes) -> "Cover | None":
             end = pos
             while data[end:end + 2] != b"\0\0":
                 end += 2
+                if end + 2 > len(data):       # no terminator: cut off
+                    return None
             texts.append(data[pos:end].decode("utf-16-le"))
             pos = end + 2
+        if pos + size > len(data):            # image shorter than declared
+            return None
         return Cover(data[pos:pos + size], texts[0] or "image/jpeg", kind, texts[1])
-    except (struct.error, UnicodeDecodeError, IndexError):
+    except (struct.error, UnicodeDecodeError):
         return None
 
 

@@ -87,6 +87,32 @@ class SettingsTests(unittest.TestCase):
             shutil.rmtree(d)
 
 
+class AsfPictureTests(unittest.TestCase):
+    """A broken WM/Picture is skipped instead of stopping the folder reader."""
+
+    def _read(self, data):
+        import threading
+        result = []
+        worker = threading.Thread(target=lambda: result.append(tags._asf_picture_read(data)),
+                                  daemon=True)
+        worker.start()
+        worker.join(2)
+        self.assertFalse(worker.is_alive(), "parser does not return")
+        return result[0]
+
+    def test_cut_off_text_is_skipped(self):
+        self.assertIsNone(self._read(bytes([3, 1, 0, 0, 0, 97, 98, 99])))
+
+    def test_image_shorter_than_declared_is_skipped(self):
+        good = tags._asf_picture_write(tags.Cover(b"12345", "image/png", 3, "x"))
+        self.assertIsNone(self._read(good[:-2]))
+
+    def test_intact_picture_reads_back(self):
+        c = self._read(tags._asf_picture_write(tags.Cover(b"12345", "image/png", 4, "Back")))
+        self.assertEqual((c.data, c.mime, c.type, c.description),
+                         (b"12345", "image/png", 4, "Back"))
+
+
 class TagWriteTests(unittest.TestCase):
     def test_id3_user_url_stays_wxxx(self):
         from mutagen import id3
