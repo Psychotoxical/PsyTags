@@ -84,3 +84,32 @@ class RetryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CertificateTests(unittest.TestCase):
+    """A Linux build carries an OpenSSL that may look for certificates where the
+    running distribution keeps none; the system bundle is loaded by path then."""
+
+    def test_the_first_existing_bundle_is_taken(self):
+        with mock.patch.object(http.os.path, "isfile", side_effect=lambda p: p == "/b"):
+            self.assertEqual(http.system_ca_file(("/a", "/b", "/c")), "/b")
+
+    def test_no_bundle_means_none(self):
+        with mock.patch.object(http.os.path, "isfile", return_value=False):
+            self.assertIsNone(http.system_ca_file(("/a",)))
+
+    def test_linux_loads_the_system_bundle(self):
+        ctx = mock.Mock()
+        http.ssl_context.cache_clear()
+        self.addCleanup(http.ssl_context.cache_clear)
+        with mock.patch.object(http.sys, "platform", "linux"), \
+                mock.patch.object(http.ssl, "create_default_context", return_value=ctx), \
+                mock.patch.object(http, "system_ca_file", return_value="/etc/ssl/cert.pem"):
+            self.assertIs(http.ssl_context(), ctx)
+        ctx.load_verify_locations.assert_called_once_with(cafile="/etc/ssl/cert.pem")
+
+    def test_requests_use_that_context(self):
+        http._cache.clear()
+        with mock.patch.object(http.urllib.request, "urlopen", return_value=_Reply(b"x")) as opened:
+            http.fetch_bytes(URL)
+        self.assertIs(opened.call_args.kwargs["context"], http.ssl_context())

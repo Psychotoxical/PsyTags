@@ -22,6 +22,7 @@ from typing import Callable, NamedTuple, Sequence
 import numpy as np
 
 from .i18n import tr
+from .websources import http
 
 SAMPLE_RATE, FRAME, HOP, BANDS, PATCH, PATCH_HOP = 16000, 512, 256, 96, 128, 62
 BATCH = 64
@@ -172,7 +173,7 @@ def _download(url: str, report: Callable[[int], None] | None = None) -> bytes:
     """``report`` gets the number of bytes received so far."""
     req = urllib.request.Request(url, headers={"User-Agent": "PsyTags"})
     data = bytearray()
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=120, context=http.ssl_context()) as r:
         while chunk := r.read(65536):
             data.extend(chunk)
             if report is not None:

@@ -53,7 +53,7 @@ class RunningTests(unittest.TestCase):
     def test_a_request_is_listed_while_it_runs(self):
         seen = []
 
-        def opened(req, timeout):
+        def opened(req, timeout, context=None):
             seen.append(http.running())
             raise urllib.error.HTTPError(req.full_url, 404, "Not Found", {}, None)
         with mock.patch.object(http.urllib.request, "urlopen", opened):

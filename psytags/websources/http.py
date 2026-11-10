@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import gzip
 import http.client
+import functools
 import itertools
+import os
+import ssl
+import sys
 import threading
 import time
 import urllib.error
@@ -22,6 +26,27 @@ BROWSER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, lik
 _cache: dict[str, bytes] = {}
 RETRY_WAITS = (2.0, 5.0)                # seconds before the second and the third try
 _CONNECTION_ERRORS = (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException, EOFError, zlib.error)
+
+
+# Where distributions keep their certificate bundle: Debian/Ubuntu/Arch, Fedora/RHEL, openSUSE, Alpine.
+CA_BUNDLES = ("/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt",
+              "/etc/ssl/ca-bundle.pem", "/etc/ssl/cert.pem")
+
+
+def system_ca_file(candidates: tuple[str, ...] = CA_BUNDLES) -> str | None:
+    return next((p for p in candidates if os.path.isfile(p)), None)
+
+
+@functools.cache
+def ssl_context() -> ssl.SSLContext:
+    """The AppImage brings an OpenSSL built on Ubuntu, which looks in /usr/lib/ssl; other
+    distributions have no certificates there, so every HTTPS request would fail."""
+    ctx = ssl.create_default_context()
+    if sys.platform.startswith("linux"):
+        cafile = system_ca_file()
+        if cafile:
+            ctx.load_verify_locations(cafile=cafile)
+    return ctx
 
 
 class FetchError(Exception):
@@ -85,7 +110,7 @@ def _download(req: urllib.request.Request, url: str, timeout: float, read):
     with activity(describe(url)):
         for wait in RETRY_WAITS + (None,):
             try:
-                with urllib.request.urlopen(req, timeout=timeout) as r:
+                with urllib.request.urlopen(req, timeout=timeout, context=ssl_context()) as r:
                     return read(r)
             except urllib.error.HTTPError as e:
                 body = e.read()[:300].decode("utf-8", "replace") if e.fp else ""
