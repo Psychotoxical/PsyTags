@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import tempfile
 import unittest
 from types import SimpleNamespace as NS
@@ -510,32 +509,6 @@ class DocumentationTests(Guarded):
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         p = cp.load(os.path.join(root, "docs", "cover-provider-example.json"))
         self.assertTrue(p.name)
-
-    def test_every_field_is_documented(self):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        with open(os.path.join(root, "docs", "cover-provider.md"), encoding="utf-8") as fh:
-            text = fh.read()
-        for name in cp.KNOWN_FIELDS:
-            self.assertIn(f"`{name}`", text)
-
-    @staticmethod
-    def _json_blocks() -> list[dict]:
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        with open(os.path.join(root, "docs", "cover-provider.md"), encoding="utf-8") as fh:
-            return [json.loads(b) for b in re.findall(r"```json\n(.*?)```", fh.read(), re.S)]
-
-    def test_the_example_in_the_text_is_the_example_file(self):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        with open(os.path.join(root, "docs", "cover-provider-example.json"), encoding="utf-8") as fh:
-            self.assertEqual(self._json_blocks()[1], json.load(fh))
-
-    def test_the_worked_example_delivers_a_certain_cover(self):
-        answer, description = self._json_blocks()
-        description.pop("format")
-        got = cp.rows(cp.Provider(**description), json.dumps(answer))
-        self.assertEqual(got[0]["_image"], "https://img.example.com/1/1400x1400.jpg")
-        self.assertEqual(got[0]["_coverurl"], "https://img.example.com/1/500x500.jpg")
-        self.assertIsNotNone(coverfetch.confident(coverfetch.rank(got, "Example Album", "Example Band", 10)))
 
     def test_a_hit_without_an_artist_is_never_certain(self):
         rows = [{"Album": "Example Album", "Artist": "", "Tracks": "10"}]

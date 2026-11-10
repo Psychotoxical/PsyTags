@@ -2,7 +2,7 @@
 
 A valid ``*.json`` file in the folder ``cover-provider`` of the configuration is a source; the
 files are read anew on every use, so a file that was just dropped in counts at once. The format
-is documented in ``docs/cover-provider.md``.
+is documented in ``resources/help/en/plugins.md``.
 """
 from __future__ import annotations
 

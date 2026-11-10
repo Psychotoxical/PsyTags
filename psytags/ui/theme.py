@@ -203,6 +203,9 @@ QLabel#SetupWarning { background: $WARNING_BACKGROUND; border: 1px solid $WARNIN
 QStackedWidget#OptionsPage { background: $BACKGROUND; }
 QLabel#StepBadge { background: $BUTTON; color: $ACCENT; border-radius: 11px; font-size: 12px; font-weight: 700;
     min-width: 22px; max-width: 22px; min-height: 22px; max-height: 22px; }
+QListWidget#HelpNav { background: $CHROME; border: none; padding: 12px 10px; outline: none; }
+QListWidget#HelpNav::item { padding-left: 10px; border-radius: 6px; }
+QTextBrowser#HelpText { background: $BACKGROUND; border: none; border-radius: 0; selection-background-color: $SELECTION; }
 QLabel#NumberSample { background: $FIELD; border: 1px solid $BORDER; border-radius: 6px; padding: 6px 11px; }
 QListWidget#CoverSources { background: transparent; border: none; }
 QGroupBox { border: 1px solid $BORDER; border-radius: 6px; margin-top: 8px; }

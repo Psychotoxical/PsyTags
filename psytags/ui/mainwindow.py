@@ -447,7 +447,7 @@ class MainWindow(QMainWindow):
         # Tools / misc
         self.act_play = A("Abspielen", self.play, "F4", "Spielt die ausgewählten Dateien ab.", extra_shortcuts=["Ctrl+Shift+T"])
         # Help
-        self.act_help = A("&Tastaturkürzel", self.show_shortcuts, "F1", "", "help")
+        self.act_help = A("&Hilfe", self.show_help, "F1", "", "help")
         self.act_about = A("Über PsyTags...", self.about)
         # Focus cycling between panes
         QShortcut(QKeySequence("Ctrl+Tab"), self, lambda: self._cycle_focus(1))
@@ -1741,9 +1741,9 @@ class MainWindow(QMainWindow):
         menu.clear()
         self._add_source_entries(menu)
 
-    def show_shortcuts(self):
-        from .help import show_shortcuts
-        show_shortcuts(self)
+    def show_help(self):
+        from . import help as uihelp
+        uihelp.HelpDialog(self).exec()
 
     def show_options(self):
         self._open_options()

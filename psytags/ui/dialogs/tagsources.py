@@ -540,9 +540,16 @@ class BatchSummaryDialog(QDialog):
         trash_btn = bb.addButton(tr("In den Papierkorb"), QDialogButtonBox.ButtonRole.ActionRole)
         trash_btn.setEnabled(self.left.count() > 0)
         trash_btn.clicked.connect(self._trash_checked)
+        help_btn = bb.addButton(tr("Hilfe zur Übersicht"), QDialogButtonBox.ButtonRole.HelpRole)
+        help_btn.setAutoDefault(False)
+        help_btn.clicked.connect(self._open_help)
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
         remember(self, "ts_batch_summary2")
+
+    def _open_help(self) -> None:
+        from .. import help as uihelp
+        uihelp.HelpDialog(self, "summary").exec()
 
     def _add_buttons(self, item, entry) -> None:
         """What can still be done is a button in its own cell."""

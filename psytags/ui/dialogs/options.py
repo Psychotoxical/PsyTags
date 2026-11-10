@@ -512,7 +512,15 @@ class OptionsDialog(QDialog):
         open_folder = QPushButton(tr("Plugin-Ordner öffnen"))
         open_folder.setAutoDefault(False)
         open_folder.clicked.connect(self._open_provider_folder)
-        area.addWidget(open_folder, 0, Qt.AlignmentFlag.AlignLeft)
+        guide = QPushButton(tr("Anleitung für Plugins"))
+        guide.setAutoDefault(False)
+        guide.clicked.connect(self._open_plugin_guide)
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        buttons.addWidget(open_folder)
+        buttons.addWidget(guide)
+        buttons.addStretch(1)
+        area.addLayout(buttons)
         for problem in problems:
             label = QLabel(problem)
             label.setWordWrap(True)
@@ -525,6 +533,10 @@ class OptionsDialog(QDialog):
             return
         self.cover_sources.insertItem(row + step, self.cover_sources.takeItem(row))
         self.cover_sources.setCurrentRow(row + step)
+
+    def _open_plugin_guide(self) -> None:
+        from .. import help as uihelp
+        uihelp.HelpDialog(self, "plugins").exec()
 
     @staticmethod
     def _open_provider_folder() -> None:
