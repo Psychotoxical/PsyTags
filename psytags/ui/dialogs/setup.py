@@ -16,6 +16,7 @@ from ...track import Track
 from ...websources import discogs, http, lastfm
 from .. import theme
 from ..controls import NumberFormatEditor, Segmented, add_row
+from ..persist import remember
 from .rename import SchemeEditor
 from .tagsources import run_async
 
@@ -85,6 +86,7 @@ class SetupDialog(QDialog):
         root.addWidget(self.stack, 1)
         root.addWidget(self._footer())
         self._show_page(0)
+        remember(self, "setup")
 
     def _footer(self) -> QWidget:
         foot = QWidget()
