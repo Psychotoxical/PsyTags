@@ -19,6 +19,6 @@ With **Move old folders and leftovers such as images to the recycle bin** on, Ps
 
 ## Good to know
 
-Characters that are not allowed in file names are replaced. If a path gets too long on Windows, the file name is shortened.
+Characters that are not allowed in file names are replaced. If a path gets too long on Windows, the file name is shortened. On Linux the limit applies to each single name, 255 bytes.
 
 **Undo** (Ctrl+Z) takes back a rename. Anything in the recycle bin can be restored from there.

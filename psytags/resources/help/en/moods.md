@@ -2,7 +2,7 @@
 
 PsyTags listens to each song itself and writes moods into the MOOD field. This happens locally on your computer, no audio is sent anywhere.
 
-It needs two models (20 MB, loaded the first time or in the setup assistant) and the program **ffmpeg**, which must be in your PATH.
+It needs two models (20 MB, loaded the first time or in the setup assistant) and the program **ffmpeg**. On Windows it comes with PsyTags, on Linux you install it with your package manager.
 
 ## How to start it
 

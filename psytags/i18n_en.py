@@ -94,6 +94,7 @@ EN_MORE: dict[str, str] = {
     "Bitte zuerst einen Discogs-Token eintragen.": "Please enter a Discogs token first.",
     "Der Token funktioniert.": "The token works.",
     "Verbindung klappt": "Connection works",
+    "ffmpeg wurde nicht gefunden. Bitte über die Paketverwaltung installieren.": "ffmpeg was not found. Please install it with your package manager.",
     "Hilfe": "Help", "&Hilfe": "&Help", "Schließen": "Close", "Taste": "Key", "Funktion": "Function",
     "Hilfe zur Übersicht": "Help on the summary", "Anleitung für Plugins": "Plugin guide",
     "Zuerst": "First", "Bitte zuerst lesen": "Please read first", "So läuft es ab": "How it works",

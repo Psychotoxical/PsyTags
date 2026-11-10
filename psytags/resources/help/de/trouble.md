@@ -24,7 +24,7 @@ Warum einzelne Alben offen bleiben, steht unter [Die Übersicht](help:summary).
 
 | Problem | Was hilft |
 |---|---|
-| ffmpeg wird nicht gefunden | Installieren Sie ffmpeg und legen Sie es in den PATH. Starten Sie PsyTags danach neu. |
+| ffmpeg wird nicht gefunden | Unter Linux installieren Sie es über die Paketverwaltung und starten PsyTags neu. Unter Windows ist es dabei, installieren Sie PsyTags dann neu. |
 | Die Modelle laden nicht | Internetverbindung prüfen und den **Einrichtungs-Assistenten** im Menü ≡ erneut öffnen. |
 | Die Moods wirken falsch | Unter **Optionen → Moods** eine andere Menge wählen und neu analysieren. |
 

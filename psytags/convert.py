@@ -18,6 +18,8 @@ working_dir = ""
 
 
 WINDOWS_PATH_LIMIT = 259                  # MAX_PATH without its terminator
+LINUX_NAME_LIMIT = 255                    # bytes of one file or folder name
+_GUESTS = re.compile(r"\s+(feat\.?|ft\.?|featuring)\s.*?(?=\s+-\s|$)", re.IGNORECASE)
 
 
 def place(track, parts: list[str]) -> str:
@@ -28,7 +30,7 @@ def place(track, parts: list[str]) -> str:
         return track.path
     rel = os.path.join(*parts) + os.path.splitext(track.path)[1]
     target = os.path.normpath(os.path.join(os.path.dirname(album_root(track.folder)) if len(parts) > 1 else track.folder, rel))
-    return fit_path(target) if sys.platform == "win32" else target
+    return fit_path(target) if sys.platform == "win32" else fit_names(target)
 
 
 def fit_path(path: str, limit: int = WINDOWS_PATH_LIMIT) -> str:
@@ -38,11 +40,28 @@ def fit_path(path: str, limit: int = WINDOWS_PATH_LIMIT) -> str:
         return path
     folder, name = os.path.split(path)
     stem, ext = os.path.splitext(name)
-    stem = re.sub(r"\s+(feat\.?|ft\.?|featuring)\s.*?(?=\s+-\s|$)", "", stem, flags=re.IGNORECASE)
+    stem = _GUESTS.sub("", stem)
     room = limit - len(folder) - 1 - len(ext)
     if len(stem) > room > 0:
         stem = stem[:room].rstrip(" .-")
     return os.path.join(folder, stem + ext)
+
+
+def _cut_bytes(text: str, limit: int) -> str:
+    """At most ``limit`` bytes of UTF-8, never half a character."""
+    return text.encode("utf-8")[:limit].decode("utf-8", "ignore").rstrip(" .-")
+
+
+def fit_names(path: str, limit: int = LINUX_NAME_LIMIT) -> str:
+    """Linux limits every single name, in bytes: too long folders are cut, in a file name
+    guest artists go first and then the end of the name."""
+    folder, name = os.path.split(path)
+    stem, ext = os.path.splitext(name)
+    if len(name.encode("utf-8")) > limit:
+        stem = _GUESTS.sub("", stem)
+        stem = _cut_bytes(stem, limit - len(ext.encode("utf-8")))
+    parts = [_cut_bytes(p, limit) if len(p.encode("utf-8")) > limit else p for p in folder.split(os.sep)]
+    return os.path.join(os.sep.join(parts), stem + ext)
 
 
 def _has_audio(folder: str) -> bool:
@@ -103,7 +122,10 @@ def leftovers_in_renamed_albums(moves: list[tuple[str, str]]) -> list[str]:
 
 
 def fix_folder_case(moves: list[tuple[str, str]]) -> None:
-    """Windows keeps an existing folder's spelling: "Rise Of" must become "Rise of" by hand."""
+    """Windows keeps an existing folder's spelling: "Rise Of" must become "Rise of" by hand.
+    Elsewhere the two are different folders, and nothing must be touched."""
+    if sys.platform != "win32":
+        return
     for folder in {os.path.dirname(new) for _old, new in moves}:
         parent, name = os.path.split(folder)
         try:

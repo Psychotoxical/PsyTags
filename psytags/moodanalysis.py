@@ -223,14 +223,28 @@ def ensure_models(folder: str, fetch: Callable[[str], bytes] | None = None,
         done[0] += len(data)
 
 
+def _find_ffmpeg() -> str | None:
+    """The ffmpeg inside the Windows package comes first, otherwise the installed one."""
+    package = getattr(sys, "_MEIPASS", "")
+    bundled = os.path.join(package, "ffmpeg", "ffmpeg.exe") if package else ""
+    return bundled if bundled and os.path.isfile(bundled) else shutil.which("ffmpeg")
+
+
 def ffmpeg_available() -> bool:
-    return shutil.which("ffmpeg") is not None
+    return _find_ffmpeg() is not None
+
+
+def ffmpeg_missing() -> str:
+    """What to tell the user when there is no ffmpeg."""
+    if sys.platform == "win32":
+        return tr("ffmpeg wurde nicht gefunden. Für die Mood-Analyse muss es im PATH liegen.")
+    return tr("ffmpeg wurde nicht gefunden. Bitte über die Paketverwaltung installieren.")
 
 
 def _ffmpeg() -> str:
-    exe = shutil.which("ffmpeg")
+    exe = _find_ffmpeg()
     if not exe:
-        raise MoodError(tr("ffmpeg wurde nicht gefunden. Für die Mood-Analyse muss es im PATH liegen."))
+        raise MoodError(ffmpeg_missing())
     return exe
 
 

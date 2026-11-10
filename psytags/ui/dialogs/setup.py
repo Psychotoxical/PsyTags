@@ -265,7 +265,7 @@ class SetupDialog(QDialog):
     def _moods(self, area: QVBoxLayout) -> None:
         self._text(area, tr("Die Moods entstehen direkt aus dem Audio. Dafür braucht PsyTags zwei Modelle (20 MB) und das Programm ffmpeg."))
         self.ffmpeg_status = self._text(area, tr("ffmpeg ist vorhanden.") if ma.ffmpeg_available()
-                                        else tr("ffmpeg wurde nicht gefunden. Für die Mood-Analyse muss es im PATH liegen."))
+                                        else ma.ffmpeg_missing())
         self.model_status = self._text(area, "")
         self.model_progress = QProgressBar()
         self.model_progress.setRange(0, _PROGRESS_STEPS)

@@ -19,6 +19,6 @@ Ist **Alte Ordner und Reste wie Bilder in den Papierkorb verschieben** eingescha
 
 ## Gut zu wissen
 
-Zeichen, die in Dateinamen nicht erlaubt sind, werden ersetzt. Wird ein Pfad unter Windows zu lang, wird der Dateiname gekürzt.
+Zeichen, die in Dateinamen nicht erlaubt sind, werden ersetzt. Wird ein Pfad unter Windows zu lang, wird der Dateiname gekürzt. Unter Linux gilt die Grenze für jeden einzelnen Namen, 255 Bytes.
 
 **Rückgängig** (Strg+Z) nimmt eine Umbenennung zurück. Was im Papierkorb liegt, holen Sie dort zurück.
