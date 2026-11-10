@@ -334,7 +334,7 @@ class MainWindow(QMainWindow):
             m.addAction(a)
         self.columns_menu = m.addMenu(tr("Spalte&n"))
         self.columns_menu.aboutToShow.connect(self._fill_columns_menu)
-        self.view.header_menu.connect(self.columns_menu.exec)
+        self.view.header_menu.connect(lambda position: self.columns_menu.exec(position))
         m.addAction(self.act_customize_panel)
         m.addSeparator()
         self.sources_menu = m.addMenu(tr("Tag-&Quellen"))

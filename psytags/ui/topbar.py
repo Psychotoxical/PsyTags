@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy,
                                QToolButton, QVBoxLayout, QWidget)
 
 from ..i18n import tr
 from .icons import logo_pixmap
+
+STEP_LEVELS = 3         # full, without the shortcuts, numbers only
+HEADER_LEVELS = 2       # text, icons only
+SEARCH_MIN_WIDTH = 120
 
 
 def shortcut_text(action: QAction) -> str:
@@ -37,12 +42,20 @@ class ActionButton(QPushButton):
         self.setObjectName(name)
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self.action_ = action
+        self.full_text = text
+        self.setAccessibleName(text)
         self.clicked.connect(action.trigger)
         action.changed.connect(self._sync)
         self._sync()
 
     def _sync(self) -> None:
         self.setEnabled(self.action_.isEnabled())
+
+    def set_level(self, level: int) -> None:
+        """Level 1 shows the action's icon instead of the text."""
+        self.setText("" if level else self.full_text)
+        self.setIcon(self.action_.icon() if level else QIcon())
+        self.setToolTip(self.full_text if level else "")
 
     def sizeHint(self):                          # the labels live in a layout, not in the button text
         return self.layout().totalSizeHint() if self.layout() else super().sizeHint()
@@ -51,7 +64,32 @@ class ActionButton(QPushButton):
         return self.layout().totalMinimumSize() if self.layout() else super().minimumSizeHint()
 
 
-class StepButton(ActionButton):
+class _StepText:
+    """Title and shortcut of a step, which give way when the bar gets narrow."""
+
+    def _add_step_text(self, row: QHBoxLayout, number: int, title: str, hint: str) -> None:
+        self.tip = f"{title} ({hint})"
+        self.title_label = _label(title, "StepTitle")
+        self.hint_label = _label(hint, "StepKey")
+        self.text_layout = QVBoxLayout()
+        self.text_layout.setSpacing(0)
+        self.text_layout.addStretch(1)
+        self.text_layout.addWidget(self.title_label)
+        self.text_layout.addWidget(self.hint_label)
+        self.text_layout.addStretch(1)
+        row.addWidget(_label(str(number), "StepNumber"))
+        row.addLayout(self.text_layout, 1)
+
+    def set_level(self, level: int) -> None:
+        self.hint_label.setVisible(level == 0)
+        self.title_label.setVisible(level < 2)
+        self.setToolTip(self.tip if level else "")
+        self.text_layout.invalidate()
+        self.layout().invalidate()
+        self.updateGeometry()
+
+
+class StepButton(_StepText, ActionButton):
     """One numbered step of the workflow; also the way to run just this step."""
 
     def __init__(self, number: int, title: str, hint: str, action: QAction, parent=None):
@@ -60,17 +98,10 @@ class StepButton(ActionButton):
         row = QHBoxLayout(self)
         row.setContentsMargins(12, 0, 12, 0)
         row.setSpacing(10)
-        row.addWidget(_label(str(number), "StepNumber"))
-        text = QVBoxLayout()
-        text.setSpacing(0)
-        text.addStretch(1)
-        text.addWidget(_label(title, "StepTitle"))
-        text.addWidget(_label(hint, "StepKey"))
-        text.addStretch(1)
-        row.addLayout(text, 1)
+        self._add_step_text(row, number, title, hint)
 
 
-class SplitStep(QFrame):
+class SplitStep(_StepText, QFrame):
     """A step with two ways to run it, e.g. on the selection or on the whole list."""
 
     def __init__(self, number: int, title: str, hint: str, choices: list[tuple[str, QAction]], parent=None):
@@ -79,14 +110,7 @@ class SplitStep(QFrame):
         row = QHBoxLayout(self)
         row.setContentsMargins(12, 0, 8, 0)
         row.setSpacing(10)
-        row.addWidget(_label(str(number), "StepNumber"))
-        text = QVBoxLayout()
-        text.setSpacing(0)
-        text.addStretch(1)
-        text.addWidget(_label(title, "StepTitle"))
-        text.addWidget(_label(hint, "StepKey"))
-        text.addStretch(1)
-        row.addLayout(text, 1)
+        self._add_step_text(row, number, title, hint)
         buttons = QVBoxLayout()
         buttons.setSpacing(2)
         buttons.addStretch(1)
@@ -103,10 +127,21 @@ class PrimaryButton(ActionButton):
         column = QVBoxLayout(self)
         column.setContentsMargins(22, 0, 22, 0)
         column.setSpacing(0)
+        self.title = title
+        self.tip = f"{title} ({hint})"
+        self.title_label = _label(title, "PrimaryTitle")
+        self.hint_label = _label(hint, "PrimaryKey")
         column.addStretch(1)
-        column.addWidget(_label(title, "PrimaryTitle"))
-        column.addWidget(_label(hint, "PrimaryKey"))
+        column.addWidget(self.title_label)
+        column.addWidget(self.hint_label)
         column.addStretch(1)
+
+    def set_level(self, level: int) -> None:
+        self.hint_label.setVisible(level == 0)
+        self.title_label.setText(self.title if level < 2 else tr("Auto"))
+        self.setToolTip(self.tip if level else "")
+        self.layout().invalidate()
+        self.updateGeometry()
 
 
 class TopBar(QWidget):
@@ -114,11 +149,41 @@ class TopBar(QWidget):
 
     def __init__(self, window, parent=None):
         super().__init__(parent)
+        self.header_buttons: list[ActionButton] = []
+        self.step_widgets: list = []
         column = QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
-        column.addWidget(self._header(window))
-        column.addWidget(self._steps(window))
+        self.header_bar = self._header(window)
+        self.step_bar = self._steps(window)
+        column.addWidget(self.header_bar)
+        column.addWidget(self.step_bar)
+
+    def minimumSizeHint(self) -> QSize:          # the bars fold, so they never hold the window wide
+        return QSize(0, super().minimumSizeHint().height())
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if self.isVisible():
+            self._fit(event.size().width())
+
+    def showEvent(self, event) -> None:          # only now the style sheet decides the real sizes
+        super().showEvent(event)
+        self._fit(self.width())
+
+    def _fit(self, width: int) -> None:
+        self._fold(self.header_bar, self.header_buttons, HEADER_LEVELS, width)
+        self._fold(self.step_bar, self.step_widgets, STEP_LEVELS, width)
+
+    @staticmethod
+    def _fold(bar: QWidget, widgets: list, levels: int, width: int) -> None:
+        """Use the fullest level that fits; the last one is the floor."""
+        for level in range(levels):
+            for widget in widgets:
+                widget.set_level(level)
+            bar.layout().invalidate()
+            if bar.layout().totalSizeHint().width() <= width:      # minimum sizes would clip the labels
+                return
 
     def _header(self, w) -> QWidget:
         bar = _styled(QWidget(), "Header")
@@ -130,16 +195,21 @@ class TopBar(QWidget):
         title.setPixmap(logo_pixmap(32))
         title.setAccessibleName("PsyTags")
         row.addWidget(title)
-        row.addWidget(ActionButton(w.act_dir, tr("Ordner öffnen")))
-        row.addWidget(ActionButton(w.act_add_dir, tr("Ordner hinzufügen")))
+        def add(action: QAction, text: str, name: str = "HeaderButton") -> None:
+            button = ActionButton(action, text, name)
+            self.header_buttons.append(button)
+            row.addWidget(button)
+        add(w.act_dir, tr("Ordner öffnen"))
+        add(w.act_add_dir, tr("Ordner hinzufügen"))
         self.search = QLineEdit()
         self.search.setObjectName("Search")
         self.search.setPlaceholderText(tr("Suchen in allen Spalten"))
         self.search.setClearButtonEnabled(True)
+        self.search.setMinimumWidth(SEARCH_MIN_WIDTH)
         row.addWidget(self.search, 1)
-        row.addWidget(ActionButton(w.act_undo, tr("Rückgängig")))
-        row.addWidget(ActionButton(w.act_save, tr("Speichern")))
-        row.addWidget(ActionButton(w.act_batch_summary, tr("Übersicht"), "SummaryButton"))
+        add(w.act_undo, tr("Rückgängig"))
+        add(w.act_save, tr("Speichern"))
+        add(w.act_batch_summary, tr("Übersicht"), "SummaryButton")
         menu = QToolButton()
         menu.setObjectName("MenuButton")
         menu.setText("≡")
@@ -154,20 +224,25 @@ class TopBar(QWidget):
         row = QHBoxLayout(bar)
         row.setContentsMargins(16, 12, 16, 12)
         row.setSpacing(6)
-        row.addWidget(PrimaryButton(tr("Alle Alben automatisch"), shortcut_text(w.act_auto_all), w.act_auto_all))
+        primary = PrimaryButton(tr("Alle Alben automatisch"), shortcut_text(w.act_auto_all), w.act_auto_all)
+        row.addWidget(primary)
         divider = QFrame()
         divider.setObjectName("StepDivider")
         divider.setFixedWidth(1)
         row.addSpacing(8)
         row.addWidget(divider)
         row.addSpacing(8)
-        row.addWidget(SplitStep(1, tr("Moods"), shortcut_text(w.act_moods),
-                                [(tr("Auswahl"), w.act_moods), (tr("Alle"), w.act_moods_all)]))
+        moods = SplitStep(1, tr("Moods"), shortcut_text(w.act_moods),
+                          [(tr("Auswahl"), w.act_moods), (tr("Alle"), w.act_moods_all)])
+        row.addWidget(moods)
+        self.step_widgets += [primary, moods]
         steps = [("MusicBrainz", shortcut_text(w.act_auto_mb), w.act_auto_mb),
                  (tr("Nummern"), shortcut_text(w.act_numbers), w.act_numbers),
                  (tr("Cover"), "Cover Art Archive", w.act_cover_fetch),
                  (tr("Genres"), shortcut_text(w.act_lastfm), w.act_lastfm),
                  (tr("Umbenennen"), shortcut_text(w.act_ttf), w.act_ttf)]
         for number, (title, hint, action) in enumerate(steps, 2):
-            row.addWidget(StepButton(number, title, hint, action))
+            step = StepButton(number, title, hint, action)
+            self.step_widgets.append(step)
+            row.addWidget(step)
         return bar
