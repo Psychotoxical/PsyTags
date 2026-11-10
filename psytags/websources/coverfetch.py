@@ -1,16 +1,15 @@
 """Cover-only fetch from a tag source (the search behind "Cover von MusicBrainz laden").
 
-The search uses the source's own [SearchBy] prefill on the freshly written tags; the best
-index row is chosen by album title, artist and track count.
+The search fills the source's form from the freshly written tags; the best result row is
+chosen by album title, artist and track count.
 """
 from __future__ import annotations
 
 import re
-import time
 import unicodedata
 from dataclasses import dataclass
 
-from . import http, runner, srcfile
+from .base import TagSource
 
 # Release-type suffixes that streaming services add to album titles.
 _SUFFIX = re.compile(r"\s*[-–]\s*(single|ep)\s*$", re.IGNORECASE)
@@ -92,14 +91,10 @@ def candidates(matches: list[Match], exact: dict | None, limit: int = 5) -> list
     return out[:limit]
 
 
-def first_cover(src: srcfile.Source, rows: list[dict], fetch=None,
-                pause: float = 1.0) -> tuple[dict, tuple[bytes, str]] | None:
-    """(row, (data, mime)) of the first row that delivers a cover, else None.
-    ``pause`` between album requests keeps within MusicBrainz' one request per second."""
+def first_cover(src: TagSource, rows: list[dict], fetch=None) -> tuple[dict, tuple[bytes, str]] | None:
+    """(row, (data, mime)) of the first row that delivers a cover, else None."""
     fetch = fetch or fetch_cover
-    for i, row in enumerate(rows):
-        if i and pause:
-            time.sleep(pause)
+    for row in rows:
         got = fetch(src, row)
         if got:
             return row, got
@@ -115,21 +110,17 @@ def release_row(rows: list[dict], release_id: str) -> dict | None:
     return next((r for r in rows if rid in (r.get("_url") or "").lower()), None)
 
 
-def search(src_path: str, tracks) -> tuple[srcfile.Source, list[dict], list[Match]]:
-    src = srcfile.load(src_path)
-    values = runner.prefill(src, tracks)
-    rows = runner.run_index(src, values) if runner.has_index(src) else []
+def search(src: TagSource, tracks) -> tuple[list[dict], list[Match]]:
+    rows = src.search(src.prefill(tracks))
     t = tracks[0]
     album = (t.get("ALBUM") or [""])[0]
     artist = (t.get("ALBUMARTIST") or t.get("ARTIST") or [""])[0]
-    return src, rows, rank(rows, album, artist, len(tracks))
+    return rows, rank(rows, album, artist, len(tracks))
 
 
-def fetch_cover(src: srcfile.Source, row: dict) -> tuple[bytes, str] | None:
-    url, prev = runner.album_target(src, row)
-    album = runner.run_album(src, url, prev)
-    if not album.cover_url:
+def fetch_cover(src: TagSource, row: dict) -> tuple[bytes, str] | None:
+    data = src.cover(src.album(row))
+    if not data:
         return None
-    data = http.fetch_bytes(runner.cover_download_url(album.cover_url))
     mime = "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
     return data, mime

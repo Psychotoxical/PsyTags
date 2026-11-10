@@ -8,7 +8,7 @@ from psytags.track import Track
 from psytags.websources import albumauto
 from psytags.websources.albummatch import (Match, Release, clean_import, decide, file_info,
                                           match_release)
-from psytags.websources.runner import Album
+from psytags.websources.base import Album
 
 
 def F(title, length=200.0, name=None):
@@ -139,7 +139,7 @@ class CandidateTests(unittest.TestCase):
 
     def test_id_from_tags_is_an_extra_candidate(self):
         got = albumauto.candidate_rows([self._m(12)], 12, "abc-def")
-        self.assertTrue(got[0]["_url"].startswith("abc-def?"))
+        self.assertEqual(got[0]["_url"], "abc-def")
         self.assertEqual(len(albumauto.candidate_rows([self._m(12)], 12, "12-cd")), 1)
 
     def test_digital_first_is_stable(self):
@@ -322,28 +322,18 @@ class BaseTitleTests(unittest.TestCase):
 class SecondSearchTests(unittest.TestCase):
     """find_album searches once more without the edition note, and only when it has to."""
 
-    class _Src:
-        search_fields = []
-
     def _run(self, album, first_rows, second_rows, album_type="Album"):
-        from unittest import mock
-        from psytags.websources import runner
         t = _track("a.mp3", "One", album=album)
         seen = []
 
-        def prefill(_src, tracks):
-            return [tracks[0].field("ALBUM")[0]]
-
-        def run_index(_src, values):
+        def search(values):
             seen.append(values[0])
             return first_rows if len(seen) == 1 else second_rows
         rel = Album(fields={"TITLE": ["One"], "YEAR": ["2001"], "MUSICBRAINZ_ALBUMTYPE": [album_type]},
                     per_track={"TITLE"}, tracks=1, lengths=[])
-        with mock.patch.object(runner, "prefill", prefill), mock.patch.object(runner, "run_index", run_index), \
-                mock.patch.object(runner, "album_target", lambda *_a: ("u", "p")), \
-                mock.patch.object(runner, "run_album", lambda *_a: rel), \
-                mock.patch.object(albumauto, "_INTERVAL", 0):
-            return albumauto.find_album(self._Src(), [t]), seen
+        src = SimpleNamespace(prefill=lambda tracks, title=None: [title or tracks[0].field("ALBUM")[0]],
+                              search=search, album=lambda row: rel)
+        return albumauto.find_album(src, [t]), seen
 
     @staticmethod
     def _row(title):
@@ -491,7 +481,7 @@ class FollowUpTests(unittest.TestCase):
         win = mock.MagicMock()
         win._lastfm_enabled.return_value = False
         t = _track("a.mp3", "One")
-        MainWindow._finish_source_import(win, "MB", "p", [(t, {"TITLE": "One"})], None, [], False, complete)
+        MainWindow._finish_source_import(win, "MB", [(t, {"TITLE": "One"})], None, [], False, complete)
         return win, t
 
     def test_a_complete_album_gets_numbered(self):
@@ -509,7 +499,6 @@ class FollowUpTests(unittest.TestCase):
         win = mock.MagicMock(_auto_done={}, _mood_done={})
         t = _track("a.mp3", "One")
         win.model.rows = [t]
-        win._load_mb_source.return_value = ("p", object())
         win.analyze_moods.return_value = analysis_ok
         with mock.patch.object(mw, "_StayingProgress") as dlg:
             dlg.return_value.stop.is_set.return_value = False
@@ -532,7 +521,6 @@ class FollowUpTests(unittest.TestCase):
         t = _track("a.mp3", "One")
         win = mock.MagicMock(_auto_done={}, _mood_done={id(t): t})
         win.model.rows = [t]
-        win._load_mb_source.return_value = ("p", object())
         win.analyze_moods.return_value = True
         with mock.patch.object(mw, "_StayingProgress") as dlg:
             dlg.return_value.stop.is_set.return_value = False
@@ -558,7 +546,7 @@ class SummaryOutcomeTests(unittest.TestCase):
         win._lastfm_enabled.return_value = True
         win.fetch_cover_chain.return_value = "kein Treffer"
         win.finish_lastfm.return_value = ""
-        result = MainWindow._finish_source_import(win, "MB", "p", [(_track("a.mp3", "One"), {})], None, [], False,
+        result = MainWindow._finish_source_import(win, "MB", [(_track("a.mp3", "One"), {})], None, [], False,
                                                   archive=("r", "g"))
         self.assertEqual(result, ("kein Treffer", ""))
 
@@ -570,7 +558,7 @@ class SummaryOutcomeTests(unittest.TestCase):
         from psytags.ui.mainwindow import MainWindow
         win = mock.MagicMock()
         win._lastfm_enabled.return_value = False
-        self.assertEqual(MainWindow._finish_source_import(win, "MB", "p", [], None, [], False), (None, None))
+        self.assertEqual(MainWindow._finish_source_import(win, "MB", [], None, [], False), (None, None))
 
 
 class CoverRetryTests(unittest.TestCase):
@@ -867,7 +855,6 @@ class ManualFromSummaryTests(unittest.TestCase):
         dlg = mock.MagicMock(chosen=e, action="manual")
         dlg.exec.return_value = 1
         win = mock.MagicMock(_last_batch=[e], _auto_done={})
-        win._mb_tag_source.return_value = "p"
         win.run_source.return_value = outcome
         with mock.patch.object(ts, "BatchSummaryDialog", return_value=dlg):
             mw.MainWindow.show_batch_summary(win)

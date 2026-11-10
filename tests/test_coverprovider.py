@@ -411,9 +411,9 @@ class WindowTests(Guarded):
     def test_the_cover_menu_lists_active_providers(self):
         win = mock.MagicMock()
         win.view.selected_tracks.return_value = ["t"]
-        win._mb_cover_source.return_value = ""
         win._cover_sources.return_value = [cp.ARCHIVE, provider()]
-        self.assertEqual(MainWindow._cover_fetch_entries(win), [("provider:Testquelle", "Cover von Testquelle laden")])
+        self.assertEqual(MainWindow._cover_fetch_entries(win), [("fetch_mb", "Cover von MusicBrainz laden"),
+                                                        ("provider:Testquelle", "Cover von Testquelle laden")])
 
     def test_the_menu_entry_lets_the_user_pick(self):
         win = mock.MagicMock()

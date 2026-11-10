@@ -3,43 +3,20 @@ from __future__ import annotations
 
 import os
 import re
-import threading
-import time
 from dataclasses import dataclass, field
-from typing import Callable
 
 from ..albumorder import is_disc_folder
 from ..i18n import tr
-from . import albummatch, coverfetch, http, runner, srcfile
+from . import albummatch, coverfetch, http
 from .albummatch import Decision, FileInfo, Match, Release
+from .base import Album, TagSource
 
 MAX_CANDIDATES = 8
-_INC = "?inc=artists+artist-credits+labels+recordings+release-groups+isrcs&fmt=json"
-_INTERVAL = 1.1                         # MusicBrainz allows one request per second
-_lock = threading.Lock()
-_last_call = [0.0]
 
 
 def _first(track, name: str) -> str:
     values = track.get(name)
     return values[0] if values else ""
-
-
-def _polite(call: Callable, retries: int = 4):
-    """One request per second; a busy server (HTTP 503) gets a few more tries."""
-    for attempt in range(retries + 1):
-        with _lock:
-            wait = _last_call[0] + _INTERVAL - time.monotonic()
-            if wait > 0:
-                time.sleep(wait)
-            _last_call[0] = time.monotonic()
-        try:
-            return call()
-        except http.FetchError as e:
-            if "503" not in str(e) or attempt == retries:
-                raise
-            with http.activity(tr("MusicBrainz ist ausgelastet, neuer Versuch gleich")):
-                time.sleep(4)
 
 
 def track_count(row: dict) -> int | None:
@@ -64,7 +41,7 @@ def candidate_rows(matches: list, n_files: int, mbid: str = "") -> list[dict]:
            if (c := track_count(m.row)) is not None and lowest <= c <= n_files]
     fit.sort(key=lambda r: (track_count(r) != n_files, not is_digital(r)))
     if mbid and not any(mbid.lower() in r.get("_url", "").lower() for r in fit):
-        fit.insert(0, {"_url": mbid + _INC})
+        fit.insert(0, {"_url": mbid})
     return fit[:MAX_CANDIDATES]
 
 
@@ -77,7 +54,7 @@ def file_infos(tracks: list) -> list[FileInfo]:
     return out
 
 
-def to_release(album: runner.Album, row: dict, tight: bool = False) -> Release:
+def to_release(album: Album, row: dict, tight: bool = False) -> Release:
     n = album.tracks
     lengths = [albummatch.seconds(album.lengths[i]) if i < len(album.lengths) else None for i in range(n)]
     return Release(album, [album.value("TITLE", i) for i in range(n)], lengths,
@@ -90,21 +67,8 @@ class AutoResult:
     reason: str = ""
 
     @property
-    def album(self) -> runner.Album | None:
+    def album(self) -> Album | None:
         return self.match.release.key if self.match else None
-
-
-class _WithAlbum:
-    """A track whose ALBUM reads differently, to fill a search form with another title."""
-
-    def __init__(self, track, album: str):
-        self._track, self._album = track, album
-
-    def field(self, name: str) -> list[str]:
-        return [self._album] if name.upper() == "ALBUM" else self._track.field(name)
-
-    def __getattr__(self, name: str):
-        return getattr(self._track, name)
 
 
 def _title_steps(album: str) -> list[str]:
@@ -119,17 +83,9 @@ def _title_steps(album: str) -> list[str]:
     return steps
 
 
-def _values_for(src: srcfile.Source, tracks: list, title: str) -> list[str]:
-    return runner.prefill(src, [_WithAlbum(tracks[0], title)])
-
-
-def fallback_searches(src: srcfile.Source, tracks: list) -> list[list[str]]:
+def fallback_searches(src: TagSource, tracks: list) -> list[list[str]]:
     """Search values without the notes behind the album title, most specific first."""
-    return [_values_for(src, tracks, title) for title in _title_steps(_first(tracks[0], "ALBUM"))]
-
-
-def search_rows(src: srcfile.Source, values: list[str]) -> list[dict]:
-    return _polite(lambda: runner.run_index(src, values))
+    return [src.prefill(tracks, title) for title in _title_steps(_first(tracks[0], "ALBUM"))]
 
 
 def needs_second_search(rows: list[dict], tracks: list) -> bool:
@@ -138,17 +94,17 @@ def needs_second_search(rows: list[dict], tracks: list) -> bool:
     return not coverfetch.rank(rows, _first(tracks[0], "ALBUM"), artist, len(tracks))
 
 
-def find_album(src: srcfile.Source, tracks: list) -> AutoResult:
+def find_album(src: TagSource, tracks: list) -> AutoResult:
     """Search and decide; if that fails, again without the notes behind the album title.
-    Raises http.FetchError or runner.ScriptError."""
+    Raises http.FetchError."""
     album = _first(tracks[0], "ALBUM")
     if not album:
         return AutoResult(None, tr("Kein Album-Tag"))
-    result = _search(src, tracks, album, runner.prefill(src, tracks), album)
+    result = _search(src, tracks, album, src.prefill(tracks), album)
     for title in _title_steps(album):
         if result.match is not None:
             break
-        step = _search(src, tracks, title, _values_for(src, tracks, title), album)
+        step = _search(src, tracks, title, src.prefill(tracks, title), album)
         result = step if step.match is not None else AutoResult(None, step.reason or result.reason)
     return result
 
@@ -160,7 +116,7 @@ def _words(text: str) -> set[str]:
     return set(re.findall(r"\w+", text.casefold()))
 
 
-def _fits_album(found: runner.Album, album: str, artist: str) -> bool:
+def _fits_album(found: Album, album: str, artist: str) -> bool:
     """Same artist, and a title that says "(Live)" never lands on a release of another kind."""
     if not albummatch.same_artist(found.value("ALBUMARTIST", 0), artist):
         return False
@@ -171,23 +127,22 @@ def _fits_album(found: runner.Album, album: str, artist: str) -> bool:
     return bool((_words(found.value("MUSICBRAINZ_ALBUMTYPE", 0)) | _words(found.value("ALBUM", 0))) & set(forms))
 
 
-def _needs_tight_lengths(found: runner.Album, album: str) -> bool:
+def _needs_tight_lengths(found: Album, album: str) -> bool:
     """A live release for files whose album tag does not say so: only the lengths can tell
     whether these really are the live recordings and not the studio songs."""
     kind_of_release, in_tag = _words(found.value("MUSICBRAINZ_ALBUMTYPE", 0)), _words(album)
     return any(kind_of_release & set(f) and not in_tag & set(f) for f in _KINDS.values())
 
 
-def _search(src: srcfile.Source, tracks: list, title: str, values: list[str], album: str) -> AutoResult:
+def _search(src: TagSource, tracks: list, title: str, values: list[str], album: str) -> AutoResult:
     artist = _first(tracks[0], "ALBUMARTIST") or _first(tracks[0], "ARTIST")
-    rows = search_rows(src, values)
+    rows = src.search(values)
     matches = coverfetch.rank(rows, title, artist, len(tracks))
     releases = []
     candidates = candidate_rows(matches, len(tracks), _first(tracks[0], "MUSICBRAINZ_ALBUMID"))
     for number, row in enumerate(candidates, 1):
-        url, prev = runner.album_target(src, row)
         with http.activity(tr("Ausgabe {1} von {2}", number, len(candidates))):
-            found = _polite(lambda: runner.run_album(src, url, prev))
+            found = src.album(row)
         if _fits_album(found, album, artist):
             releases.append(to_release(found, row, _needs_tight_lengths(found, album)))
     d: Decision = albummatch.decide(file_infos(tracks), releases, _first(tracks[0], "YEAR")[:4])
@@ -216,7 +171,7 @@ def plan_for(match: Match, disabled: set[str]) -> list[tuple[object, dict[str, s
     return out
 
 
-def prealign(tracks: list, album: runner.Album) -> list:
+def prealign(tracks: list, album: Album) -> list:
     """Files in the order of the source's tracks, as far as the titles tell; the rest fills the
     free slots, and what is left over stands behind the last track."""
     n = max(album.tracks, 1)

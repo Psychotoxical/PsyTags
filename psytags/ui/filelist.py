@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFileIconProvide
                                QHeaderView, QStyledItemDelegate, QStyleOptionViewItem, QTableView, QLineEdit)
 
 from . import theme
-from .. import script
+from .. import columnformat
 from ..i18n import tr
 from ..config import Column
 from ..albumorder import natural_key as _natural_key, sort_key
@@ -75,7 +75,6 @@ class FileListModel(QAbstractTableModel):
         self._cache: dict[tuple[int, int], str] = {}
         self._icon = QFileIconProvider()
         self._file_icon = None
-        self._publish_columns()
 
     # -- structure -----------------------------------------------------------
     def set_columns(self, columns: list[Column]) -> None:
@@ -84,12 +83,8 @@ class FileListModel(QAbstractTableModel):
         self.all_columns = columns
         self.columns = [c for c in columns if c.enabled]
         self.sort_keys = [(self.columns.index(c) + 1, d) for c, d in sort_cols if c in self.columns]
-        self._publish_columns()
         self._cache.clear()
         self.endResetModel()
-
-    def _publish_columns(self) -> None:
-        script.COLUMNS[:] = [(c.name.replace("&", ""), c.value) for c in self.columns]
 
     def rowCount(self, parent=QModelIndex()):
         return 0 if parent.isValid() else len(self.rows)
@@ -115,7 +110,7 @@ class FileListModel(QAbstractTableModel):
         key = (id(self.rows[row]), col)
         v = self._cache.get(key)
         if v is None:
-            v = script.format(self.columns[col - 1].value, self.rows[row])
+            v = columnformat.format(self.columns[col - 1].value, self.rows[row])
             self._cache[key] = v
         return v
 
@@ -134,7 +129,7 @@ class FileListModel(QAbstractTableModel):
             return self.text(r, c)
         if role == Qt.ItemDataRole.EditRole:
             col = self.columns[c - 1]
-            return script.format(col.field, t) if col.field else self.text(r, c)
+            return columnformat.format(col.field, t) if col.field else self.text(r, c)
         if role == Qt.ItemDataRole.TextAlignmentRole:
             return (Qt.AlignmentFlag.AlignRight if self.columns[c - 1].numeric
                     else Qt.AlignmentFlag.AlignLeft) | Qt.AlignmentFlag.AlignVCenter
@@ -157,7 +152,7 @@ class FileListModel(QAbstractTableModel):
             return False
         t = self.rows[index.row()]
         name = m.group(1).upper()
-        old = script.format(col.field, t)
+        old = columnformat.format(col.field, t)
         if value == old:
             return False
         self.edited.emit(t, name, old, value)
@@ -223,12 +218,12 @@ class FileListModel(QAbstractTableModel):
                 expr = c.sort or c.value
                 if c.numeric:
                     def key(t, e=expr):
-                        s = script.format(e, t)
+                        s = columnformat.format(e, t)
                         m = re.match(r"\s*-?\d+(\.\d+)?", s)
                         return (0, float(m.group(0))) if m else (1, 0.0)
                 else:
                     def key(t, e=expr):
-                        return _natural_key(script.format(e, t))
+                        return _natural_key(columnformat.format(e, t))
                 rows.sort(key=key, reverse=desc)
         self.rows = rows
         self._number()
@@ -243,7 +238,7 @@ class FileListModel(QAbstractTableModel):
 
     def _matches(self, t: Track, words: list[str]) -> bool:
         """Every word has to appear somewhere in the visible columns or the file name."""
-        text = " ".join([script.format(c.value, t) for c in self.columns] + [t.filename]).casefold()
+        text = " ".join([columnformat.format(c.value, t) for c in self.columns] + [t.filename]).casefold()
         return all(w in text for w in words)
 
     def sort_by(self, col: int, add: bool) -> None:

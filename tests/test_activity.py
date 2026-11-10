@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication, QLabel
 
 from psytags import config
-from psytags.websources import albumauto, http
+from psytags.websources import albumauto, http, musicbrainz
 
 MB = "https://musicbrainz.org/ws/2/release/"
 
@@ -73,27 +73,24 @@ class AlbumSearchTests(unittest.TestCase):
             if isinstance(reply, Exception):
                 raise reply
             return reply
-        with mock.patch.object(albumauto.time, "sleep", side_effect=lambda s: seen.append(http.running())):
-            self.assertEqual(albumauto._polite(call), "ok")
+        with mock.patch.object(musicbrainz.time, "sleep", side_effect=lambda s: seen.append(http.running())):
+            self.assertEqual(musicbrainz._polite(call), "ok")
         self.assertIn(["MusicBrainz ist ausgelastet, neuer Versuch gleich"], seen)
 
     def test_the_editions_are_counted(self):
         seen = []
         track = NS(get=lambda name: [])
 
-        def run_album(src, url, prev):
+        def album(row):
             seen.append(http.running())
             return mock.MagicMock()
-        with mock.patch.object(albumauto, "search_rows", return_value=[]), \
-                mock.patch.object(albumauto.coverfetch, "rank", return_value=[]), \
+        src = NS(search=lambda values: [], album=album)
+        with mock.patch.object(albumauto.coverfetch, "rank", return_value=[]), \
                 mock.patch.object(albumauto, "candidate_rows", return_value=[{}, {}]), \
-                mock.patch.object(albumauto.runner, "album_target", return_value=("u", "p")), \
-                mock.patch.object(albumauto.runner, "run_album", run_album), \
-                mock.patch.object(albumauto, "_polite", lambda call: call()), \
                 mock.patch.object(albumauto, "_fits_album", return_value=False), \
                 mock.patch.object(albumauto, "file_infos", return_value=[]), \
                 mock.patch.object(albumauto.albummatch, "decide", return_value=NS(match=None, reason="x")):
-            albumauto._search(None, [track], "A", [], "A")
+            albumauto._search(src, [track], "A", [], "A")
         self.assertEqual(seen, [["Ausgabe 1 von 2"], ["Ausgabe 2 von 2"]])
 
 

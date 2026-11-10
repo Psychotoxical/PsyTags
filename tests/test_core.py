@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-from psytags import convert, script, tags
+from psytags import convert, tags
 from psytags.track import Track
 
 
@@ -47,55 +47,6 @@ class FakeTrack:
 
 T = FakeTrack({"ARTIST": ["AC/DC", "Guest"], "TITLE": "Back in Black", "TRACK": "3/10",
                "ALBUM": "Back in Black", "YEAR": "1980"})
-
-
-class ScriptTests(unittest.TestCase):
-    def f(self, s, t=T):
-        return script.format(s, t)
-
-    def test_fields_and_literals(self):
-        self.assertEqual(self.f("%artist% - %title%"), "AC/DC - Back in Black")
-        self.assertEqual(self.f("'%artist%' it''s"), "%artist% it's")
-        self.assertEqual(self.f("$$5"), "$5")
-
-    def test_optional_sections(self):
-        self.assertEqual(self.f("[%genre% - ]%title%"), "Back in Black")
-        self.assertEqual(self.f("[%year% - ]%title%"), "1980 - Back in Black")
-        self.assertEqual(self.f("[no placeholder]x"), "x")
-        self.assertEqual(self.f("[CD$num(%discnumber%,1)\\]"), "")
-
-    def test_functions(self):
-        self.assertEqual(self.f("$num(%track%,2)"), "03")
-        self.assertEqual(self.f("$num(abc,2)"), "00")
-        self.assertEqual(self.f("$if(%genre%,yes,no)"), "no")
-        self.assertEqual(self.f("$if2(%albumartist%,%artist%)"), "AC/DC")
-        self.assertEqual(self.f("$if($eql(%year%,1980),old,new)"), "old")
-        self.assertEqual(self.f("$if($eql(abc,ABC),y,n)"), "y")
-        self.assertEqual(self.f("$if($strcmp(abc,ABC),y,n)"), "n")
-        self.assertEqual(self.f("$left(%title%,4)|$right(%title%,5)|$mid(%title%,6,2)"), "Back|Black|in")
-        self.assertEqual(self.f("$mid(abc,2)"), "b")
-        self.assertEqual(self.f("$replace(%title%,Back,Front,Black,White)"), "Front in White")
-        self.assertEqual(self.f("$regexp(%title%,^(\\w+) in,$1 out)"), "Back out Black")
-        self.assertEqual(self.f("$caps(hello wORLD)|$caps2(hello wORLD)|$caps3(hello WORLD)"),
-                         "Hello World|Hello WORLD|Hello world")
-        self.assertEqual(self.f("$caps(rock-n-roll,-)"), "Rock-N-Roll")
-        self.assertEqual(self.f("$strstr(abcabc,c)|$strrstr(abcabc,c)|$strstr(abc,x)"), "3|6|0")
-        self.assertEqual(self.f("$add(1,2,3)|$sub(10,3,2)|$div(7,2)|$mod(7,2)"), "6|5|3|1")
-        self.assertEqual(self.f("$meta(artist)|$meta(artist,1)|$meta_sep(artist,\\\\)"),
-                         "AC/DC, Guest|Guest|AC/DC\\\\Guest")
-        self.assertEqual(self.f("$validate(a/b:c?,_)"), "a_b_c_")
-        self.assertEqual(self.f("$if($odd(3),o,e)$if($grtr(5,2),g,l)"), "og")
-        self.assertEqual(self.f("$dedup(a;b;A;a,;,1)"), "a;b")
-        self.assertEqual(self.f("$sort(b10;b2;a,;)"), "a;b2;b10")
-        self.assertEqual(self.f("$fmtDuration(125)"), "2:05")
-        self.assertEqual(self.f("$distance(kitten,sitting)"), "3")
-        self.assertEqual(self.f("$len(%title%)"), "13")
-        self.assertEqual(self.f("$trim(  x  )"), "x")
-
-    def test_nested_and_broken(self):
-        self.assertEqual(self.f("$upper($left(%artist%,2))"), "AC")
-        self.assertEqual(self.f("100%"), "100%")
-        self.assertEqual(self.f("$unknown(x)"), "$unknown(x)")
 
 
 class GenreMoodTests(unittest.TestCase):

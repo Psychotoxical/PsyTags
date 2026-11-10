@@ -423,10 +423,10 @@ class MainWindow(QMainWindow):
         self.act_numbers = A("Nummern schreiben", self.number_selected, "Ctrl+K",
                              "Schreibt Track- und Discnummern der ausgewählten Alben.", "numbering")
         # Tag sources
-        self.act_last_source = A("Zuletzt verwendete Tag-Quelle", lambda: self.run_last_source(False),
-                                 "Ctrl+I", "Führt die zuletzt verwendete Tag-Quelle aus.", "web")
-        self.act_last_source_quick = A("Zuletzt verwendete Tag-Quelle (Schnell)",
-                                       lambda: self.run_last_source(True), "Ctrl+Shift+I")
+        self.act_last_source = A("MusicBrainz durchsuchen", lambda: self.run_source(),
+                                 "Ctrl+I", "Sucht bei MusicBrainz und zeigt die Trefferliste.", "web")
+        self.act_last_source_quick = A("MusicBrainz durchsuchen (Schnell)",
+                                       lambda: self.run_source(quick=True), "Ctrl+Shift+I")
         self.act_lastfm = A("Genres von Last.fm holen",
                             lambda: self.fetch_lastfm(self.view.selected_tracks()), "Ctrl+Shift+L",
                             "Holt Genres für die ausgewählten Dateien, ohne Tag-Quelle.",
@@ -852,7 +852,6 @@ class MainWindow(QMainWindow):
             m.addAction(a)
         m.addSeparator()
         m.addAction(self.act_lastfm)
-        m.addAction(tr("Discogs-Zugang..."), self.discogs_token)
 
     def _cover_min_size(self) -> int:
         try:
@@ -886,17 +885,11 @@ class MainWindow(QMainWindow):
                         label, img.width(), img.height(), n), 8000)
         return False
 
-    def _mb_cover_source(self) -> str:
-        """MusicBrainz source for the cover context menu: the cover-art one, else the plain one."""
-        from ..sources import list_sources
-        srcs = {name.replace("&", "").lower(): p for name, p in list_sources()}
-        return srcs.get("cover art#musicbrainz") or srcs.get("musicbrainz") or ""
-
     def _cover_fetch_entries(self) -> list[tuple[str, str]]:
         """(command, menu text) for the cover context menu."""
         if not self.view.selected_tracks():
             return []
-        out = [("fetch_mb", tr("Cover von {1} laden", "MusicBrainz"))] if self._mb_cover_source() else []
+        out = [("fetch_mb", tr("Cover von {1} laden", "MusicBrainz"))]
         out += [(f"provider:{s.name}", tr("Cover von {1} laden", s.name))
                 for s in self._cover_sources() if hasattr(s, "name")]
         return out
@@ -1047,23 +1040,23 @@ class MainWindow(QMainWindow):
         else:
             self.message(tr("Cover geladen: {1}", len(results)), 6000)
 
-    def fetch_cover_from_source(self, tracks, path: str, manual: bool = False,
+    def fetch_cover_from_source(self, tracks, manual: bool = False,
                                 interactive: bool = True) -> str | None:
-        """Cover-only fetch from a tag source; replaces the front cover.
+        """Cover-only fetch from MusicBrainz; replaces the front cover.
         ``manual``: started by the user, so a too small cover may be taken after asking.
         Without ``interactive`` no dialog opens. Returns None if it did not run, "" if it
         worked, otherwise what went wrong."""
-        from ..websources import coverfetch
+        from ..websources import coverfetch, musicbrainz
         from ..websources import http as wshttp
-        from ..websources import runner
         from .dialogs.tagsources import ResultsDialog
-        if not path or not os.path.exists(path) or not tracks:
+        if not tracks:
             return None
-        label = os.path.splitext(os.path.basename(path))[0].replace("&", "").replace("#", " – ")
+        src = musicbrainz.Source()
+        label = src.name
         try:
-            src, rows, matches = self._background(tr("Cover-Suche bei {1}", label),
-                                                  lambda: coverfetch.search(path, tracks))
-        except (wshttp.FetchError, runner.ScriptError) as e:
+            rows, matches = self._background(tr("Cover-Suche bei {1}", label),
+                                             lambda: coverfetch.search(src, tracks))
+        except wshttp.FetchError as e:
             if interactive:
                 QMessageBox.warning(self, label, str(e))
             return str(e).splitlines()[0]
@@ -1074,7 +1067,7 @@ class MainWindow(QMainWindow):
         try:
             found = self._background(tr("Cover von {1} laden", label),
                                      lambda: coverfetch.first_cover(src, auto)) if auto else None
-        except (wshttp.FetchError, runner.ScriptError, OSError) as e:
+        except (wshttp.FetchError, OSError) as e:
             if interactive:
                 QMessageBox.warning(self, label, str(e))
             return str(e).splitlines()[0]
@@ -1095,7 +1088,7 @@ class MainWindow(QMainWindow):
             try:
                 got = self._background(tr("Cover von {1} laden", label),
                                        lambda: coverfetch.fetch_cover(src, row))
-            except (wshttp.FetchError, runner.ScriptError, OSError) as e:
+            except (wshttp.FetchError, OSError) as e:
                 QMessageBox.warning(self, label, str(e))
                 return str(e).splitlines()[0]
             if not got:
@@ -1106,7 +1099,7 @@ class MainWindow(QMainWindow):
         data, mime = got
         if not self._cover_big_enough(data, label, ask=manual):
             return tr("Cover von {1} zu klein", label)  # the tag source's cover stays as fallback
-        new = tags.Cover(data, mime, 3, src.get("name") or label)
+        new = tags.Cover(data, mime, 3, label)
 
         def apply(t):
             t.data.covers = [new] + [c for c in t.data.covers if c.type != 3]
@@ -1118,59 +1111,8 @@ class MainWindow(QMainWindow):
         return ""
 
     def _add_source_entries(self, m: QMenu) -> None:
-        """Tag sources; `#` in the file name creates submenus, `&` is the mnemonic.
-        .settings files are appended at the end, separated from the sources."""
-        from ..sources import list_settings, list_sources
-        has_sel = bool(self.view.selected_tracks())
-
-        def place(name: str):
-            parts = name.split("#")
-            sub = m
-            for p in parts[:-1]:
-                found = [a.menu() for a in sub.actions() if a.menu() and a.menu().title() == p]
-                sub = found[0] if found else sub.addMenu(p)
-            return sub, parts[-1]
-        for name, path in list_sources():
-            sub, label = place(name)
-            a = sub.addAction(label, lambda _=False, p=path: self.run_source(p))
-            a.setEnabled(has_sel)
-        settings = list_settings()
-        if settings:
-            m.addSeparator()
-        for name, path in settings:
-            sub, label = place(name)
-            sub.addAction(label, lambda _=False, p=path: self.source_settings(p))
-
-    def discogs_token(self):
-        from .dialogs.tagsources import DiscogsTokenDialog
-        DiscogsTokenDialog(self).exec()
-
-    def source_settings(self, path: str):
-        import json as _json
-        from .dialogs.tagsources import SourceSettingsDialog
-        try:
-            with open(path, encoding="utf-8-sig") as fh:
-                schema = _json.load(fh)
-        except (OSError, ValueError) as e:
-            QMessageBox.warning(self, tr("Fehler"), str(e))
-            return
-        SourceSettingsDialog(schema, self).exec()
-
-    def _update_last_source_tip(self) -> None:
-        """Toolbar tooltip names the source the button will run."""
-        p = self.settings.value("tagsources/last", "")
-        if p and os.path.exists(p):
-            name = os.path.splitext(os.path.basename(p))[0].replace("&", "").replace("#", " – ")
-            self.act_last_source.setToolTip(tr("Tag-Quelle: {1} (Strg+I)", name))
-        else:
-            self.act_last_source.setToolTip(tr("Tag-Quelle wählen"))
-
-    def run_last_source(self, quick: bool):
-        p = self.settings.value("tagsources/last", "")
-        if p and os.path.exists(p):
-            self.run_source(p, quick)
-        else:
-            self.sources_menu.exec(self.mapToGlobal(self.rect().center()))
+        a = m.addAction("MusicBrainz", lambda _=False: self.run_source())
+        a.setEnabled(bool(self.view.selected_tracks()))
 
     def _background(self, label: str, fn):
         """Run fn in a worker thread while keeping the UI responsive."""
@@ -1198,62 +1140,44 @@ class MainWindow(QMainWindow):
             raise box["e"]
         return box.get("v")
 
-    def run_source(self, path: str, quick: bool = False, note: str = ""):
-        from ..websources import albumauto, coverart
+    def run_source(self, quick: bool = False, note: str = ""):
+        """Search MusicBrainz by hand: search form, result list, adjust dialog."""
+        from ..websources import albumauto, coverart, musicbrainz
         from ..websources import http as wshttp
-        from ..websources import runner, srcfile
-        from .dialogs.tagsources import (AdjustDialog, DiscogsTokenDialog, ResultsDialog,
-                                         SearchDialog)
+        from .dialogs.tagsources import AdjustDialog, ResultsDialog, SearchDialog
         tracks = self.view.selected_tracks()
         if not tracks:
             return
-        try:
-            src = srcfile.load(path, os.path.splitext(os.path.basename(path))[0])
-        except OSError as e:
-            QMessageBox.warning(self, tr("Fehler"), str(e))
-            return
-        msg = runner.check_version(src)
-        if msg:
-            QMessageBox.warning(self, "PsyTags", msg)
-            return
-        if "discogs.com" in (src.get("indexurl") + src.get("albumurl")) \
-                and not self.settings.value("tagsources/discogs_token", ""):
-            if not DiscogsTokenDialog(self).exec():
-                return
-        self.settings.setValue("tagsources/last", path)
-        self._update_last_source_tip()
-        name = src.get("name") or src.name
-        values = runner.prefill(src, tracks)
+        src = musicbrainz.Source()
+        name = src.name
+        values = src.prefill(tracks)
         rows: list = []
         row = None
         stage = "search"
         while True:
             if stage == "search":
                 if not quick:
-                    d = SearchDialog(src, tracks, self, values)
+                    d = SearchDialog(src, values, self)
                     if not d.exec():
                         return
                     values = d.values()
                 quick = False
-                if not runner.has_index(src):
-                    row, stage = None, "album"
-                    continue
                 try:
                     rows = self._background(tr("Suchergebnisse von {1} abrufen", name),
-                                            lambda: runner.run_index(src, values))
-                except (wshttp.FetchError, runner.ScriptError) as e:
+                                            lambda: src.search(values))
+                except wshttp.FetchError as e:
                     if QMessageBox.warning(self, name, str(e), QMessageBox.StandardButton.Retry
                                            | QMessageBox.StandardButton.Cancel) \
                             == QMessageBox.StandardButton.Retry:
                         continue
                     return
-                if values == runner.prefill(src, tracks) and albumauto.needs_second_search(rows, tracks):
+                if values == src.prefill(tracks) and albumauto.needs_second_search(rows, tracks):
                     # e.g. "Album (Bonus Tracks Edition)" when the database only knows "Album"
                     for second in albumauto.fallback_searches(src, tracks):
                         try:
                             more = self._background(tr("Suchergebnisse von {1} abrufen", name),
-                                                    lambda: albumauto.search_rows(src, second))
-                        except (wshttp.FetchError, runner.ScriptError):
+                                                    lambda: src.search(second))
+                        except wshttp.FetchError:
                             more = []
                         if more:
                             rows, values = more, second
@@ -1280,18 +1204,15 @@ class MainWindow(QMainWindow):
                 row = d.selected()
                 stage = "album"
             if stage == "album":
-                url, prev = runner.album_target(src, row, values[0] if values else "")
                 try:
-                    album = self._background(tr("Metadaten von {1} abrufen", name),
-                                             lambda: runner.run_album(src, url, prev))
+                    album = self._background(tr("Metadaten von {1} abrufen", name), lambda: src.album(row))
                     cover = None
                     if album.cover_url:
                         try:
-                            cover = self._background(tr("Cover laden"), lambda: wshttp.fetch_bytes(
-                                runner.cover_download_url(album.cover_url)))
+                            cover = self._background(tr("Cover laden"), lambda: src.cover(album))
                         except Exception:
                             cover = None
-                except (wshttp.FetchError, runner.ScriptError) as e:
+                except wshttp.FetchError as e:
                     if QMessageBox.warning(self, name, str(e), QMessageBox.StandardButton.Retry
                                            | QMessageBox.StandardButton.Cancel) \
                             == QMessageBox.StandardButton.Retry:
@@ -1300,12 +1221,12 @@ class MainWindow(QMainWindow):
                 d = AdjustDialog(album, self.view.selected_tracks() or tracks, cover, self)
                 r = d.exec()
                 if r == 2:
-                    stage = "results" if runner.has_index(src) else "search"
+                    stage = "results"
                     continue
                 if not r:
                     return
                 plan = d.plan()
-                return self._finish_source_import(name, path, plan, cover if d.use_cover() else None, d.leftovers(),
+                return self._finish_source_import(name, plan, cover if d.use_cover() else None, d.leftovers(),
                                                   complete=len(plan) == d.album.tracks,
                                                   archive=coverart.ids_after_dialog(album, cover))
 
@@ -1462,62 +1383,41 @@ class MainWindow(QMainWindow):
         return not canceled
 
     # ------------------------------------------------------------------ automatic album choice
-    def _mb_tag_source(self) -> str:
-        from ..sources import list_sources
-        return next((p for name, p in list_sources() if name.replace("&", "").lower() == "musicbrainz"), "")
-
-    def _load_mb_source(self):
-        """(path, source) of the MusicBrainz tag source, or None after telling the user."""
-        from ..websources import srcfile
-        path = self._mb_tag_source()
-        if not path:
-            QMessageBox.warning(self, "PsyTags", tr("Die Tag-Quelle MusicBrainz ist nicht installiert."))
-            return None
-        try:
-            return path, srcfile.load(path, os.path.splitext(os.path.basename(path))[0])
-        except OSError as e:
-            QMessageBox.warning(self, tr("Fehler"), str(e))
-            return None
-
     def auto_musicbrainz(self) -> None:
         """Tag the selected album without dialogs when it is certain, else show the results."""
-        from ..websources import albumauto
+        from ..websources import albumauto, musicbrainz
         from ..websources import http as wshttp
-        from ..websources import runner
         tracks = self.view.selected_tracks()
         if not tracks:
             return
-        loaded = self._load_mb_source()
-        if loaded is None:
-            return
-        path, src = loaded
+        src = musicbrainz.Source()
         if len({(t.get("ALBUM") or [""])[0] for t in tracks}) != 1:
-            self.run_source(path)
+            self.run_source()
             return
         try:
             res = self._background(tr("MusicBrainz durchsuchen: {1}", albumauto.album_title(tracks)),
                                    lambda: albumauto.find_album(src, tracks))
-        except (wshttp.FetchError, runner.ScriptError, OSError) as e:
+        except (wshttp.FetchError, OSError) as e:
             QMessageBox.warning(self, "MusicBrainz", str(e))
             return
         if res.match is None:
-            self.run_source(path, quick=True, note=tr("Nicht sicher erkannt: {1}", res.reason))
+            self.run_source(quick=True, note=tr("Nicht sicher erkannt: {1}", res.reason))
             return
-        self._import_match(src, path, res.match, interactive=True)
+        self._import_match(src, res.match, interactive=True)
         self._auto_done.update({id(t): t for t in tracks})
         self.message(tr("MusicBrainz: {1} ({2}) automatisch gewählt, {3} Dateien",
                         res.album.value("ALBUM", 0), albumauto.release_year(res.match), len(res.match.mapping)), 10000)
 
-    def _import_match(self, src, path: str, match, interactive: bool) -> tuple[str | None, str | None]:
+    def _import_match(self, src, match, interactive: bool) -> tuple[str | None, str | None]:
         """Write a certain match; returns the outcome of the cover and genre steps."""
         from ..websources import albumauto, coverart
         album = match.release.key
         disabled = set(config.string_list(self.settings, "tagsources/disabled_fields"))
-        return self._finish_source_import(src.get("name") or src.name, path, albumauto.plan_for(match, disabled),
+        return self._finish_source_import(src.name, albumauto.plan_for(match, disabled),
                                           None, match.leftover_keys, interactive, complete=True,
                                           archive=coverart.ids_of(album))
 
-    def _finish_source_import(self, name: str, path: str, plan: list, cover: bytes | None,
+    def _finish_source_import(self, name: str, plan: list, cover: bytes | None,
                               leftovers: list, interactive: bool = True,
                               complete: bool = False,
                               archive: tuple[str, str] | None = None) -> tuple[str | None, str | None]:
@@ -1617,11 +1517,8 @@ class MainWindow(QMainWindow):
     def auto_all_albums(self) -> None:
         """Tag every album in the list that is certain; the others stay untouched and are
         listed at the end. No dialog interrupts the run."""
-        from ..websources import albumauto
-        loaded = self._load_mb_source()
-        if loaded is None:
-            return
-        path, src = loaded
+        from ..websources import albumauto, musicbrainz
+        src = musicbrainz.Source()
         todo = [g for g in albumauto.group_albums(list(self.model.rows)) if id(g[0]) not in self._auto_done]
         if not todo:
             self.message(tr("Alle Alben dieser Liste sind schon erledigt."), 6000)
@@ -1640,14 +1537,14 @@ class MainWindow(QMainWindow):
                     break
                 dlg.setLabelText(albumauto.album_title(tracks))
                 dlg.setValue(i)
-                entries.append(self._auto_one(src, path, tracks))
+                entries.append(self._auto_one(src, tracks))
         finally:
             dlg.finish()
             self._last_batch = entries
             self._update_actions()
         self.show_batch_summary()
 
-    def _auto_one(self, src, path: str, tracks: list[Track]):
+    def _auto_one(self, src, tracks: list[Track]):
         from ..websources import albumauto
         title = albumauto.album_title(tracks)
         try:
@@ -1656,7 +1553,7 @@ class MainWindow(QMainWindow):
             if res.match is None:
                 return albumauto.BatchEntry(title, tracks, False, res.reason)
             with self._undo_group(title):
-                cover, genres = self._import_match(src, path, res.match, interactive=False)
+                cover, genres = self._import_match(src, res.match, interactive=False)
         except Exception as e:                      # one album must not end the whole run
             return albumauto.BatchEntry(title, tracks, False, (str(e) or type(e).__name__).splitlines()[0])
         if self._group_errors:
@@ -1684,8 +1581,7 @@ class MainWindow(QMainWindow):
             if action in ("cover", "genres"):       # back to the list afterwards
                 (self._retry_cover if action == "cover" else self._retry_genres)(entry)
                 continue
-            path = self._mb_tag_source()
-            outcome = self.run_source(path, quick=True, note=entry.detail) if path else None
+            outcome = self.run_source(quick=True, note=entry.detail)
             if outcome is not None:                 # saved: the album is no longer open
                 entry.ok, (entry.cover, entry.genres) = True, outcome
                 entry.detail = " · ".join([tr("Manuell getaggt")] + [n for n in outcome if n])
@@ -1792,7 +1688,7 @@ class MainWindow(QMainWindow):
             cv.remove_current()
             self.save_tags()
         elif cmd == "fetch_mb":
-            self.fetch_cover_from_source(self.view.selected_tracks(), path=self._mb_cover_source(), manual=True)
+            self.fetch_cover_from_source(self.view.selected_tracks(), manual=True)
         elif cmd.startswith("provider:"):
             source = next((s for s in self._cover_sources() if getattr(s, "name", "") == cmd[9:]), None)
             if source is not None:

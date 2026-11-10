@@ -3,9 +3,6 @@ Menu entries and the oldest dialog texts are in i18n.EN; tests/test_i18n.py chec
 that every tr() text has an entry in one of the two tables."""
 
 EN_MORE: dict[str, str] = {
-    # app start / integration
-    "Diese Tag-Quelle benötigt mindestens Mp3tag v{1}.": "This tag source requires at least Mp3tag v{1}.",
-
     # actions
     "&Neu": "&New", "&Duplizieren": "&Duplicate", "&Löschen": "&Delete",
     "Nach &oben": "Move &up", "Nach &unten": "Move &down", 
@@ -43,11 +40,6 @@ EN_MORE: dict[str, str] = {
 
     # tag sources
     "< &Zurück": "< &Back", "&Weiter >": "&Next >", "Tag-Informationen anpassen": "Adjust tag information",
-    "Discogs-Zugang": "Discogs access",
-    "Discogs verlangt für Suchen eine Anmeldung. Erzeugen Sie unter <a href='https://www.discogs.com/settings/developers'>discogs.com → Einstellungen → Developers</a> einen persönlichen Zugangstoken und fügen Sie ihn hier ein.":
-        "Discogs requires authentication for searches. Create a personal access token at "
-        "<a href='https://www.discogs.com/settings/developers'>discogs.com → Settings → Developers</a> "
-        "and paste it here.",
     "Genres von Last.fm": "Genres from Last.fm",
     "Nach dem Tag-Import Genres von Last.fm holen": "Fetch genres from Last.fm after a tag import",
     "API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):":
@@ -87,12 +79,13 @@ EN_MORE: dict[str, str] = {
     "Entfernt die ausgewählten Dateien aus der Dateiliste.": "Removes the selected files from the file list.",
     "Wählt alle Dateien in der Dateiansicht aus.": "Selects all files in the file list.",
     "Zeigt den erweiterten Tag-Dialog an.": "Shows the Extended Tags dialog.",
-    "Führt die zuletzt verwendete Tag-Quelle aus.": "Runs the last used tag source.",
+    "Sucht bei MusicBrainz und zeigt die Trefferliste.": "Searches MusicBrainz and shows the results.",
+    "MusicBrainz hat keine lesbare Antwort geliefert": "MusicBrainz did not send a readable answer",
     "Spielt die ausgewählten Dateien ab.": "Plays the selected files.",
 
     # main window: menus, messages, status bar
-    "Zuletzt verwendete Tag-Quelle": "Last used tag source",
-    "Zuletzt verwendete Tag-Quelle (Schnell)": "Last used tag source (Quick)",
+    "MusicBrainz durchsuchen": "Search MusicBrainz",
+    "MusicBrainz durchsuchen (Schnell)": "Search MusicBrainz (Quick)",
     "Einlesen des Verzeichnisses": "Reading directory",
     "Lese Tag-Informationen ... {1} von {2}": "Reading tag information ... {1} of {2}",
     "Schreibe Tag-Informationen ... {1} von {2}": "Writing tag information ... {1} of {2}",
@@ -154,7 +147,6 @@ EN_MORE: dict[str, str] = {
         "Analyzes the moods and tags all albums in the list; uncertain albums stay unchanged.",
     "Übersicht des letzten Laufs...": "Summary of the last run...",
     "Zeigt das Ergebnis des letzten automatischen Laufs.": "Shows the result of the last automatic run.",
-    "Die Tag-Quelle MusicBrainz ist nicht installiert.": "The MusicBrainz tag source is not installed.",
     "MusicBrainz durchsuchen: {1}": "Searching MusicBrainz: {1}", "Nicht sicher erkannt: {1}": "Not recognized with certainty: {1}",
     "MusicBrainz: {1} ({2}) automatisch gewählt, {3} Dateien": "MusicBrainz: {1} ({2}) chosen automatically, {3} files",
     "Kein sicherer Treffer bei {1}": "No certain match at {1}",
@@ -165,8 +157,6 @@ EN_MORE: dict[str, str] = {
     "Ergebnis des automatischen Laufs": "Result of the automatic run", "{1} erledigt, {2} offen": "{1} done, {2} open",
     "Ergebnis": "Result", "Details": "Details", "Erledigt": "Done", "Offen": "Open", "Manuell bearbeiten": "Edit manually",
     "Dateien ohne Track (zum Löschen anhaken):": "Files without a track (tick to delete):", "In den Papierkorb": "Move to recycle bin",
-    "Discogs-Zugang...": "Discogs access...",
-    "Tag-Quelle: {1} (Strg+I)": "Tag source: {1} (Ctrl+I)", "Tag-Quelle wählen": "Choose tag source",
 
     # default column names and Tag Panel labels (config.DEFAULT_COLUMNS / DEFAULT_PANEL);
     # names the user typed himself have no entry and stay as they are

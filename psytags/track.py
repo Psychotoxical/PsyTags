@@ -27,7 +27,7 @@ def fmt_size(n: int) -> str:
 
 class Track:
     __slots__ = ("path", "data", "_saved", "size", "mtime", "ctime", "counter",
-                 "total", "_script_vars", "error")
+                 "total", "error")
 
     def __init__(self, path: str):
         self.path = os.path.abspath(path)
@@ -39,7 +39,6 @@ class Track:
         self.counter = 0
         self.total = 0
         self.error = ""
-        self._script_vars = {}
 
     # -- I/O -----------------------------------------------------------------
     def load(self) -> "Track":
@@ -79,7 +78,7 @@ class Track:
     def snapshot(self) -> tuple:
         return (self.path, copy.deepcopy(self.data.fields), list(self.data.covers))
 
-    # -- field access (scripting context) ------------------------------------
+    # -- field access ------------------------------------
     @property
     def fields(self) -> dict[str, list[str]]:
         return self.data.fields

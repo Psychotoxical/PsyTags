@@ -180,7 +180,6 @@ class WindowTests(unittest.TestCase):
     def test_the_cover_menu_only_offers_musicbrainz(self):
         win = self._win()
         win.view.selected_tracks.return_value = [Track()]
-        win._mb_cover_source.return_value = "mb.src"
         self.assertEqual(MainWindow._cover_fetch_entries(win), [("fetch_mb", "Cover von MusicBrainz laden")])
 
     def test_the_cover_menu_is_empty_without_a_selection(self):
@@ -190,9 +189,8 @@ class WindowTests(unittest.TestCase):
 
     def test_the_musicbrainz_entry_opens_the_search(self):
         win = self._win()
-        win._mb_cover_source.return_value = "mb.src"
         MainWindow._cover_command(win, "fetch_mb")
-        win.fetch_cover_from_source.assert_called_once_with(win.view.selected_tracks.return_value, path="mb.src", manual=True)
+        win.fetch_cover_from_source.assert_called_once_with(win.view.selected_tracks.return_value, manual=True)
 
     def test_no_second_cover_source_is_left(self):
         for name in ("_manual_cover_source", "_add_cover_source_menu"):
@@ -238,7 +236,7 @@ class WindowTests(unittest.TestCase):
         win._cover_big_enough.return_value = bool(cover)
         t = Track()
         t.set = lambda *a: None
-        return MainWindow._finish_source_import(win, "MB", "p", [(t, {})], cover, [], False, True, archive)
+        return MainWindow._finish_source_import(win, "MB", [(t, {})], cover, [], False, True, archive)
 
     def test_the_import_uses_the_archive_and_never_asks(self):
         win = self._win()

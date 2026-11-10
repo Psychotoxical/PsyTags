@@ -72,7 +72,7 @@ class ImportTests(unittest.TestCase):
         win._lastfm_enabled.return_value = False
         win._cover_big_enough.return_value = False
         t = commented()
-        MainWindow._finish_source_import(win, "MB", "p", [(t, values or {"TITLE": "neu"})], None, [], False, True, archive)
+        MainWindow._finish_source_import(win, "MB", [(t, values or {"TITLE": "neu"})], None, [], False, True, archive)
         win._write.call_args_list[0].args[2](t)
         return t
 

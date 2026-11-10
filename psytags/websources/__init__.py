@@ -1,1 +1,1 @@
-"""Mp3tag-compatible Web Sources Framework (tag sources)."""
+"""Tag and cover sources on the web."""

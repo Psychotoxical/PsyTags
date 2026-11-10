@@ -89,7 +89,7 @@ class WiringTests(unittest.TestCase):
         with mock.patch.object(albumauto, "find_album", return_value=NS(match=match, reason="")), \
                 mock.patch.object(albumauto, "album_title", return_value="A"), \
                 mock.patch.object(albumauto, "release_label", return_value="A (2001)"):
-            entry = mw.MainWindow._auto_one(win, "src", "p", [t])
+            entry = mw.MainWindow._auto_one(win, "src", [t])
         self.assertEqual(entry.cover_seen, mw._front_covers([t]))
 
     def _summary(self, win, dialogs):
@@ -110,7 +110,6 @@ class WiringTests(unittest.TestCase):
         chosen = mock.MagicMock(chosen=e, action="manual")
         chosen.exec.return_value = 1
         win = mock.MagicMock(_last_batch=[e])
-        win._mb_tag_source.return_value = "mb.src"
         win.run_source.return_value = ("kein Treffer", "")
         self._summary(win, [chosen])
         self.assertEqual(e.cover_seen, mw._front_covers([t]))

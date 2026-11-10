@@ -4,13 +4,13 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, QUrl, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QDesktopServices, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog,
-                               QDialogButtonBox, QFormLayout, QHBoxLayout, QHeaderView, QLabel,
+                               QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel,
                                QListWidget, QListWidgetItem, QPushButton, QSplitter, QStyledItemDelegate,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from ..theme import ERROR, ICON_POSITIVE, WARNING, WARNING_BACKGROUND
 
-from ... import config, script
+from ... import config
 from ...i18n import tr
 from ...websources import albumauto
 from ...websources.albummatch import seconds as _seconds
@@ -93,7 +93,7 @@ def _as_list(view) -> None:
 
 
 class SearchDialog(QDialog):
-    def __init__(self, source, tracks, parent=None, values: list[str] | None = None):
+    def __init__(self, source, values: list[str], parent=None):
         super().__init__(parent)
         self.source = source
         self.setWindowTitle(_source_name(source))
@@ -103,18 +103,14 @@ class SearchDialog(QDialog):
         lay.addWidget(_heading(_source_name(source), tr("Welches Album soll gesucht werden?"))[0])
         self.inputs: list[QComboBox] = []
         s = config.settings()
-        for i, f in enumerate(source.search_fields):
+        for name, value in zip(source.search_fields, values):
             c = QComboBox()
             c.setEditable(True)
-            hist = config.string_list(s, f"tagsources/history/{f.label}")
-            c.addItems(hist)
-            if values is not None and i < len(values):
-                c.setEditText(values[i])
-            else:
-                c.setEditText(script.format(f.fmt, tracks[0]).strip() if tracks else "")
+            c.addItems(config.string_list(s, f"tagsources/history/{name}"))
+            c.setEditText(value)
             field = QVBoxLayout()
             field.setSpacing(4)
-            label = QLabel(f.label.replace("&", ""))
+            label = QLabel(tr(name))
             label.setObjectName("FieldLabel")
             field.addWidget(label)
             field.addWidget(c)
@@ -126,10 +122,10 @@ class SearchDialog(QDialog):
     def values(self) -> list[str]:
         s = config.settings()
         out = []
-        for f, c in zip(self.source.search_fields, self.inputs):
+        for name, c in zip(self.source.search_fields, self.inputs):
             v = c.currentText()
-            hist = [x for x in config.string_list(s, f"tagsources/history/{f.label}") if x != v]
-            s.setValue(f"tagsources/history/{f.label}", [v] + hist[:19])
+            hist = [x for x in config.string_list(s, f"tagsources/history/{name}") if x != v]
+            s.setValue(f"tagsources/history/{name}", [v] + hist[:19])
             out.append(v)
         return out
 
@@ -466,28 +462,6 @@ def _fmt_len(v: str) -> str:
     return v
 
 
-class DiscogsTokenDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(tr("Discogs-Zugang"))
-        lay = QVBoxLayout(self)
-        lbl = QLabel(tr("Discogs verlangt für Suchen eine Anmeldung. Erzeugen Sie unter "
-                        "<a href='https://www.discogs.com/settings/developers'>discogs.com → "
-                        "Einstellungen → Developers</a> einen persönlichen Zugangstoken und fügen "
-                        "Sie ihn hier ein."))
-        lbl.setOpenExternalLinks(True)
-        lbl.setWordWrap(True)
-        lay.addWidget(lbl)
-        from PySide6.QtWidgets import QLineEdit
-        self.token = QLineEdit(config.settings().value("tagsources/discogs_token", ""))
-        lay.addWidget(self.token)
-        lay.addWidget(_buttons(self, ok_text=tr("OK")))
-
-    def accept(self):
-        config.settings().setValue("tagsources/discogs_token", self.token.text().strip())
-        super().accept()
-
-
 def outcome_mark(value: str | None) -> tuple[str, str | None]:
     """(mark, color) of a step: crossed box worked, empty box failed, dash did not run."""
     if value is None:
@@ -616,81 +590,3 @@ class BatchSummaryDialog(QDialog):
                 for e in self.entries:
                     e.leftovers[:] = [x for x in e.leftovers if x is not t]
                 self.left.takeItem(self.left.row(it))
-
-
-class SourceSettingsDialog(QDialog):
-    """Generic dialog for a .settings schema; values go to sources/settings.json."""
-
-    def __init__(self, schema: dict, parent=None):
-        super().__init__(parent)
-        from ...i18n import language
-        from ...websources import runner
-        from PySide6.QtWidgets import QDoubleSpinBox, QFrame, QLineEdit
-        self.schema = schema
-        loc = {it.get("key"): it for it in schema.get("localizations", {}).get(language(), [])}
-        self.setWindowTitle(loc.get(schema.get("key"), schema).get("title", schema.get("title", "")))
-        lay = QVBoxLayout(self)
-        form = QFormLayout()
-        lay.addLayout(form)
-        self.user = runner.load_user_settings()
-        cur = self.user.get(schema.get("key", ""), {})
-        self.widgets = {}
-        for s in schema.get("settings", []):
-            k, typ = s.get("key"), s.get("type")
-            text = loc.get(k, s)
-            title = text.get("title", s.get("title", ""))
-            desc = text.get("description", s.get("description", ""))
-            if typ == "heading":
-                lbl = QLabel(f"<b>{title}</b>")
-                form.addRow(lbl)
-                continue
-            if typ == "separator":
-                line = QFrame()
-                line.setFrameShape(QFrame.Shape.HLine)
-                form.addRow(line)
-                if title:
-                    form.addRow(QLabel(title))
-                continue
-            val = cur.get(k, s.get("default"))
-            if typ == "bool":
-                w = QCheckBox(title)
-                w.setChecked(bool(val))
-                form.addRow(w)
-            elif typ == "number":
-                w = QDoubleSpinBox()
-                w.setDecimals(0)
-                w.setRange(-1e9, 1e9)
-                w.setValue(float(val or 0))
-                form.addRow(title, w)
-            elif s.get("choices"):
-                w = QComboBox()
-                w.addItems([str(c) for c in s["choices"]])
-                w.setCurrentText(str(val))
-                form.addRow(title, w)
-            else:
-                w = QLineEdit(str(val or ""))
-                form.addRow(title, w)
-            if desc:
-                w.setToolTip(desc)
-            self.widgets[k] = (typ, w)
-        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        bb.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("Abbrechen"))
-        bb.accepted.connect(self.accept)
-        bb.rejected.connect(self.reject)
-        lay.addWidget(bb)
-
-    def accept(self):
-        from ...websources import runner
-        vals = {}
-        for k, (typ, w) in self.widgets.items():
-            if typ == "bool":
-                vals[k] = w.isChecked()
-            elif typ == "number":
-                vals[k] = int(w.value())
-            elif isinstance(w, QComboBox):
-                vals[k] = w.currentText()
-            else:
-                vals[k] = w.text()
-        self.user[self.schema.get("key", "")] = vals
-        runner.save_user_settings(self.user)
-        super().accept()
