@@ -472,8 +472,9 @@ class MainWindow(QMainWindow):
             self.resizeDocks([self.panel_dock], [355], Qt.Orientation.Horizontal)
 
     def closeEvent(self, e):
-        if self.panel.dirty and self.panel.tracks:
-            self.save_tags()
+        if self.panel.dirty and self.panel.tracks and not self._save_or_drop(self.panel.tracks):
+            e.ignore()
+            return
         self.save_state()
         super().closeEvent(e)
 
@@ -545,8 +546,8 @@ class MainWindow(QMainWindow):
         paths = [os.path.abspath(p) for p in paths if p and os.path.exists(p)]
         if not paths:
             return
-        if self.panel.dirty and self.panel.tracks:
-            self.save_tags()
+        if self.panel.dirty and self.panel.tracks and not self._save_or_drop(self.panel.tracks):
+            return
         if not add:
             # Several folders dropped: the first one becomes the working directory.
             d = paths[0] if os.path.isdir(paths[0]) else os.path.dirname(paths[0])
@@ -627,8 +628,14 @@ class MainWindow(QMainWindow):
     def _selection_changed(self, *_):
         new = self.view.selected_tracks()
         if self.panel.dirty and self._panel_tracks and self.opts.save_on_selection_change \
-                and [id(t) for t in new] != [id(t) for t in self._panel_tracks]:
-            self._write_panel(self._panel_tracks)
+                and [id(t) for t in new] != [id(t) for t in self._panel_tracks] \
+                and not self._save_or_drop(self._panel_tracks):
+            sm = self.view.selectionModel()          # stay where the inputs belong
+            blocked = sm.blockSignals(True)
+            self.view.select_tracks(self._panel_tracks, scroll=False)
+            sm.blockSignals(blocked)
+            self.view.viewport().update()
+            return
         self._panel_tracks = new
         self.panel.load(new)
         self._update_status()
@@ -710,6 +717,21 @@ class MainWindow(QMainWindow):
             self.panel.clear_dirty()
         return ok
 
+    def _save_or_drop(self, tracks: list[Track]) -> bool:
+        """Save the panel inputs before the panel shows something else. True if it
+        may go on: saved, or the user chose to drop the inputs after a failure."""
+        with self._undo_group(tr("Tag speichern")):
+            ok = self._write_panel(tracks)
+        if ok:
+            return True
+        answer = QMessageBox.question(
+            self, tr("Fehler"),
+            tr("Die Eingaben ließen sich nicht speichern:") + "\n\n"
+            + "\n".join(self._group_errors[:10]) + "\n\n" + tr("Eingaben verwerfen?"),
+            QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel)
+        return answer == QMessageBox.StandardButton.Discard
+
     def save_by_user(self):
         """Ctrl+S or Enter: everything the panel shows, also the comment that starts out blank."""
         self.save_tags(True)
@@ -720,7 +742,7 @@ class MainWindow(QMainWindow):
             return
         if self._write_panel(tracks, with_preset):
             self.panel.load(tracks)
-        self.message(tr("Tag-Informationen gespeichert"), 3000)
+            self.message(tr("Tag-Informationen gespeichert"), 3000)
 
     def remove_tags(self):
         tracks = self.view.selected_tracks()

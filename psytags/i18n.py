@@ -26,6 +26,8 @@ EN: dict[str, str] = {
     "Abbrechen": "Cancel",
     "Feld:": "Field:",
     "Tag-Informationen gespeichert": "Tag information saved",
+    "Die Eingaben ließen sich nicht speichern:": "Your changes could not be saved:",
+    "Eingaben verwerfen?": "Discard your changes?",
     "Fehler": "Error",
 }
 

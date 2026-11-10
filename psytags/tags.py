@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import mutagen
 from mutagen import id3
 from mutagen.apev2 import APEv2, APENoHeaderError, APEValue, BINARY
+from mutagen.asf import ASF, ASFBoolAttribute, ASFByteArrayAttribute, ASFUnicodeAttribute
 from mutagen.flac import FLAC, Picture
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
@@ -115,6 +116,39 @@ APE_WRITE = {"TITLE": "Title", "ARTIST": "Artist", "ALBUM": "Album", "YEAR": "Ye
              "ALBUMARTIST": "Album Artist", "COMPOSER": "Composer",
              "DISCNUMBER": "Disc", "PUBLISHER": "Publisher"}
 
+# ---------------------------------------------------------------------------
+# ASF (WMA): the attribute names Windows Media Player and Picard use.
+ASF_WRITE = {
+    "TITLE": "Title", "ARTIST": "Author", "ALBUM": "WM/AlbumTitle",
+    "ALBUMARTIST": "WM/AlbumArtist", "YEAR": "WM/Year", "TRACK": "WM/TrackNumber",
+    "DISCNUMBER": "WM/PartOfSet", "GENRE": "WM/Genre", "COMMENT": "Description",
+    "COMPOSER": "WM/Composer", "COPYRIGHT": "Copyright", "PUBLISHER": "WM/Publisher",
+    "BPM": "WM/BeatsPerMinute", "MOOD": "WM/Mood", "UNSYNCEDLYRICS": "WM/Lyrics",
+    "ENCODEDBY": "WM/EncodedBy", "CONDUCTOR": "WM/Conductor", "LYRICIST": "WM/Writer",
+    "GROUPING": "WM/ContentGroupDescription", "SUBTITLE": "WM/SubTitle",
+    "ISRC": "WM/ISRC", "LANGUAGE": "WM/Language", "INITIALKEY": "WM/InitialKey",
+    "ALBUMSORT": "WM/AlbumSortOrder", "ARTISTSORT": "WM/ArtistSortOrder",
+    "TITLESORT": "WM/TitleSortOrder", "ALBUMARTISTSORT": "WM/AlbumArtistSortOrder",
+    "COMPOSERSORT": "WM/ComposerSortOrder", "COMPILATION": "WM/IsCompilation",
+    "MEDIATYPE": "WM/Media", "ORIGALBUM": "WM/OriginalAlbumTitle",
+    "ORIGARTIST": "WM/OriginalArtist", "ORIGYEAR": "WM/OriginalReleaseYear",
+    "CATALOGNUMBER": "WM/CatalogNo", "BARCODE": "WM/Barcode",
+    "MUSICBRAINZ_ALBUMID": "MusicBrainz/Album Id",
+    "MUSICBRAINZ_ARTISTID": "MusicBrainz/Artist Id",
+    "MUSICBRAINZ_ALBUMARTISTID": "MusicBrainz/Album Artist Id",
+    "MUSICBRAINZ_RELEASEGROUPID": "MusicBrainz/Release Group Id",
+    "MUSICBRAINZ_TRACKID": "MusicBrainz/Track Id",
+    "MUSICBRAINZ_RELEASETRACKID": "MusicBrainz/Release Track Id",
+    "MUSICBRAINZ_WORKID": "MusicBrainz/Work Id",
+    "MUSICBRAINZ_DISCID": "MusicBrainz/Disc Id",
+    "MUSICBRAINZ_ALBUMTYPE": "MusicBrainz/Album Type",
+    "MUSICBRAINZ_ALBUMSTATUS": "MusicBrainz/Album Status",
+    "MUSICBRAINZ_ALBUMRELEASECOUNTRY": "MusicBrainz/Album Release Country",
+    "ACOUSTID_ID": "Acoustid/Id", "ACOUSTID_FINGERPRINT": "Acoustid/Fingerprint",
+}
+_ASF_READ = {v.upper(): k for k, v in ASF_WRITE.items()}
+ASF_PICTURE = "WM/Picture"
+
 # Front cover = 3 (ID3 APIC picture types are shared by FLAC pictures).
 COVER_TYPES = [
     "Other", "32x32 pixels file icon", "Other file icon", "Cover (front)",
@@ -178,6 +212,8 @@ def read(path: str) -> TagData:
         _read_id3(f.tags, td)
     elif f.tags is not None and isinstance(f.tags, APEv2):
         _read_ape(f.tags, td)
+    elif isinstance(f, ASF):
+        _read_asf(f, td)
     elif f.tags is not None and hasattr(f.tags, "as_dict"):        # Vorbis comments
         td.tag_types.append("FLAC" if isinstance(f, FLAC) else "Vorbis Comment")
         for k, vals in f.tags.as_dict().items():
@@ -306,6 +342,59 @@ def _read_ape(tags: APEv2, td: TagData) -> None:
         _add(td.fields, name, list(v))
 
 
+def _asf_is_field(key: str, values) -> bool:
+    """Attributes PsyTags shows as fields: the mapped ones and any plain text.
+    Everything else (technical numbers, binary data) stays untouched in the file."""
+    if key.upper() in _ASF_READ:
+        return True
+    return bool(values) and all(isinstance(v, ASFUnicodeAttribute) for v in values)
+
+
+def _read_asf(f: ASF, td: TagData) -> None:
+    td.tag_types.append("ASF")
+    for key in f.tags.keys():
+        values = f.tags[key]
+        if key == ASF_PICTURE:
+            for v in values:
+                cover = _asf_picture_read(bytes(v.value)) if isinstance(v, ASFByteArrayAttribute) else None
+                if cover:
+                    td.covers.append(cover)
+            continue
+        if not _asf_is_field(key, values):
+            continue
+        name = _ASF_READ.get(key.upper(), key.upper())
+        if name == "COMPILATION":
+            vals = ["1" if v.value else "0" for v in values]
+        else:
+            vals = [str(v.value) for v in values]
+        _add(td.fields, name, vals)
+
+
+def _asf_picture_read(data: bytes) -> "Cover | None":
+    """WM/Picture: type (1 byte), size (4 bytes), MIME and description as
+    null-terminated UTF-16LE, then the image."""
+    import struct
+    try:
+        kind, size = struct.unpack_from("<BI", data)
+        pos = 5
+        texts = []
+        for _ in range(2):
+            end = pos
+            while data[end:end + 2] != b"\0\0":
+                end += 2
+            texts.append(data[pos:end].decode("utf-16-le"))
+            pos = end + 2
+        return Cover(data[pos:pos + size], texts[0] or "image/jpeg", kind, texts[1])
+    except (struct.error, UnicodeDecodeError, IndexError):
+        return None
+
+
+def _asf_picture_write(c: Cover) -> bytes:
+    import struct
+    return (struct.pack("<BI", c.type, len(c.data)) + (c.mime + "\0").encode("utf-16-le")
+            + (c.description + "\0").encode("utf-16-le") + c.data)
+
+
 def _read_mp4(f: MP4, td: TagData) -> None:
     td.tag_types.append("MP4")
     tags = f.tags or {}
@@ -354,6 +443,8 @@ def write(path: str, fields: dict[str, list[str]], covers: list[Cover] | None,
         if f.tags is None:
             f.add_tags()
         _write_mp4(f, fields, covers)
+    elif isinstance(f, ASF):
+        _write_asf(f, fields, covers)
     elif isinstance(f.tags, id3.ID3) or _is_id3_container(f):
         if f.tags is None:
             f.add_tags()
@@ -411,11 +502,15 @@ def _write_id3(tags: id3.ID3, fields: dict[str, list[str]], covers) -> None:
         tags.add(id3.APIC(encoding=3, mime=c.mime, type=c.type, desc=c.description, data=c.data))
 
 
+_MP4_FIELD_ATOMS = {"trkn", "disk", "tmpo", "cpil", *MP4_TEXT.values()}
+
+
 def _write_mp4(f: MP4, fields: dict[str, list[str]], covers) -> None:
+    # Only replace what PsyTags reads; atoms it does not know (rating, gapless
+    # playback, other freeform namespaces, ...) stay as they are.
     for k in list(f.tags.keys()):
-        if k == "covr" and covers is None:
-            continue
-        del f.tags[k]
+        if k in _MP4_FIELD_ATOMS or k.startswith(MP4_FREEFORM)                 or (k == "covr" and covers is not None):
+            del f.tags[k]
     for name, vals in fields.items():
         if name in ("TRACK", "DISCNUMBER"):
             n, _, t = vals[0].partition("/")
@@ -438,6 +533,21 @@ def _write_mp4(f: MP4, fields: dict[str, list[str]], covers) -> None:
         if covers:
             f.tags["covr"] = [MP4Cover(c.data, MP4Cover.FORMAT_PNG if c.mime == "image/png"
                                        else MP4Cover.FORMAT_JPEG) for c in covers]
+
+
+def _write_asf(f: ASF, fields: dict[str, list[str]], covers) -> None:
+    existing = {k.upper(): k for k in f.tags.keys()}
+    for k in list(f.tags.keys()):
+        if _asf_is_field(k, f.tags[k]) or (k == ASF_PICTURE and covers is not None):
+            del f.tags[k]
+    for name, vals in fields.items():
+        key = ASF_WRITE.get(name) or existing.get(name, name)
+        if name == "COMPILATION":
+            f.tags[key] = [ASFBoolAttribute(vals[0] not in ("0", ""))]
+        else:
+            f.tags[key] = [ASFUnicodeAttribute(v) for v in vals]
+    if covers:
+        f.tags[ASF_PICTURE] = [ASFByteArrayAttribute(_asf_picture_write(c)) for c in covers]
 
 
 def _write_ape(tags: APEv2, fields: dict[str, list[str]], covers=None) -> None:

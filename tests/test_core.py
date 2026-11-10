@@ -171,7 +171,7 @@ class RealFileTests(unittest.TestCase):
         if not shutil.which("ffmpeg"):
             return
         for ext, codec in (("mp3", "libmp3lame"), ("flac", "flac"), ("m4a", "aac"),
-                           ("opus", "libopus"), ("ogg", "libvorbis")):
+                           ("opus", "libopus"), ("ogg", "libvorbis"), ("wma", "wmav2")):
             p = os.path.join(cls.dir, "t." + ext)
             r = subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
                                 "sine=frequency=440:duration=1", "-c:a", codec, p])
@@ -226,6 +226,68 @@ class RealFileTests(unittest.TestCase):
             self.assertIn("RELEASETYPE", keys, p)
             self.assertNotIn("MUSICBRAINZ_ALBUMTYPE", keys, p)
             Track(p).load().remove_tags()
+
+    def _file(self, ext):
+        p = [x for x in self.files if x.endswith("." + ext)]
+        if not p:
+            self.skipTest(f"ffmpeg cannot write {ext}")
+        return p[0]
+
+    def test_mp4_keeps_atoms_it_does_not_know(self):
+        from mutagen.mp4 import MP4, MP4FreeForm
+        p = self._file("m4a")
+        f = MP4(p)
+        if f.tags is None:
+            f.add_tags()
+        f.tags["\xa9nam"] = ["Before"]
+        f.tags["\xa9alb"] = ["Album"]
+        f.tags["rtng"] = [1]
+        f.tags["pgap"] = True
+        f.tags["----:org.example:CUSTOM"] = [MP4FreeForm(b"keep")]
+        f.save()
+        t = Track(p).load()
+        t.set("TITLE", "After")
+        t.set("ALBUM", "")
+        t.save()
+        tags_ = MP4(p).tags
+        self.assertEqual(tags_["\xa9nam"], ["After"])
+        self.assertNotIn("\xa9alb", tags_)                 # removed in PsyTags, removed in the file
+        self.assertEqual(tags_["rtng"], [1])
+        self.assertTrue(tags_["pgap"])
+        self.assertEqual(bytes(tags_["----:org.example:CUSTOM"][0]), b"keep")
+        Track(p).load().remove_tags()
+
+    def test_wma_maps_the_usual_fields(self):
+        from mutagen.asf import ASF
+        p = self._file("wma")
+        f = ASF(p)
+        for k in list(f.tags.keys()):
+            del f.tags[k]
+        f.tags["Title"] = ["Before"]
+        f.tags["Author"] = ["Artist"]
+        f.tags["WM/AlbumTitle"] = ["Test Album"]
+        f.tags["WM/TrackNumber"] = ["4"]
+        f.tags["WM/Year"] = ["1999"]
+        f.tags["WM/Mood"] = ["Calm"]
+        f.save()
+        t = Track(p).load()
+        self.assertEqual(t.get("TITLE"), ["Before"])
+        self.assertEqual(t.get("ARTIST"), ["Artist"])
+        self.assertEqual(t.get("ALBUM"), ["Test Album"])
+        self.assertEqual(t.get("TRACK"), ["4"])
+        self.assertEqual(t.get("YEAR"), ["1999"])
+        self.assertEqual(t.get("MOOD"), ["Calm"])
+        t.set("TITLE", "After")
+        t.save()
+        keys = {str(k) for k in ASF(p).tags.keys()}
+        self.assertIn("Title", keys)
+        self.assertNotIn("TITLE", keys)
+        self.assertIn("WM/AlbumTitle", keys)
+        self.assertNotIn("WM/ALBUMTITLE", keys)
+        r = Track(p).load()
+        self.assertEqual(r.get("TITLE"), ["After"])
+        self.assertEqual(r.get("ALBUM"), ["Test Album"])
+        r.remove_tags()
 
 
 if __name__ == "__main__":
