@@ -470,6 +470,10 @@ class OptionsDialog(QDialog):
 
     def _musicbrainz(self, area: QVBoxLayout) -> None:
         self.drop_comments = self._switch(area, tr("Kommentare standardmäßig löschen"), self.opts.drop_comments)
+        self.date_choice = self._segmented(((tr("Nur das Jahr"), "year"), (tr("Volles Datum"), "date")),
+                                           "year" if self.opts.year_only else "date", "year")
+        self._row(area, tr("Erscheinungsdatum"), self.date_choice)
+        self._hint(area, tr("Gilt für MusicBrainz und Discogs. „Nur das Jahr“ schreibt 2026 statt 2026-10-11."))
 
     def _discogs(self, area: QVBoxLayout) -> None:
         self._hint(area, tr("Bleibt ein Album bei MusicBrainz offen, sieht PsyTags mit diesem Token bei Discogs nach. "
@@ -597,5 +601,6 @@ class OptionsDialog(QDialog):
         o.id3_version = self.id3.currentData()
         o.write_id3v1 = self.v1.isChecked()
         o.drop_comments = self.drop_comments.isChecked()
+        o.year_only = self.date_choice.currentData() == "year"
         o.mood_level = self.mood_level.currentData()
         super().accept()

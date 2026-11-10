@@ -28,6 +28,19 @@ EN: dict[str, str] = {
     "Tag-Informationen gespeichert": "Tag information saved",
     "Die Eingaben ließen sich nicht speichern:": "Your changes could not be saved:",
     "Eingaben verwerfen?": "Discard your changes?",
+    "Erscheinungsdatum": "Release date",
+    "Nur das Jahr": "Year only",
+    "Volles Datum": "Full date",
+    "Gilt für MusicBrainz und Discogs. „Nur das Jahr“ schreibt 2026 statt 2026-10-11.":
+        "Applies to MusicBrainz and Discogs. “Year only” writes 2026 instead of 2026-10-11.",
+    "MusicBrainz und Discogs kennen oft das genaue Erscheinungsdatum. "
+    "PsyTags kann es ganz übernehmen oder nur das Jahr schreiben.":
+        "MusicBrainz and Discogs often know the exact release date. "
+        "PsyTags can take it as it is or write only the year.",
+    "„Nur das Jahr“ schreibt 2026, „Volles Datum“ 2026-10-11. Das gilt für Jahr und "
+    "Original-Jahr. Sie können es später in den Optionen ändern.":
+        "“Year only” writes 2026, “Full date” 2026-10-11. This applies to year and original year. "
+        "You can change it later in the options.",
     "Fehler": "Error",
 }
 

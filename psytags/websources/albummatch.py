@@ -37,15 +37,15 @@ _OTHER_RECORDING = re.compile(r"\b(" + _RECORDING + r")\b", re.IGNORECASE)
 _PART = re.compile(r"\b(part|pt|vol|volume)\b", re.IGNORECASE)
 
 
-def clean_import(values: dict[str, str], has_mood: bool) -> dict[str, str]:
-    """Values of a tag source as they get written: only the year of a date, and moods
-    from the audio analysis are never replaced."""
+def clean_import(values: dict[str, str], has_mood: bool, year_only: bool = True) -> dict[str, str]:
+    """Values of a tag source as they get written: only the year of a date (unless the
+    options keep the full date), and moods from the audio analysis are never replaced."""
     out: dict[str, str] = {}
     for name, value in values.items():
         upper = name.upper()
         if upper == "MOOD" and has_mood:
             continue
-        if upper in _YEAR_FIELDS:
+        if upper in _YEAR_FIELDS and year_only:
             m = re.match(r"\s*(\d{4})", value)
             if m:
                 value = m.group(1)

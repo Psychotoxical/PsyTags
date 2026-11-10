@@ -111,7 +111,7 @@ def _parse_album(release: dict) -> Album:
         "MUSICBRAINZ_RELEASEGROUPID": _text(group.get("id")),
         "MUSICBRAINZ_ALBUMTYPE": _text(group.get("primary-type")) + (f", {secondary}" if secondary else ""),
         "COMPILATION": "1" if secondary == "Compilation" else "",
-        "ORIGYEAR": _text(group.get("first-release-date"))[:4],
+        "ORIGYEAR": _text(group.get("first-release-date")),
         "ASIN": _text(release.get("asin")),
         "YEAR": _text(release.get("date")),
         "CATALOGNUMBER": _joined([_text(l.get("catalog-number")) for l in labels]),

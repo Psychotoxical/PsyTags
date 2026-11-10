@@ -5,7 +5,7 @@
 | Section | What you set |
 |---|---|
 | Moods | How many moods a song gets |
-| MusicBrainz | Whether comments are deleted on import |
+| MusicBrainz | Whether comments are deleted on import, year only or the full release date |
 | Discogs | Token for the second source |
 | Numbers | Format of track and disc |
 | Cover | Sources and their order, [plugins](help:plugins) |

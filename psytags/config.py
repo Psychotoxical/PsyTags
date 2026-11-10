@@ -251,6 +251,7 @@ class Options:
     write_id3v1: bool = False
     keep_mtime: bool = False
     drop_comments: bool = True
+    year_only: bool = True            # tag sources write 2026 instead of 2026-10-11
     mood_level: str = "normal"
     subfolders: bool = True
     save_on_selection_change: bool = True

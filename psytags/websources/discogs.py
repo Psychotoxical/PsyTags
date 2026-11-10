@@ -113,6 +113,15 @@ def _year(data: dict) -> str:
     return _text(data.get("year") or "") if data.get("year") else _text(data.get("released"))[:4]
 
 
+def _date(data: dict) -> str:
+    """Release date as far as Discogs knows it; "00" stands for an unknown month or day."""
+    parts = _text(data.get("released")).split("-")
+    while len(parts) > 1 and parts[-1].strip("0") == "":
+        parts.pop()
+    date = "-".join(parts)
+    return date if re.match(r"\d{4}", date) else _year(data)
+
+
 def _positions(tracks: list[dict]) -> tuple[list[int], list[int]]:
     """Disc and running number of each track; vinyl sides and plain numbers are one disc."""
     discs = []
@@ -135,7 +144,7 @@ def _parse_album(release: dict, first_year: str) -> Album:
     common = {
         "ALBUM": _text(release.get("title")),
         "ALBUMARTIST": album_artist,
-        "YEAR": _year(release),
+        "YEAR": _date(release),
         "ORIGYEAR": first_year or _year(release),
         "PUBLISHER": ", ".join(_clean_name(l.get("name")) for l in labels),
         "CATALOGNUMBER": ", ".join(numbers),

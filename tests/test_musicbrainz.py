@@ -111,7 +111,7 @@ class AlbumTest(unittest.TestCase):
         expected = {"MUSICBRAINZ_ALBUMID": "rel-1", "ALBUM": "Big Album", "ALBUMARTIST": "Ann & Bob",
                     "ALBUMARTISTSORT": "Ann, A; Bob, B", "MUSICBRAINZ_ALBUMARTISTID": "a1, a2",
                     "MUSICBRAINZ_RELEASEGROUPID": "group-1", "MUSICBRAINZ_ALBUMTYPE": "Album, Live",
-                    "ORIGYEAR": "1999", "ASIN": "B000", "YEAR": "2001-05-02", "CATALOGNUMBER": "CAT1, CAT2",
+                    "ORIGYEAR": "1999-01-01", "ASIN": "B000", "YEAR": "2001-05-02", "CATALOGNUMBER": "CAT1, CAT2",
                     "PUBLISHER": "Label A, Label B", "MUSICBRAINZ_ALBUMRELEASECOUNTRY": "DE", "BARCODE": "123"}
         self.assertEqual({k: self.album.value(k, 0) for k in expected}, expected)
 

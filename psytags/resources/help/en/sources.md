@@ -30,4 +30,4 @@ In the window **Check the assignment**, the tracks of the source are on the left
 
 **Search MusicBrainz (Quick)** (Ctrl+Shift+I) skips the search form.
 
-Comments are deleted on import while **Options → MusicBrainz → Delete comments by default** is on. Only the year is written, not the full date.
+Comments are deleted on import while **Options → MusicBrainz → Delete comments by default** is on. Year and original year get only the year (2026 instead of 2026-10-11). For the full date, set **Options → MusicBrainz → Release date** to **Full date**; this applies to Discogs as well.

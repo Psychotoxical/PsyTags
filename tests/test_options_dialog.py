@@ -32,6 +32,23 @@ class Base(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
 
+class DateTests(Base):
+    def test_only_the_year_by_default(self):
+        self.assertTrue(Options().year_only)
+        d = OptionsDialog(Options())
+        self.addCleanup(d.deleteLater)
+        self.assertEqual(d.date_choice.currentData(), "year")
+
+    def test_the_full_date_is_kept_as_option(self):
+        d = OptionsDialog(Options())
+        self.addCleanup(d.deleteLater)
+        d.date_choice.setCurrentIndex(d.date_choice.findData("date"))
+        d.accept()
+        self.assertFalse(d.opts.year_only)
+        d.opts.save()
+        self.assertFalse(Options.load().year_only)
+
+
 class DiscogsTokenTests(Base):
     def test_the_token_is_saved_without_spaces(self):
         d = OptionsDialog(Options())

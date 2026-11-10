@@ -30,4 +30,4 @@ Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts I
 
 **MusicBrainz durchsuchen (Schnell)** (Strg+Shift+I) überspringt das Suchformular.
 
-Kommentare werden beim Import gelöscht, solange **Optionen → MusicBrainz → Kommentare standardmäßig löschen** eingeschaltet ist. Beim Jahr wird nur die Jahreszahl geschrieben.
+Kommentare werden beim Import gelöscht, solange **Optionen → MusicBrainz → Kommentare standardmäßig löschen** eingeschaltet ist. Beim Jahr und Original-Jahr wird nur die Jahreszahl geschrieben (2026 statt 2026-10-11). Wer das volle Datum will, stellt **Optionen → MusicBrainz → Erscheinungsdatum** auf **Volles Datum**; das gilt auch für Discogs.

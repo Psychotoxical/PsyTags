@@ -54,6 +54,7 @@ class SetupDialog(QDialog):
                        ("appearance", tr("Sprache und Design"), self._appearance, self._save_appearance),
                        ("lastfm", tr("Genres von Last.fm"), self._lastfm, self._save_lastfm),
                        ("discogs", tr("Zweite Quelle: Discogs"), self._discogs, self._save_discogs),
+                       ("date", tr("Erscheinungsdatum"), self._date, self._save_date),
                        ("moods", tr("Mood-Analyse"), self._moods, None),
                        ("rename", tr("Umbenennen"), self._rename, lambda: self.scheme.save()),
                        ("numbers", tr("Nummern"), self._numbers, lambda: self.numbers.format().save()))
@@ -263,6 +264,20 @@ class SetupDialog(QDialog):
 
     def _save_discogs(self) -> None:
         config.settings().setValue(discogs.SETTING, self.discogs_token.text().strip())
+
+    def _date(self, area: QVBoxLayout) -> None:
+        self._text(area, tr("MusicBrainz und Discogs kennen oft das genaue Erscheinungsdatum. "
+                            "PsyTags kann es ganz übernehmen oder nur das Jahr schreiben."))
+        self.date_choice = Segmented()
+        self.date_choice.addItem(tr("Nur das Jahr"), "year")
+        self.date_choice.addItem(tr("Volles Datum"), "date")
+        self.date_choice.select("year" if self.opts.year_only else "date", "year")
+        area.addWidget(self.date_choice, 0, Qt.AlignmentFlag.AlignLeft)
+        self._text(area, tr("„Nur das Jahr“ schreibt 2026, „Volles Datum“ 2026-10-11. Das gilt für Jahr und "
+                            "Original-Jahr. Sie können es später in den Optionen ändern."), "DialogSubtitle")
+
+    def _save_date(self) -> None:
+        self.opts.year_only = self.date_choice.currentData() == "year"
 
     def _moods(self, area: QVBoxLayout) -> None:
         self._text(area, tr("Die Moods entstehen direkt aus dem Audio. Dafür braucht PsyTags zwei Modelle (20 MB) und das Programm ffmpeg."))

@@ -65,7 +65,7 @@ class FirstStartTests(Base):
 class NavigationTests(Base):
     def test_the_pages_follow_the_plan(self):
         self.assertEqual(self._dialog().page_keys(),
-                         ["welcome", "appearance", "lastfm", "discogs", "moods", "rename", "numbers"])
+                         ["welcome", "appearance", "lastfm", "discogs", "date", "moods", "rename", "numbers"])
 
     def test_it_starts_with_the_warning_about_copies(self):
         d = self._dialog()
@@ -101,6 +101,13 @@ class PageTests(Base):
         d.theme_choice.setCurrentIndex(d.theme_choice.findData("latte"))
         d.next_page()
         self.assertEqual((d.opts.language, d.opts.theme), ("en", "latte"))
+
+    def test_the_full_date_can_be_chosen(self):
+        d = self._dialog("date")
+        self.assertEqual(d.date_choice.currentData(), "year")
+        d.date_choice.setCurrentIndex(d.date_choice.findData("date"))
+        d.next_page()
+        self.assertFalse(d.opts.year_only)
 
     def test_skipping_changes_nothing(self):
         d = self._dialog("appearance")

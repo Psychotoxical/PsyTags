@@ -30,6 +30,10 @@ class CleanImportTests(unittest.TestCase):
         self.assertEqual(clean_import({"YEAR": "2014"}, False), {"YEAR": "2014"})
         self.assertEqual(clean_import({"YEAR": ""}, False), {"YEAR": ""})
 
+    def test_the_full_date_on_request(self):
+        got = clean_import({"YEAR": "2014-07-24", "ORIGYEAR": "1999-01"}, False, year_only=False)
+        self.assertEqual(got, {"YEAR": "2014-07-24", "ORIGYEAR": "1999-01"})
+
     def test_existing_moods_stay(self):
         self.assertEqual(clean_import({"MOOD": "Sad", "GENRE": "Rock"}, True), {"GENRE": "Rock"})
         self.assertEqual(clean_import({"MOOD": "Sad"}, False), {"MOOD": "Sad"})

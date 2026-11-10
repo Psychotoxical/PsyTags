@@ -80,10 +80,15 @@ class AlbumTests(unittest.TestCase):
         a = album_from(RELEASE)
         self.assertEqual(a.value("ALBUM", 0), "Big Album")
         self.assertEqual(a.value("ALBUMARTIST", 0), "Ann & Bob")
-        self.assertEqual(a.value("YEAR", 0), "2018")
+        self.assertEqual(a.value("YEAR", 0), "2018-10-11")
         self.assertEqual(a.value("PUBLISHER", 0), "Label A, Label B")
         self.assertEqual(a.value("CATALOGNUMBER", 0), "CAT1")
         self.assertEqual(a.value("BARCODE", 0), "123")
+
+    def test_an_unknown_day_or_month_is_left_out(self):
+        self.assertEqual(album_from({**RELEASE, "released": "2018-10-00"}).value("YEAR", 0), "2018-10")
+        self.assertEqual(album_from({**RELEASE, "released": "2018-00-00"}).value("YEAR", 0), "2018")
+        self.assertEqual(album_from({**RELEASE, "released": ""}).value("YEAR", 0), "2018")
 
     def test_the_first_year_comes_from_the_master(self):
         self.assertEqual(album_from(RELEASE).value("ORIGYEAR", 0), "2015")

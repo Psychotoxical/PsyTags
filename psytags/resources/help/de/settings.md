@@ -5,7 +5,7 @@
 | Abschnitt | Was Sie einstellen |
 |---|---|
 | Moods | Wie viele Moods ein Song bekommt |
-| MusicBrainz | Ob Kommentare beim Import gelöscht werden |
+| MusicBrainz | Ob Kommentare beim Import gelöscht werden, nur das Jahr oder das volle Erscheinungsdatum |
 | Discogs | Token für die zweite Quelle |
 | Nummern | Format von Track und Disc |
 | Cover | Quellen und ihre Reihenfolge, [Plugins](help:plugins) |

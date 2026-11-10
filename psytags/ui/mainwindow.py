@@ -1478,7 +1478,7 @@ class MainWindow(QMainWindow):
                 return False
             if drop_comments:
                 albummatch.drop_comments(t)
-            for k, v in albummatch.clean_import(vals, bool(t.get("MOOD"))).items():
+            for k, v in albummatch.clean_import(vals, bool(t.get("MOOD")), self.opts.year_only).items():
                 t.set(k, v)
             if use_cover:                       # the source's cover replaces the existing ones
                 t.data.covers = [tags.Cover(cover, mime, 3, name)]
