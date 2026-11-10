@@ -46,11 +46,11 @@ class PanelDirectoryTests(unittest.TestCase):
 
     def test_the_field_shows_the_folder_of_the_selected_file(self):
         self.panel.load([Song("/musik/album/01.mp3")])
-        self.assertEqual(self._shown(), "/musik/album")
+        self.assertEqual(self._shown(), os.path.normpath("/musik/album"))
 
     def test_several_albums_show_their_common_folder(self):
         self.panel.load([Song("/musik/a/01.mp3"), Song("/musik/b/01.mp3")])
-        self.assertEqual(self._shown(), "/musik")
+        self.assertEqual(self._shown(), os.path.normpath("/musik"))
 
     def test_without_a_selection_the_opened_folder_is_shown(self):
         self.panel.load([Song("/musik/album/01.mp3")])
@@ -60,7 +60,7 @@ class PanelDirectoryTests(unittest.TestCase):
     def test_rebuilding_the_panel_keeps_the_real_folder(self):
         self.panel.load([Song("/musik/album/01.mp3")])
         self.panel.set_directories("/musik/geoeffnet", ["/musik/geoeffnet"])
-        self.assertEqual(self._shown(), "/musik/album")
+        self.assertEqual(self._shown(), os.path.normpath("/musik/album"))
 
     def test_showing_a_folder_does_not_change_the_working_directory(self):
         before = self.window.current_dir
