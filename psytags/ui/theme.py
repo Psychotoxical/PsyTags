@@ -185,6 +185,24 @@ QTabWidget::pane { border: 1px solid $BORDER; border-radius: 6px; }
 QTabBar::tab { background: transparent; color: $SECONDARY; padding: 6px 12px;
     border-bottom: 2px solid transparent; }
 QTabBar::tab:selected { color: $TEXT; border-bottom-color: $ACCENT; }
+QFrame#Segmented { background: $FIELD; border: 1px solid $BORDER; border-radius: 6px; }
+QPushButton#SegmentButton { background: transparent; color: $SECONDARY; border: none; border-radius: 4px;
+    padding: 0 13px; min-height: 26px; min-width: 0; font-weight: 500; }
+QPushButton#SegmentButton:hover { color: $TEXT; background: transparent; }
+QPushButton#SegmentButton:checked { background: $ACCENT; color: $ACCENT_TEXT; font-weight: 600; }
+QPushButton#SegmentButton:focus { border: 1px solid $ACCENT_HOVER; }
+QWidget#OptionsPage { background: $BACKGROUND; }
+QWidget#OptionsFooter { background: $CHROME; border-top: 1px solid $BUTTON; }
+QPushButton#SectionLink { background: transparent; color: $SECONDARY; border: none; border-radius: 6px;
+    padding: 5px 10px; min-width: 0; font-weight: 500; }
+QPushButton#SectionLink:hover { color: $TEXT; background: transparent; }
+QPushButton#SectionLink:checked { background: $SELECTION; color: $TEXT; }
+QFrame#SectionRule { background: $BUTTON; border: none; min-height: 1px; max-height: 1px; }
+QLabel#SectionTitle { font-size: 14px; font-weight: 600; }
+QLabel#StepBadge { background: $BUTTON; color: $ACCENT; border-radius: 11px; font-size: 12px; font-weight: 700;
+    min-width: 22px; max-width: 22px; min-height: 22px; max-height: 22px; }
+QLabel#NumberSample { background: $FIELD; border: 1px solid $BORDER; border-radius: 6px; padding: 6px 11px; }
+QListWidget#CoverSources { background: transparent; border: none; }
 QGroupBox { border: 1px solid $BORDER; border-radius: 6px; margin-top: 8px; }
 QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; }
 QStatusBar { background: $CHROME; border-top: 1px solid $BORDER; color: $SECONDARY; }

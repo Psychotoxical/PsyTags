@@ -359,8 +359,8 @@ class DialogTests(unittest.TestCase):
 
     def test_lastfm_key_is_entered_in_the_options(self):
         from psytags.ui.dialogs.options import OptionsDialog
-        d = OptionsDialog(config.Options.load(), None, "Last.fm")
-        self.assertEqual(d.tabs.tabText(d.tabs.currentIndex()), "Last.fm")
+        d = OptionsDialog(config.Options.load(), None, "genres")
+        self.assertEqual(d.current_section(), "genres")
         d.lastfm_key.setText(" abc ")
         d.accept()
         s = config.settings()

@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Callable, Sequence
+from typing import Callable, NamedTuple, Sequence
 
 import numpy as np
 
@@ -25,7 +25,19 @@ from .i18n import tr
 
 SAMPLE_RATE, FRAME, HOP, BANDS, PATCH, PATCH_HOP = 16000, 512, 256, 96, 128, 62
 BATCH = 64
-MIN_VALUE, MIN_LIFT, MAX_MOODS = 0.04, 1.2, 4
+
+
+class MoodLevel(NamedTuple):
+    min_value: float        # activation a mood needs at all
+    min_lift: float         # how far above its reference level
+    max_moods: int
+
+
+LEVELS: dict[str, MoodLevel] = {
+    "few": MoodLevel(0.06, 2.0, 2),
+    "normal": MoodLevel(0.04, 1.2, 4),
+    "many": MoodLevel(0.03, 1.1, 6),
+}
 
 _BASE = "https://essentia.upf.edu/models"
 EFFNET = "discogs-effnet-bsdynamic-1.onnx"
@@ -47,21 +59,22 @@ MOOD_CLASSES: tuple[str, ...] = (
     "romantic", "sad", "sexy", "slow", "soft", "soundscape", "space", "sport", "summer", "trailer",
     "travel", "upbeat", "uplifting")
 
-# Mean activation of each class over a mixed reference set of 122 songs (rock, metal, pop,
-# acoustic). A mood only counts when a song clearly exceeds this level.
+# Mean activation of each class over 1,062 songs in seven groups (pop, rock, schlager, soul and disco,
+# electronic, soundtrack, metal), every group counting the same. A mood only counts when a song
+# clearly exceeds this level.
 REFERENCE: dict[str, float] = {
-    "action": 0.0409, "adventure": 0.0195, "advertising": 0.0194, "background": 0.0241,
-    "ballad": 0.0412, "calm": 0.0151, "children": 0.0056, "christmas": 0.0131, "commercial": 0.0120,
-    "cool": 0.0106, "corporate": 0.0207, "dark": 0.0553, "deep": 0.0051, "documentary": 0.0106,
-    "drama": 0.0133, "dramatic": 0.0118, "dream": 0.0192, "emotional": 0.0347, "energetic": 0.1511,
-    "epic": 0.0667, "fast": 0.0110, "film": 0.0252, "fun": 0.0146, "funny": 0.0133, "game": 0.0052,
-    "groovy": 0.0069, "happy": 0.0447, "heavy": 0.0701, "holiday": 0.0089, "hopeful": 0.0192,
-    "inspiring": 0.0320, "love": 0.1098, "meditative": 0.0522, "melancholic": 0.0235,
-    "melodic": 0.1004, "motivational": 0.0306, "movie": 0.0122, "nature": 0.0077, "party": 0.0069,
-    "positive": 0.0189, "powerful": 0.0242, "relaxing": 0.0428, "retro": 0.0054, "romantic": 0.0282,
-    "sad": 0.0368, "sexy": 0.0032, "slow": 0.0127, "soft": 0.0196, "soundscape": 0.0109,
-    "space": 0.0200, "sport": 0.0204, "summer": 0.0061, "trailer": 0.0044, "travel": 0.0075,
-    "upbeat": 0.0159, "uplifting": 0.0321,
+    "action": 0.0337, "adventure": 0.0226, "advertising": 0.0185, "background": 0.0247,
+    "ballad": 0.0263, "calm": 0.0074, "children": 0.0085, "christmas": 0.0314, "commercial": 0.0150,
+    "cool": 0.0138, "corporate": 0.0291, "dark": 0.0394, "deep": 0.0217, "documentary": 0.0174,
+    "drama": 0.0169, "dramatic": 0.0124, "dream": 0.0177, "emotional": 0.0249, "energetic": 0.1283,
+    "epic": 0.0496, "fast": 0.0070, "film": 0.0455, "fun": 0.0188, "funny": 0.0299, "game": 0.0081,
+    "groovy": 0.0091, "happy": 0.0714, "heavy": 0.0535, "holiday": 0.0103, "hopeful": 0.0106,
+    "inspiring": 0.0286, "love": 0.0804, "meditative": 0.0203, "melancholic": 0.0145,
+    "melodic": 0.0833, "motivational": 0.0273, "movie": 0.0135, "nature": 0.0067, "party": 0.0132,
+    "positive": 0.0320, "powerful": 0.0119, "relaxing": 0.0258, "retro": 0.0087, "romantic": 0.0288,
+    "sad": 0.0189, "sexy": 0.0061, "slow": 0.0094, "soft": 0.0107, "soundscape": 0.0111,
+    "space": 0.0189, "sport": 0.0218, "summer": 0.0246, "trailer": 0.0073, "travel": 0.0072,
+    "upbeat": 0.0251, "uplifting": 0.0264,
 }
 
 # Classifier class -> name in the MOOD tag. The other classes are topics or uses (film, trailer, ...).
@@ -81,21 +94,22 @@ class MoodError(Exception):
     """The analysis cannot run at all (no ffmpeg, models unavailable)."""
 
 
-def pick_moods(values: Sequence[float]) -> list[str]:
+def pick_moods(values: Sequence[float], level: str = "normal") -> list[str]:
     """Mood names for one song: present (value) and above the reference level (lift)."""
+    limits = LEVELS.get(level, LEVELS["normal"])
     scored = []
     for name, value in zip(MOOD_CLASSES, values):
         label = MOOD_NAMES.get(name)
         if label is None:
             continue
         lift = float(value) / REFERENCE[name]
-        if value >= MIN_VALUE and lift >= MIN_LIFT:
+        if value >= limits.min_value and lift >= limits.min_lift:
             scored.append((float(value) * lift, label))
     out: list[str] = []
     for _score, label in sorted(scored, key=lambda s: -s[0]):
         if label not in out:
             out.append(label)
-        if len(out) == MAX_MOODS:
+        if len(out) == limits.max_moods:
             break
     return out
 
@@ -225,9 +239,9 @@ class Analyzer:
                for i in range(0, len(ps), BATCH)]
         return self.head.run(["activations"], {"embeddings": np.concatenate(emb)})[0].mean(axis=0)
 
-    def moods(self, path: str) -> list[str] | None:
+    def moods(self, path: str, level: str = "normal") -> list[str] | None:
         values = self.song_values(path)
-        return None if values is None else pick_moods(values.tolist())
+        return None if values is None else pick_moods(values.tolist(), level)
 
 
 @dataclass

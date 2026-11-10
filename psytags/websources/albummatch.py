@@ -139,6 +139,7 @@ class FileInfo:
     titles: set[str]
     length: float
     full: set[str] = field(default_factory=set)     # the titles with their bracketed notes
+    label: str = ""                                 # the title as messages show it
 
 
 def file_info(key: object, title: str, filename: str, artist: str, length: float) -> FileInfo:
@@ -149,7 +150,7 @@ def file_info(key: object, title: str, filename: str, artist: str, length: float
     joined = re.sub(r"^\s*\d+([-.]\d+)?[\s._-]+", "", " - ".join(parts))
     last = re.sub(r"^\s*\d+([-.]\d+)?[\s._-]+", "", parts[-1]) if parts else ""
     titles = variants(title) | variants(joined) | variants(last)
-    return FileInfo(key, titles, length or 0.0, {f for f in (norm(title), norm(joined), norm(last)) if f})
+    return FileInfo(key, titles, length or 0.0, {f for f in (norm(title), norm(joined), norm(last)) if f}, title or last)
 
 
 @dataclass
@@ -169,6 +170,7 @@ class Match:
     mapping: dict[int, int]           # file index -> track index
     leftovers: list[int]              # file indexes without a track
     worst: float
+    missing_last: bool = False        # the release has one more track at its end than there are files
 
     @property
     def leftover_keys(self) -> list:
@@ -265,19 +267,56 @@ def _is_last_free_song(files: list[FileInfo], release: Release, pairs: list[tupl
     return bool(have and files[f].length) and abs(have - files[f].length) <= LAST_SONG_MAX_GAP
 
 
+def _is_shortened(files: list[FileInfo], release: Release, f: int, t: int) -> bool:
+    """"Expressions" for "Expressions of Invincibility": the file has the start of the title,
+    no file is left over and the length agrees closely."""
+    gap = _gap(files, release, f, t)
+    if len(files) != len(release.titles) or gap is None or gap > LAST_SONG_MAX_GAP:
+        return False
+    for short in files[f].titles:
+        for long in variants(release.titles[t]):
+            words, whole = short.split(), long.split()
+            if len(words) < len(whole) and whole[:len(words)] == words:
+                return True
+    return False
+
+
 def _leftovers_allowed(n_left: int, n_files: int) -> bool:
     return n_left <= MAX_LEFTOVERS and n_left * 4 <= n_files
+
+
+def _without_last_track(files: list[FileInfo], release: Release) -> Match | None:
+    """A release whose last track has no file: every other track needs its title and a close length."""
+    n = len(release.titles) - 1
+    if len(files) != n or n < LAST_SONG_MIN_TRACKS:
+        return None
+    shorter = Release(release.key, release.titles[:n], release.lengths[:n], release.year, release.digital, release.tight)
+    pairs = align(files, shorter)
+    for f, t, s in pairs:
+        gap = _gap(files, shorter, f, t)
+        if s < THRESHOLD or gap is None or gap > LAST_SONG_MAX_GAP:
+            return None
+    mapping = {f: t for f, t, _s in pairs}
+    if _ambiguous_title(files, shorter, mapping):
+        return None
+    return Match(release, files, mapping, [], min(s for _f, _t, s in pairs), missing_last=True)
 
 
 def match_release(files: list[FileInfo], release: Release) -> Match | str:
     """A Match if the release fits, otherwise the reason it does not."""
     n = len(release.titles)
+    without_last = _without_last_track(files, release)
+    if without_last is not None:
+        return without_last
     if not n or len(files) < n or not _leftovers_allowed(len(files) - n, len(files)):
         return tr("{1} Tracks / {2} Dateien", n, len(files))
     pairs = align(files, release)
     weak = [p for p in pairs if p[2] < THRESHOLD]
+    shortened = [p for p in weak if _is_shortened(files, release, p[0], p[1])]
+    if len(pairs) >= LAST_SONG_MIN_TRACKS and len(shortened) * 2 <= len(pairs):     # most titles must fit by themselves
+        weak = [p for p in weak if p not in shortened]
     if weak and not _is_last_free_song(files, release, pairs, weak):
-        return tr("Titel passt nicht: {1}", release.titles[weak[0][1]])
+        return tr("Titel passt nicht: „{1}“ statt „{2}“", files[weak[0][0]].label, release.titles[weak[0][1]])
     worst = 1.0
     mapping: dict[int, int] = {}
     gaps = {t: _gap(files, release, f, t) for f, t, _s in pairs}
@@ -310,6 +349,7 @@ def decide(files: list[FileInfo], releases: list[Release], year: str = "") -> De
     if not good:
         reasons = list(dict.fromkeys(r for r in results if isinstance(r, str)))
         return Decision(None, "; ".join(reasons[:3]) or tr("Keine passende Ausgabe gefunden"))
+    good = [m for m in good if not m.missing_last] or good
     pool = [m for m in good if not m.leftovers] or good
     if _track_lists(pool) > 1:                  # the edition whose order fits the files, if only one does
         pool = [m for m in pool if _keeps_file_order(m)]

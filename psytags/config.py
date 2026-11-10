@@ -251,6 +251,7 @@ class Options:
     write_id3v1: bool = False
     keep_mtime: bool = False
     drop_comments: bool = True
+    mood_level: str = "normal"
     subfolders: bool = True
     save_on_selection_change: bool = True
     confirm_delete: bool = True

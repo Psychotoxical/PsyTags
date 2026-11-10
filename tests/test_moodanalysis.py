@@ -22,7 +22,8 @@ class PickMoodsTests(unittest.TestCase):
         # "party" reaches lift 2 but stays below the minimum value
         self.assertEqual(ma.pick_moods(_values(party=0.03)), [])
         # "energetic" has a high value but lift below 1.2
-        self.assertEqual(ma.pick_moods(_values(energetic=0.16)), [])
+        self.assertGreater(ma.REFERENCE["energetic"] * 1.1, ma.LEVELS["normal"].min_value)
+        self.assertEqual(ma.pick_moods(_values(energetic=ma.REFERENCE["energetic"] * 1.1)), [])
 
     def test_ranked_by_value_times_lift(self):
         got = ma.pick_moods(_values(energetic=0.33, heavy=0.15, powerful=0.07))

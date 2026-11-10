@@ -1270,7 +1270,7 @@ class MainWindow(QMainWindow):
         self.panel.set_directories(self.current_dir, self.dir_history)
 
     def lastfm_settings(self):
-        self._open_options("Last.fm")
+        self._open_options("genres")
 
     def start_lastfm(self, tracks, interactive: bool = True):
         """Start the Last.fm lookup in the background (one request set per album).
@@ -1353,10 +1353,11 @@ class MainWindow(QMainWindow):
         dlg = _StayingProgress(tr("Moods analysieren ..."), len(tracks), self)
         dlg.setWindowTitle("PsyTags")
         progress, box = [0], {}
+        level = self.opts.mood_level
 
         def work():
             try:
-                box["r"] = ma.analyze_files([t.path for t in tracks], analyzer.moods,
+                box["r"] = ma.analyze_files([t.path for t in tracks], lambda path: analyzer.moods(path, level),
                                             on_progress=lambda n, _total: progress.__setitem__(0, n),
                                             should_stop=dlg.stop.is_set)
             except Exception as e:                  # reported in the UI thread
@@ -1559,7 +1560,8 @@ class MainWindow(QMainWindow):
         if self._group_errors:
             return albumauto.BatchEntry(title, tracks, False, tr("Schreibfehler: {1}", " · ".join(self._group_errors[:3])))
         self._auto_done.update({id(t): t for t in tracks})
-        detail = " · ".join([albumauto.release_label(res.match)] + [n for n in (cover, genres) if n])
+        detail = " · ".join([albumauto.release_label(res.match)] + albumauto.match_notes(res.match)
+                            + [n for n in (cover, genres) if n])
         entry = albumauto.BatchEntry(title, tracks, True, detail, list(res.match.leftover_keys), cover, genres)
         _remember_covers(entry)
         return entry

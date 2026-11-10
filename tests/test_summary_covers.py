@@ -85,7 +85,7 @@ class WiringTests(unittest.TestCase):
         win = mock.MagicMock(_group_errors=[])
         win._background.side_effect = lambda label, call: call()
         win._import_match.return_value = ("kein Treffer", "")
-        match = mock.MagicMock(leftover_keys=[])
+        match = mock.MagicMock(leftover_keys=[], missing_last=False)
         with mock.patch.object(albumauto, "find_album", return_value=NS(match=match, reason="")), \
                 mock.patch.object(albumauto, "album_title", return_value="A"), \
                 mock.patch.object(albumauto, "release_label", return_value="A (2001)"):

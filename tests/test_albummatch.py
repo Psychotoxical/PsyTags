@@ -66,7 +66,7 @@ class MatchReleaseTests(unittest.TestCase):
         self.assertIsInstance(match_release(files, R(TITLES)), str)
 
     def test_fewer_files_than_tracks_stops(self):
-        self.assertIsInstance(match_release([F(t) for t in TITLES[:-1]], R(TITLES)), str)
+        self.assertIsInstance(match_release([F(t) for t in TITLES[:-2]], R(TITLES)), str)
 
     def test_leftover_file_is_reported(self):
         files = [F(t) for t in TITLES[:11]] + [F("Flight Of Icarus (Bonus Track)")]
@@ -125,6 +125,99 @@ class DecideTests(unittest.TestCase):
         self.assertTrue(d.reason)
 
 
+class ShortenedTitleTests(unittest.TestCase):
+    TITLES = ["Expressions of Invincibility", "Merciless at Heart", "Whirlwinds of Chaotic Carnage", "Fatal Power of Death"]
+    LENGTHS = [351.0, 226.0, 259.0, 268.0]
+    SHORT = ["Expressions", "Merciless At Heart", "Whirlwinds", "Fatal Power Of Death"]
+
+    def _files(self, titles=None, lengths=None):
+        return [F(t, n) for t, n in zip(titles or self.SHORT, lengths or self.LENGTHS)]
+
+    def _decide(self, files):
+        return decide(files, [R(self.TITLES, self.LENGTHS)])
+
+    def test_the_start_of_a_title_counts_when_the_length_fits(self):
+        self.assertIsNotNone(self._decide(self._files()).match)
+
+    def test_most_titles_must_fit_by_themselves(self):
+        titles = ["Expressions", "Merciless", "Whirlwinds", "Fatal Power Of Death"]
+        self.assertIsNone(self._decide(self._files(titles=titles)).match)
+
+    def test_a_length_that_is_a_little_off_is_still_the_same_song(self):
+        self.assertIsNotNone(self._decide(self._files(lengths=[353.0, 226.0, 257.0, 268.0])).match)
+
+    def test_a_length_further_off_is_not_enough(self):
+        self.assertIsNone(self._decide(self._files(lengths=[358.0, 226.0, 259.0, 268.0])).match)
+
+    def test_the_end_of_a_title_does_not_count(self):
+        titles = ["Invincibility", "Merciless At Heart", "Carnage", "Fatal Power Of Death"]
+        self.assertIsNone(self._decide(self._files(titles=titles)).match)
+
+    def test_not_when_a_file_is_left_over(self):
+        self.assertIsNone(self._decide(self._files() + [F("Something Else Entirely", 100.0)]).match)
+
+    def test_an_unknown_length_is_not_enough(self):
+        self.assertIsNone(decide(self._files(), [R(self.TITLES, [0.0] * 4)]).match)
+
+    def test_the_message_names_both_titles(self):
+        files = self._files(titles=["Nonsense", "Merciless At Heart", "Whirlwinds", "Fatal Power Of Death"],
+                            lengths=[400.0, 226.0, 259.0, 268.0])
+        reason = self._decide(files).reason
+        self.assertIn("Nonsense", reason)
+        self.assertIn("Expressions of Invincibility", reason)
+
+
+class MissingLastTrackTests(unittest.TestCase):
+    TITLES = ["Rise of Them", "A World in Pain", "I Am the Host", "Of Blood and Dust", "The Falling Night", "Death at Dawn"]
+    LENGTHS = [125.0, 236.0, 291.0, 308.0, 244.0, 234.0]
+
+    def _files(self, indexes=range(5), lengths=None):
+        lengths = lengths or self.LENGTHS
+        return [F(self.TITLES[i], lengths[i]) for i in indexes]
+
+    def _release(self):
+        return R(self.TITLES, self.LENGTHS)
+
+    def test_a_missing_last_track_is_accepted_when_the_rest_fits(self):
+        match = decide(self._files(), [self._release()]).match
+        self.assertIsNotNone(match)
+        self.assertTrue(match.missing_last)
+        self.assertEqual(match.mapping, {i: i for i in range(5)})
+        self.assertEqual(match.leftovers, [])
+
+    def test_lengths_may_differ_by_a_few_seconds(self):
+        lengths = [127.0, 236.0, 290.0, 306.0, 245.0, 234.0]
+        self.assertIsNotNone(decide(self._files(lengths=lengths), [self._release()]).match)
+
+    def test_a_length_further_off_keeps_the_album_open(self):
+        lengths = [125.0, 236.0, 299.0, 308.0, 244.0, 234.0]
+        self.assertIsNone(decide(self._files(lengths=lengths), [self._release()]).match)
+
+    def test_a_track_missing_in_the_middle_keeps_the_album_open(self):
+        self.assertIsNone(decide(self._files([0, 1, 3, 4, 5]), [self._release()]).match)
+
+    def test_two_missing_tracks_keep_the_album_open(self):
+        self.assertIsNone(decide(self._files(range(4)), [self._release()]).match)
+
+    def test_a_complete_edition_wins(self):
+        complete = R(self.TITLES[:5], self.LENGTHS[:5])
+        match = decide(self._files(), [self._release(), complete]).match
+        self.assertIs(match.release, complete)
+        self.assertFalse(match.missing_last)
+
+    def test_a_very_short_album_stays_open(self):
+        files = [F(t, n) for t, n in zip(self.TITLES[:2], self.LENGTHS[:2])]
+        self.assertIsNone(decide(files, [R(self.TITLES[:3], self.LENGTHS[:3])]).match)
+
+    def test_the_overview_says_which_track_is_missing(self):
+        match = decide(self._files(), [self._release()]).match
+        self.assertEqual(albumauto.match_notes(match), ["Letzter Track fehlt: Death at Dawn"])
+
+    def test_a_complete_album_has_no_note(self):
+        match = decide(self._files(range(6)), [self._release()]).match
+        self.assertEqual(albumauto.match_notes(match), [])
+
+
 class CandidateTests(unittest.TestCase):
     @staticmethod
     def _m(tracks, fmt="CD"):
@@ -133,14 +226,75 @@ class CandidateTests(unittest.TestCase):
     def test_order_and_limit(self):
         got = albumauto.candidate_rows(
             [self._m(11), self._m(12), self._m(12, "Digital Media"), self._m(1), self._m(13)], 12)
-        self.assertEqual([r["_url"] for r in got], ["12-Digital Media", "12-CD", "11-CD"])
+        self.assertEqual([r["_url"] for r in got], ["12-Digital Media", "12-CD", "11-CD", "13-CD"])
         many = albumauto.candidate_rows([self._m(12) for _ in range(20)], 12)
         self.assertEqual(len(many), albumauto.MAX_CANDIDATES)
+
+    def _with_note(self, first, second):
+        """Eight files of "X (Japan Edition)"; each search finds one release with the given titles."""
+        titles = [f"Song number {w}" for w in "abcdefgh"]
+        files = [_track(f"{t}.mp3", t, album="X (Japan Edition)") for t in titles]
+        seen = []
+
+        def search(values):
+            seen.append(values[0])
+            found = first if len(seen) == 1 else second
+            return [{"_url": str(len(seen)), "Album": "X", "Tracks": str(len(found)), "Artist": "", "Type": "Album"}] if found else []
+        releases = {"1": _album(first), "2": _album(second)}
+        src = SimpleNamespace(prefill=lambda tracks, title=None: [title or "X (Japan Edition)"], search=search,
+                              album=lambda row: releases[row["_url"]])
+        return albumauto.find_album(src, files), seen, titles
+
+    def test_a_leftover_file_tries_the_search_without_the_note(self):
+        titles = [f"Song number {w}" for w in "abcdefgh"]
+        result, seen, _ = self._with_note(titles[:7], titles)
+        self.assertEqual(result.match.leftover_keys, [])
+        self.assertEqual(result.album.tracks, 8)
+        self.assertEqual(seen, ["X (Japan Edition)", "X"])
+
+    def test_the_first_edition_stays_when_the_second_search_is_no_better(self):
+        titles = [f"Song number {w}" for w in "abcdefgh"]
+        result, _seen, _ = self._with_note(titles[:7], [])
+        self.assertEqual(result.album.tracks, 7)
+        self.assertEqual(len(result.match.leftover_keys), 1)
+
+    def test_no_second_search_without_leftover_files(self):
+        titles = [f"Song number {w}" for w in "abcdefgh"]
+        _result, seen, _ = self._with_note(titles, [])
+        self.assertEqual(seen, ["X (Japan Edition)"])
+
+    def test_two_tracks_too_many_stay_out(self):
+        self.assertEqual(albumauto.candidate_rows([self._m(14)], 12), [])
+
+    def test_a_release_with_a_hidden_pregap_is_looked_at(self):
+        files = [_track("a.mp3", "One"), _track("b.mp3", "Two")]
+        found = self._search(files, _album(["One", "Two"]))
+        self.assertIsNotNone(found.match)
+
+    def test_a_release_with_really_more_tracks_than_files_is_not_taken(self):
+        titles = [f"Song number {w}" for w in "abcdefghijklm"]
+        files = [_track(f"{t}.mp3", t) for t in titles[:12]]
+        row_count = str(len(titles))
+        self.assertIsNone(self._search(files, _album(titles), row_count).match)
+
+    @staticmethod
+    def _search(files, release, tracks="3"):
+        row = {"_url": "x", "Album": "A", "Tracks": tracks, "Artist": "", "Type": "Album"}
+        src = SimpleNamespace(prefill=lambda tracks, title=None: ["A"], search=lambda values: [row],
+                              album=lambda _row: release)
+        return albumauto.find_album(src, files)
 
     def test_id_from_tags_is_an_extra_candidate(self):
         got = albumauto.candidate_rows([self._m(12)], 12, "abc-def")
         self.assertEqual(got[0]["_url"], "abc-def")
         self.assertEqual(len(albumauto.candidate_rows([self._m(12)], 12, "12-cd")), 1)
+
+    def test_the_score_comes_before_the_digital_edition(self):
+        rows = [{"_url": "weak", "Score": "54", "Tracks": "9", "Format": "Digital Media"},
+                {"_url": "best", "Score": "100", "Tracks": "9", "Format": "CD"},
+                {"_url": "tie", "Score": "100", "Tracks": "9", "Format": "Digital Media"},
+                {"_url": "mid", "Score": "83", "Tracks": "9", "Format": "CD"}]
+        self.assertEqual([r["_url"] for r in albumauto.digital_first(rows, 9)], ["tie", "best", "mid", "weak"])
 
     def test_digital_first_is_stable(self):
         rows = [{"_url": "a", "Tracks": "9", "Format": "CD"}, {"_url": "b", "Tracks": "9", "Format": "Digital Media"},

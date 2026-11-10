@@ -28,18 +28,24 @@ def is_digital(row: dict) -> bool:
     return "digital" in row.get("Format", "").lower()
 
 
+def _score(row: dict) -> int:
+    m = re.match(r"\s*(\d+)", row.get("Score", ""))
+    return int(m.group(1)) if m else 0
+
+
 def digital_first(rows: list[dict], n_files: int) -> list[dict]:
-    """Search results with digital editions of the right size on top; otherwise unchanged."""
-    return sorted(rows, key=lambda r: not (is_digital(r) and track_count(r) == n_files))
+    """Search results by score; among equal scores, digital editions of the right size on top."""
+    return sorted(rows, key=lambda r: (-_score(r), not (is_digital(r) and track_count(r) == n_files)))
 
 
 def candidate_rows(matches: list, n_files: int, mbid: str = "") -> list[dict]:
     """Releases worth a lookup: a track count that can work, no leftover files first,
-    digital editions first within that. An ID from the tags is one more candidate."""
+    digital editions first within that. One track more than files can work too: the search
+    counts a hidden track before the first one (pregap). An ID from the tags is one more candidate."""
     lowest = n_files - min(albummatch.MAX_LEFTOVERS, n_files // 4)
     fit = [m.row for m in matches
-           if (c := track_count(m.row)) is not None and lowest <= c <= n_files]
-    fit.sort(key=lambda r: (track_count(r) != n_files, not is_digital(r)))
+           if (c := track_count(m.row)) is not None and lowest <= c <= n_files + 1]
+    fit.sort(key=lambda r: (track_count(r) != n_files, track_count(r) > n_files, not is_digital(r)))
     if mbid and not any(mbid.lower() in r.get("_url", "").lower() for r in fit):
         fit.insert(0, {"_url": mbid})
     return fit[:MAX_CANDIDATES]
@@ -95,17 +101,21 @@ def needs_second_search(rows: list[dict], tracks: list) -> bool:
 
 
 def find_album(src: TagSource, tracks: list) -> AutoResult:
-    """Search and decide; if that fails, again without the notes behind the album title.
+    """Search and decide; if that fails or leaves files without a track, again without the
+    notes behind the album title: the words of a note can hide the edition that fits.
     Raises http.FetchError."""
     album = _first(tracks[0], "ALBUM")
     if not album:
         return AutoResult(None, tr("Kein Album-Tag"))
     result = _search(src, tracks, album, src.prefill(tracks), album)
     for title in _title_steps(album):
-        if result.match is not None:
+        if result.match is not None and not result.match.leftover_keys:
             break
         step = _search(src, tracks, title, src.prefill(tracks, title), album)
-        result = step if step.match is not None else AutoResult(None, step.reason or result.reason)
+        if step.match is not None and (result.match is None or len(step.match.leftover_keys) < len(result.match.leftover_keys)):
+            result = step
+        elif result.match is None:
+            result = AutoResult(None, step.reason or result.reason)
     return result
 
 
@@ -152,6 +162,11 @@ def _search(src: TagSource, tracks: list, title: str, values: list[str], album: 
 def release_year(match: Match) -> str:
     album = match.release.key
     return match.release.year or album.value("ORIGYEAR", 0)[:4]
+
+
+def match_notes(match: Match) -> list[str]:
+    """What the overview should say about an accepted release."""
+    return [tr("Letzter Track fehlt: {1}", match.release.titles[-1])] if match.missing_last else []
 
 
 def release_label(match: Match) -> str:
