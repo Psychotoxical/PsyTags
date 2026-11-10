@@ -64,6 +64,30 @@ class AboutTests(unittest.TestCase):
         links = [b.text() for b in d.findChildren(QPushButton) if b.objectName() == "SectionLink"]
         self.assertEqual(links, [s[0] for s in sections()])
 
+    def _ffmpeg_label(self, notice):
+        from psytags.ui.dialogs import about
+        with tempfile.TemporaryDirectory() as package, mock.patch.object(about.sys, "_MEIPASS", package, create=True):
+            if notice is not None:
+                os.makedirs(os.path.join(package, "ffmpeg"))
+                with open(os.path.join(package, "ffmpeg", "LICENSE"), "w", encoding="utf-8") as fh:
+                    fh.write(notice)
+            entries = [e for _t, _i, group in about.sections() for e in group]
+        return next(e for e in entries if e.name == "FFmpeg").label
+
+    def test_the_slim_ffmpeg_names_its_license(self):
+        notice = "                  GNU LESSER GENERAL PUBLIC LICENSE\n                       Version 2.1, February 1999\n"
+        self.assertEqual(self._ffmpeg_label(notice), "LGPL-2.1-or-later")
+
+    def test_a_gpl_build_names_its_license(self):
+        notice = "                    GNU GENERAL PUBLIC LICENSE\n                       Version 3, 29 June 2007\n"
+        self.assertEqual(self._ffmpeg_label(notice), "GPL-3.0-or-later")
+
+    def test_an_unknown_notice_claims_nothing(self):
+        self.assertEqual(self._ffmpeg_label("Some other text"), "je nach Build")
+
+    def test_without_a_package_it_depends_on_the_build(self):
+        self.assertEqual(self._ffmpeg_label(None), "je nach Build")
+
     def test_the_license_texts_are_part_of_an_installation(self):
         self.assertIn("resources/licenses/*.txt", (ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 

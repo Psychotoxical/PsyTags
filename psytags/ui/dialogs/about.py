@@ -41,14 +41,28 @@ def _version(module: str, attribute: str = "__version__") -> str:
         return ""
 
 
-def _ffmpeg_text() -> str:
-    """The license that came with the packaged ffmpeg, if the package brings one."""
+def _ffmpeg_notice() -> str:
+    """The license that came with the packaged ffmpeg, "" if the package brings none."""
     package = getattr(sys, "_MEIPASS", "")
     notice = os.path.join(package, "ffmpeg", "LICENSE") if package else ""
     if notice and os.path.isfile(notice):
         with open(notice, encoding="utf-8", errors="replace") as handle:
             return handle.read()
-    return tr("FFmpeg kommt aus der Paketverwaltung. Es gilt die Lizenz des installierten Builds.")
+    return ""
+
+
+def _ffmpeg_text() -> str:
+    return _ffmpeg_notice() or tr("FFmpeg kommt aus der Paketverwaltung. Es gilt die Lizenz des installierten Builds.")
+
+
+def _ffmpeg_label() -> str:
+    """The license named at the top of the packaged notice, whichever build was packaged."""
+    head = " ".join(_ffmpeg_notice()[:400].split()).upper()
+    if "GNU LESSER GENERAL PUBLIC LICENSE VERSION 2.1" in head:
+        return "LGPL-2.1-or-later"
+    if "GNU GENERAL PUBLIC LICENSE VERSION 3" in head:
+        return "GPL-3.0-or-later"
+    return tr("je nach Build")
 
 
 def sections() -> list[tuple[str, str, list[Entry]]]:
@@ -64,7 +78,7 @@ def sections() -> list[tuple[str, str, list[Entry]]]:
                   "BSD-3-Clause", license_text("numpy.txt")),
             Entry("ONNX Runtime", _version("onnxruntime"), tr("Führt die Mood-Modelle aus"),
                   "MIT", license_text("onnxruntime.txt")),
-            Entry("FFmpeg", "", tr("Liest das Audio für die Mood-Analyse"), tr("je nach Build"), _ffmpeg_text())]),
+            Entry("FFmpeg", "", tr("Liest das Audio für die Mood-Analyse"), _ffmpeg_label(), _ffmpeg_text())]),
         (tr("Daten und Dienste"), tr("Von hier kommen Modelle, Tags, Cover und Farben."), [
             Entry("Music Technology Group", "", tr("Mood-Modelle, werden beim ersten Mal geladen"), "CC BY-NC-SA 4.0",
                   tr("Die Modelle discogs-effnet und mtg_jamendo_moodtheme liegen nicht im Paket."),
