@@ -94,11 +94,21 @@ class SummaryButtonTests(unittest.TestCase):
             self.assertGreaterEqual(d.table.columnWidth(column), button.sizeHint().width())
 
     def test_the_text_of_a_button_always_fits(self):
+        from psytags.ui import theme
         d = self._dialog(self._entry(cover="zu klein"))
+        d.setStyleSheet(theme.style_sheet())    # the style sheet decides the real size of the button
+        d.show()
+        self.addCleanup(d.close)
+        QApplication.processEvents()
         button = self._button(d, 2)
         needed = button.fontMetrics().horizontalAdvance(button.text()) + 26     # padding, border, margin
-        self.assertGreaterEqual(button.minimumWidth(), needed)
-        self.assertGreaterEqual(d.table.columnWidth(2), button.minimumWidth())
+        self.assertGreaterEqual(button.width(), needed)
+
+    def test_the_close_button_speaks_the_language_of_the_app(self):
+        from PySide6.QtWidgets import QDialogButtonBox
+        d = self._dialog(self._entry(cover="zu klein"))
+        close = d.findChild(QDialogButtonBox).button(QDialogButtonBox.StandardButton.Close)
+        self.assertEqual(close.text(), "Schließen")
 
     def test_double_click_is_no_longer_explained(self):
         from PySide6.QtWidgets import QLabel

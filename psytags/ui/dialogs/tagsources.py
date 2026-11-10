@@ -481,6 +481,15 @@ def summary_action(entry, column: int | None) -> str:
     return "cover" if entry.cover else "genres" if entry.genres else ""
 
 
+class _RowButton(QPushButton):
+    """A button in a summary cell; the column is as wide as this hint, the cell 8 px narrower."""
+
+    def sizeHint(self):
+        size = super().sizeHint()
+        size.setWidth(size.width() + 8)
+        return size
+
+
 class _EvenRows(QStyledItemDelegate):
     """Every row of the summary is as high as one with a button."""
 
@@ -537,6 +546,7 @@ class BatchSummaryDialog(QDialog):
                 self.left.addItem(it)
         lay.addWidget(self.left, 1)
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, self)
+        bb.button(QDialogButtonBox.StandardButton.Close).setText(tr("Schließen"))
         trash_btn = bb.addButton(tr("In den Papierkorb"), QDialogButtonBox.ButtonRole.ActionRole)
         trash_btn.setEnabled(self.left.count() > 0)
         trash_btn.clicked.connect(self._trash_checked)
@@ -561,9 +571,8 @@ class BatchSummaryDialog(QDialog):
                 self._row_button(item, column, tr("Nachholen"), failed)
 
     def _row_button(self, item, column: int, text: str, tip: str) -> None:
-        button = QPushButton(text)
+        button = _RowButton(text)
         button.setObjectName("RowAction")
-        button.setMinimumWidth(button.fontMetrics().horizontalAdvance(text) + 32)   # the column follows this
         button.setAutoDefault(False)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setToolTip(tip)
