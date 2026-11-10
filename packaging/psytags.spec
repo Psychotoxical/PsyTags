@@ -33,6 +33,13 @@ a = Analysis(
     excludes=["tkinter", "PySide6.QtQml", "PySide6.QtQuick",
               "PySide6.QtWebEngineCore", "PySide6.QtMultimedia", "PySide6.Qt3DCore"],
 )
+# Fontconfig reads the configuration of the running system; one from the build machine
+# rejects newer files ("invalid attribute 'xsi:nil'"). FreeType goes with it. Every desktop
+# Linux has both, so the package uses the system's, as AppImages usually do.
+if sys.platform.startswith("linux"):
+    SYSTEM_LIBS = ("libfontconfig.so", "libfreetype.so")
+    a.binaries = [b for b in a.binaries if not os.path.basename(b[0]).startswith(SYSTEM_LIBS)]
+
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="PsyTags", console=False,
           icon=os.path.join(root, "packaging", "psytags.ico"))
