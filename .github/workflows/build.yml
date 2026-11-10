@@ -58,6 +58,35 @@ jobs:
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}\ffmpeg\bin\ffmpeg.exe
         run: python -m PyInstaller --noconfirm --clean packaging/psytags.spec
+      - name: Installer
+        shell: pwsh
+        run: |
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue
+          if (-not $iscc) {
+            $iscc = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            $iscc = Get-Item "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          $path = if ($iscc.Source) { $iscc.Source } else { $iscc.FullName }
+          $version = python -c "import psytags; print(psytags.__version__)"
+          & $path -Q "/DAppVersion=$version" packaging/psytags.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Installer installiert und entfernt sich
+        shell: pwsh
+        run: |
+          $setup = Get-Item dist/PsyTags-Setup-*.exe
+          $dir = "$env:RUNNER_TEMP\psytags-test"
+          $p = Start-Process $setup.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/CURRENTUSER","/NORESTART","/TASKS=","/DIR=`"$dir`"" -Wait -PassThru
+          if ($p.ExitCode) { throw "Installation: $($p.ExitCode)" }
+          if (-not (Test-Path "$dir\PsyTags.exe")) { throw "PsyTags.exe fehlt" }
+          $u = Start-Process "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($u.ExitCode) { throw "Deinstallation: $($u.ExitCode)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PsyTags-Windows-Setup
+          path: dist/PsyTags-Setup-*.exe
       - uses: actions/upload-artifact@v4
         with:
           name: PsyTags-Windows

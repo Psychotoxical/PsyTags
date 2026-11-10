@@ -62,6 +62,15 @@ More cover sources can be added as plugins. The help describes the format.
 
 AAC, AIFF, APE, DSF, FLAC, M4A, M4B, MP2, MP3, MP4, MPC, OGG, Opus, Speex, TAK, TTA, WAV, WMA, WavPack
 
+## Installation
+
+Download from the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page:
+
+- **Windows 10 and 11:** `PsyTags-Setup-<version>.exe`. It installs for your user without admin rights; the first page also offers an installation for all users. Your settings stay when you uninstall.
+- **Linux:** `PsyTags-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
+
+Both come with ffmpeg for the mood analysis.
+
 ## Running from source
 
 Requires Python 3.11 or newer and, for the mood analysis, ffmpeg.
