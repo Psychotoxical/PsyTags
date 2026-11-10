@@ -6,15 +6,15 @@ import os
 import threading
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QProgressBar, QPushButton, QStackedWidget,
+from PySide6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel, QLineEdit, QProgressBar, QPushButton, QStackedWidget,
                                QVBoxLayout, QWidget)
 
 from ... import config, moodanalysis as ma
 from ...config import Options
-from ...i18n import tr
+from ...i18n import language, set_language, tr
 from ...track import Track
 from ...websources import discogs, http, lastfm
-from .. import theme
+from .. import icons, theme
 from ..controls import NumberFormatEditor, Segmented, add_row
 from ..persist import remember
 from .rename import SchemeEditor
@@ -41,7 +41,6 @@ class SetupDialog(QDialog):
     def __init__(self, opts: Options, parent=None):
         super().__init__(parent)
         self.opts = copy.deepcopy(opts)
-        self.setWindowTitle(tr("Einrichtung"))
         self.resize(760, 620)
         self.setMinimumSize(660, 520)
         self.download_thread: threading.Thread | None = None
@@ -50,17 +49,31 @@ class SetupDialog(QDialog):
         self._poll = QTimer(self)
         self._poll.setInterval(100)
         self._poll.timeout.connect(self.poll_download)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        self.body: QWidget | None = None
+        self._build(0)
+        remember(self, "setup")
+
+    def _build(self, index: int) -> None:
+        """All texts are set here, so a change of language builds the body anew."""
+        self.setWindowTitle(tr("Einrichtung"))
         self._pages = (("welcome", tr("Willkommen bei PsyTags"), self._welcome, None),
-                       ("appearance", tr("Sprache und Design"), self._appearance, self._save_appearance),
+                       ("appearance", tr("Design"), self._appearance, None),
                        ("lastfm", tr("Genres von Last.fm"), self._lastfm, self._save_lastfm),
                        ("discogs", tr("Zweite Quelle: Discogs"), self._discogs, self._save_discogs),
                        ("date", tr("Erscheinungsdatum"), self._date, self._save_date),
                        ("moods", tr("Mood-Analyse"), self._moods, None),
                        ("rename", tr("Umbenennen"), self._rename, lambda: self.scheme.save()),
                        ("numbers", tr("Nummern"), self._numbers, lambda: self.numbers.format().save()))
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
+        if self.body is not None:
+            self.body.hide()
+            self.body.deleteLater()
+        self.body = QWidget()
+        column = QVBoxLayout(self.body)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
         head = QWidget()
         head.setObjectName("OptionsHeader")
         row = QHBoxLayout(head)
@@ -72,7 +85,7 @@ class SetupDialog(QDialog):
         self.step_label = QLabel()
         self.step_label.setObjectName("DialogSubtitle")
         row.addWidget(self.step_label)
-        root.addWidget(head)
+        column.addWidget(head)
         self.stack = QStackedWidget()
         self.stack.setObjectName("OptionsPage")
         for _key, _title, build, _save in self._pages:
@@ -84,10 +97,26 @@ class SetupDialog(QDialog):
             build(area)
             area.addStretch(1)
             self.stack.addWidget(page)
-        root.addWidget(self.stack, 1)
-        root.addWidget(self._footer())
-        self._show_page(0)
-        remember(self, "setup")
+        column.addWidget(self.stack, 1)
+        column.addWidget(self._footer())
+        self.layout().addWidget(self.body)
+        self._show_page(index)
+
+    def change_language(self, lang: str) -> None:
+        """Takes effect at once; the main window follows when the assistant closes."""
+        if lang == language():
+            return
+        self.opts.language = lang
+        set_language(lang)
+        self._build(self.stack.currentIndex())
+
+    def change_theme(self, name: str) -> None:
+        if name == theme.CURRENT:
+            return
+        self.opts.theme = name
+        theme.apply_theme(QApplication.instance(), name)
+        icons.refresh_colors()
+        self._build(self.stack.currentIndex())        # colors set inline follow too
 
     def _footer(self) -> QWidget:
         foot = QWidget()
@@ -164,6 +193,12 @@ class SetupDialog(QDialog):
 
     # ------------------------------------------------------------------ pages
     def _welcome(self, area: QVBoxLayout) -> None:
+        self.lang = Segmented()
+        self.lang.addItem("Deutsch", "de")
+        self.lang.addItem("English", "en")
+        self.lang.select(language(), "de")
+        self.lang.currentIndexChanged.connect(lambda _i: self.change_language(self.lang.currentData()))
+        add_row(area, tr("Sprache"), self.lang)
         self._text(area, tr("In wenigen Schritten ist alles eingerichtet. Jeden Schritt können Sie überspringen "
                             "und später in den Optionen ändern."))
         self._text(area, tr("Bitte zuerst nur an Kopien testen"), "SectionTitle")
@@ -171,21 +206,13 @@ class SetupDialog(QDialog):
                             "an Kopien einiger Alben aus, bevor Sie Ihren Ablauf festlegen."), "SetupWarning")
 
     def _appearance(self, area: QVBoxLayout) -> None:
-        self.lang = Segmented()
-        self.lang.addItem("Deutsch", "de")
-        self.lang.addItem("English", "en")
-        self.lang.select(self.opts.language, "de")
-        add_row(area, tr("Sprache"), self.lang)
         self.theme_choice = Segmented()
         self.theme_choice.addItem("Mocha, " + tr("dunkel"), "mocha")
         self.theme_choice.addItem("Latte, " + tr("hell"), "latte")
-        self.theme_choice.select(self.opts.theme, "mocha")
+        self.theme_choice.select(theme.CURRENT, "mocha")
         self.theme_choice.as_swatches([theme.MOCHA, theme.LATTE])
+        self.theme_choice.currentIndexChanged.connect(lambda _i: self.change_theme(self.theme_choice.currentData()))
         area.addWidget(self.theme_choice, 0, Qt.AlignmentFlag.AlignLeft)
-        self._text(area, tr("Sprache und Design gelten nach einem Neustart."), "DialogSubtitle")
-
-    def _save_appearance(self) -> None:
-        self.opts.language, self.opts.theme = self.lang.currentData(), self.theme_choice.currentData()
 
     def _lastfm(self, area: QVBoxLayout) -> None:
         self._text(area, tr("PsyTags holt die Genres von Last.fm. Dafür brauchen Sie einen eigenen, kostenlosen Schlüssel."))

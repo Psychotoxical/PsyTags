@@ -110,6 +110,7 @@ class NumberFormatEditor(QWidget):
 
 class Segmented(QFrame):
     """Exclusive buttons in a row, read like a combo box."""
+    currentIndexChanged = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -119,6 +120,7 @@ class Segmented(QFrame):
         self._layout.setSpacing(0)
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
+        self._group.idToggled.connect(lambda index, on: on and self.currentIndexChanged.emit(index))
         self.buttons: list[QPushButton] = []
         self._data: list = []
 

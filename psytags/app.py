@@ -36,23 +36,26 @@ def _send_to_running(paths: list[str]) -> bool:
     return False
 
 
-def _start_server(window):
+def _start_server(current):
     """Single instance: later launches (context menu, file manager) send their paths
     here. Explorer starts one process per selected file, so paths arriving within a
-    short window are collected and loaded together."""
+    short window are collected and loaded together. ``current()`` is the main window
+    of the moment: a change of language or theme replaces it."""
     from PySide6.QtCore import QTimer
     from PySide6.QtNetwork import QLocalServer
-    server = QLocalServer(window)
+    app = QApplication.instance()
+    server = QLocalServer(app)
     if not server.listen(_server_name()):
         QLocalServer.removeServer(_server_name())       # stale socket from a crash
         if not server.listen(_server_name()):
             return None
     pending: list[str] = []
-    flush = QTimer(window)
+    flush = QTimer(app)
     flush.setSingleShot(True)
     flush.setInterval(400)
 
     def do_flush():
+        window = current()
         paths = list(dict.fromkeys(pending))
         pending.clear()
         if paths:
@@ -118,7 +121,8 @@ def main(argv: list[str] | None = None) -> int:
     first_start = is_first_start()                     # before the window stores anything
     w = MainWindow(paths)
     w.show()
-    w._ipc_server = _start_server(w)
+    MainWindow.current = w
+    w._ipc_server = _start_server(lambda: MainWindow.current)
     # Close (and save) properly on SIGTERM/SIGINT, e.g. at logout. Python only runs
     # signal handlers between bytecodes, so wake the interpreter periodically.
     import signal
@@ -126,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("SIGTERM", "SIGINT", "SIGHUP"):      # SIGHUP does not exist on Windows
         sig = getattr(signal, name, None)
         if sig is not None:
-            signal.signal(sig, lambda *_: QTimer.singleShot(0, w.close))
+            signal.signal(sig, lambda *_: QTimer.singleShot(0, MainWindow.current.close))
     wake = QTimer()
     wake.start(500)
     wake.timeout.connect(lambda: None)

@@ -11,7 +11,7 @@
 | Cover | Sources and their order, [plugins](help:plugins) |
 | Genres | Last.fm on or off, API key |
 | Files | ID3 version for MP3, additional ID3v1, read subfolders, save automatically when the selection changes, leave the modification date of files alone |
-| Program | Language and theme, they apply after a restart |
+| Program | Language and theme, they apply at once |
 
 Behind the Last.fm and Discogs fields, a green check mark shows that the server accepts the key. A red cross means: not accepted, or the server cannot be reached right now.
 

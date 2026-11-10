@@ -14,15 +14,12 @@ from PySide6.QtGui import (QBrush, QColor, QGuiApplication, QIcon, QImage, QPain
                            QPixmap, QPolygonF)
 
 from . import theme
-from .theme import ACCENT, CHROME, ERROR, ICON_INK, ICON_MUTED, ICON_POSITIVE, TEXT
 
-INK = QColor(ICON_INK)
-FOLDER = QColor(ICON_INK)
-GREEN = QColor(ICON_POSITIVE)
-BLUE = QColor(ACCENT)
-RED = QColor(ERROR)
-WHITE = QColor(TEXT)
-PAPER = QColor(CHROME)
+# The drawing functions take these as default arguments, so a theme change recolors
+# the objects in place (refresh_colors) instead of replacing them.
+_COLOR_NAMES = {"INK": "ICON_INK", "FOLDER": "ICON_INK", "GREEN": "ICON_POSITIVE", "BLUE": "ACCENT",
+                "RED": "ERROR", "WHITE": "TEXT", "PAPER": "CHROME"}
+INK, FOLDER, GREEN, BLUE, RED, WHITE, PAPER = (QColor(getattr(theme, n)) for n in _COLOR_NAMES.values())
 
 THEME_FALLBACK = {"help": ["help-contents"]}
 
@@ -284,7 +281,7 @@ def i_playlist_sel(p):
     p.setPen(_pen(BLUE))
     p.drawRect(QRectF(3, 6, 5, 2))
     lines(p, 3.5, 10.5, 4, n=1)
-    badge_play(p, 11.5, 11.5, color=QColor(ICON_MUTED))
+    badge_play(p, 11.5, 11.5, color=QColor(theme.ICON_MUTED))
 
 
 def i_numbering(p):
@@ -409,6 +406,13 @@ def _render(fn, size: int, disabled=False) -> QPixmap:
     fn(p)
     p.end()
     return pm
+
+
+def refresh_colors() -> None:
+    """Take the colors of the theme now current; icons are drawn anew on the next request."""
+    for var, name in _COLOR_NAMES.items():
+        globals()[var].setRgba(QColor(getattr(theme, name)).rgba())
+    icon.cache_clear()
 
 
 @lru_cache(maxsize=None)

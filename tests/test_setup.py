@@ -11,6 +11,8 @@ from PySide6.QtWidgets import QApplication, QLabel
 
 from psytags import config, moodanalysis as ma, namescheme, numbering
 from psytags.config import Options
+from psytags.i18n import language, set_language
+from psytags.ui import icons, theme
 from psytags.ui.dialogs import setup
 from psytags.ui.dialogs.setup import SetupDialog
 from psytags.websources import discogs, http, lastfm
@@ -28,6 +30,9 @@ class Base(unittest.TestCase):
         patcher = mock.patch.object(config, "config_dir", lambda: folder.name)
         patcher.start()
         self.addCleanup(patcher.stop)
+        set_language("de")
+        self.addCleanup(set_language, "de")
+        self.addCleanup(lambda: theme.CURRENT != "mocha" and (theme.apply_theme(self.app, "mocha"), icons.refresh_colors()))
 
     def _dialog(self, page=None):
         d = SetupDialog(Options())
@@ -95,12 +100,20 @@ class NavigationTests(Base):
 
 
 class PageTests(Base):
-    def test_language_and_theme_are_taken(self):
-        d = self._dialog("appearance")
+    def test_the_language_is_chosen_on_the_first_page_and_applies_at_once(self):
+        d = self._dialog()
         d.lang.setCurrentIndex(d.lang.findData("en"))
+        self.assertEqual((d.opts.language, language()), ("en", "en"))
+        self.assertEqual(d.current_page(), "welcome")
+        self.assertEqual(d.title_label.text(), "Welcome to PsyTags")
+        self.assertEqual(d.next_button.text(), "Next >")
+
+    def test_the_theme_applies_at_once_and_the_page_stays(self):
+        d = self._dialog("appearance")
         d.theme_choice.setCurrentIndex(d.theme_choice.findData("latte"))
-        d.next_page()
-        self.assertEqual((d.opts.language, d.opts.theme), ("en", "latte"))
+        self.assertEqual((d.opts.theme, theme.CURRENT), ("latte", "latte"))
+        self.assertEqual(d.current_page(), "appearance")
+        self.assertEqual(d.theme_choice.currentData(), "latte")
 
     def test_the_full_date_can_be_chosen(self):
         d = self._dialog("date")
@@ -110,10 +123,10 @@ class PageTests(Base):
         self.assertFalse(d.opts.year_only)
 
     def test_skipping_changes_nothing(self):
-        d = self._dialog("appearance")
-        d.lang.setCurrentIndex(d.lang.findData("en"))
+        d = self._dialog("date")
+        d.date_choice.setCurrentIndex(d.date_choice.findData("date"))
         d.skip()
-        self.assertEqual(d.opts.language, "de")
+        self.assertTrue(d.opts.year_only)
 
     def test_a_lastfm_key_switches_the_genres_on(self):
         d = self._dialog("lastfm")

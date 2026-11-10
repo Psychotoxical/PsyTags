@@ -244,6 +244,12 @@ def push_history(key: str, value: str, limit: int = 30) -> None:
     settings().setValue(f"history/{key}", h[:limit])
 
 
+def system_language() -> str:
+    """German on a German system, otherwise English: the language before any choice."""
+    from PySide6.QtCore import QLocale
+    return "de" if QLocale.system().language() == QLocale.Language.German else "en"
+
+
 @dataclass
 class Options:
     """General options."""
@@ -276,6 +282,8 @@ class Options:
             elif isinstance(v, list):
                 raw = list(raw) if isinstance(raw, (list, tuple)) else [raw]
             setattr(o, k, raw)
+        if s.value("options/language") is None:
+            o.language = system_language()
         return o
 
     def save(self) -> None:

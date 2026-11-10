@@ -229,8 +229,13 @@ class Loader(QObject):
 # ---------------------------------------------------------------------------
 
 class MainWindow(QMainWindow):
+    current: "MainWindow | None" = None      # the window of the moment; a change of language or theme replaces it
+
     def __init__(self, start_paths: list[str] | None = None):
         super().__init__()
+        from ..i18n import language
+        from . import theme
+        self.built_with = (language(), theme.CURRENT)
         self.opts = Options.load()
         self.settings = config.settings()
         self.undo = UndoStack()
@@ -1785,6 +1790,7 @@ class MainWindow(QMainWindow):
         d.exec()
         self.opts = d.opts
         self.opts.save()
+        self.apply_appearance(self.opts.language, self.opts.theme)
 
     def _open_options(self, tab: str = ""):
         from .dialogs.options import OptionsDialog
@@ -1793,6 +1799,59 @@ class MainWindow(QMainWindow):
             self.opts = d.opts
             self.opts.save()
             self.panel.blank_comments = self.opts.drop_comments
+            self.apply_appearance(self.opts.language, self.opts.theme)
+
+    def apply_appearance(self, language: str, theme_name: str) -> "MainWindow":
+        """Language and theme take effect at once. Every text is set when a widget is built,
+        so a successor window is built and takes over the loaded files, the selection,
+        the search and the undo history. Returns the window now in charge."""
+        from ..i18n import set_language
+        from . import icons, theme
+        if (language, theme_name) == self.built_with:
+            return self
+        if self.panel.dirty and self.panel.tracks and not self._save_or_drop(self.panel.tracks):
+            return self                       # stored anyway, so it applies at the next start
+        set_language(language)
+        if theme_name != theme.CURRENT:
+            theme.apply_theme(QApplication.instance(), theme_name)
+            icons.refresh_colors()
+        reload = None
+        if self._loader_thread is not None:   # a folder is still being read: read it again there
+            reload = (self._loader.paths, self._loader.add)
+            self._loader.abort = True
+            self._loader_thread.quit()
+            self._loader_thread.wait()
+            self._loader_thread = None
+        self.save_state()
+        new = MainWindow()
+        new.undo = self.undo
+        new.tag_clipboard = self.tag_clipboard
+        new._auto_done, new._mood_done = self._auto_done, self._mood_done
+        new._last_batch, new._provider_problems = self._last_batch, self._provider_problems
+        if self.current_dir:
+            new._set_current_dir(self.current_dir)
+        new.dir_history = self.dir_history
+        new.model.set_tracks(self.model.all)
+        new.view.apply_widths()
+        new.search.setText(self.search.text())
+        new._ipc_server = getattr(self, "_ipc_server", None)
+        selected = self.view.selected_tracks()
+        row = self.view.currentIndex().row()
+        focus = self.model.rows[row] if 0 <= row < len(self.model.rows) else None
+        new.show()
+        if selected:
+            new.view.select_tracks(selected, focus)
+        new._selection_changed()
+        new._update_actions()
+        if reload:
+            new.load_paths(*reload)
+        MainWindow.current = new
+        self._autosave.stop()
+        with contextlib.suppress(RuntimeError, TypeError):
+            QApplication.instance().aboutToQuit.disconnect(self.save_state)
+        self.hide()
+        self.deleteLater()
+        return new
 
     def about(self):
         from .dialogs.about import AboutDialog

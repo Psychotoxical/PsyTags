@@ -293,7 +293,7 @@ class OptionsDialog(QDialog):
                 ("cover", "4", "Cover", "Die erste Quelle, die ein Cover liefert, gewinnt."),
                 ("genres", "5", "Genres", "Von Last.fm"),
                 ("files", "", "Dateien", "Lesen und Schreiben"),
-                ("program", "", "Programm", "Gilt nach einem Neustart"))
+                ("program", "", "Programm", "Sprache und Design"))
 
     def __init__(self, opts: Options, parent=None, section: str = ""):
         super().__init__(parent)

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog,
                                QListWidget, QListWidgetItem, QPushButton, QSplitter, QStyledItemDelegate,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from ..theme import ERROR, ICON_POSITIVE, WARNING, WARNING_BACKGROUND
+from .. import theme
 
 from ... import config
 from ...i18n import tr
@@ -323,7 +323,7 @@ class AdjustDialog(QDialog):
             QShortcut(QKeySequence(key), self, lambda d=d: self._move(d))
         row.addStretch(1)
         self.hint = QLabel()
-        self.hint.setStyleSheet(f"color: {WARNING};")
+        self.hint.setStyleSheet(f"color: {theme.WARNING};")
         row.addWidget(self.hint)
         rl.addLayout(row)
         split.addWidget(right)
@@ -335,7 +335,7 @@ class AdjustDialog(QDialog):
         remember(self, "ts_adjust")
 
     def _fill(self, sel=-1):
-        warn = QBrush(QColor(WARNING_BACKGROUND))
+        warn = QBrush(QColor(theme.WARNING_BACKGROUND))
         self.source_table.clear()
         self.table.clear()
         n_src = max(1, self.album.tracks)
@@ -466,7 +466,7 @@ def outcome_mark(value: str | None) -> tuple[str, str | None]:
     """(mark, color) of a step: crossed box worked, empty box failed, dash did not run."""
     if value is None:
         return "–", None
-    return ("☒", ICON_POSITIVE) if value == "" else ("☐", ERROR)
+    return ("☒", theme.ICON_POSITIVE) if value == "" else ("☐", theme.ERROR)
 
 
 def summary_action(entry, column: int | None) -> str:
