@@ -43,9 +43,9 @@ def candidate_rows(matches: list, n_files: int, mbid: str = "") -> list[dict]:
     digital editions first within that. One track more than files can work too: the search
     counts a hidden track before the first one (pregap). An ID from the tags is one more candidate."""
     lowest = n_files - min(albummatch.MAX_LEFTOVERS, n_files // 4)
-    fit = [m.row for m in matches
-           if (c := track_count(m.row)) is not None and lowest <= c <= n_files + 1]
-    fit.sort(key=lambda r: (track_count(r) != n_files, track_count(r) > n_files, not is_digital(r)))
+    fit = [m.row for m in matches                   # a search may not tell the count: the lookup will
+           if (c := track_count(m.row)) is None or lowest <= c <= n_files + 1]
+    fit.sort(key=lambda r: (track_count(r) != n_files, (track_count(r) or 0) > n_files, not is_digital(r)))
     if mbid and not any(mbid.lower() in r.get("_url", "").lower() for r in fit):
         fit.insert(0, {"_url": mbid})
     return fit[:MAX_CANDIDATES]
@@ -100,23 +100,37 @@ def needs_second_search(rows: list[dict], tracks: list) -> bool:
     return not coverfetch.rank(rows, _first(tracks[0], "ALBUM"), artist, len(tracks))
 
 
-def find_album(src: TagSource, tracks: list) -> AutoResult:
+def find_album(src: TagSource, tracks: list, strict: bool = False) -> AutoResult:
     """Search and decide; if that fails or leaves files without a track, again without the
     notes behind the album title: the words of a note can hide the edition that fits.
+    ``strict``: for a source besides MusicBrainz, every track must have a known length.
     Raises http.FetchError."""
     album = _first(tracks[0], "ALBUM")
     if not album:
         return AutoResult(None, tr("Kein Album-Tag"))
-    result = _search(src, tracks, album, src.prefill(tracks), album)
+    result = _search(src, tracks, album, src.prefill(tracks), album, strict)
     for title in _title_steps(album):
         if result.match is not None and not result.match.leftover_keys:
             break
-        step = _search(src, tracks, title, src.prefill(tracks, title), album)
+        step = _search(src, tracks, title, src.prefill(tracks, title), album, strict)
         if step.match is not None and (result.match is None or len(step.match.leftover_keys) < len(result.match.leftover_keys)):
             result = step
         elif result.match is None:
             result = AutoResult(None, step.reason or result.reason)
     return result
+
+
+def find_with_fallback(src: TagSource, second: TagSource | None, tracks: list) -> tuple[TagSource, AutoResult]:
+    """(source that decided, result): ``second`` only gets the albums ``src`` leaves open.
+    Its failure must not end the run, the album stays open and the reason says why."""
+    result = find_album(src, tracks)
+    if result.match is not None or second is None:
+        return src, result
+    try:
+        found = find_album(second, tracks, strict=True)
+    except http.FetchError as e:
+        return src, AutoResult(None, f"{result.reason} · {str(e).splitlines()[0]}")
+    return (second, found) if found.match is not None else (src, result)
 
 
 _KINDS = {"live": ("live",), "remix": ("remix", "remixes"), "demo": ("demo", "demos")}
@@ -144,16 +158,20 @@ def _needs_tight_lengths(found: Album, album: str) -> bool:
     return any(kind_of_release & set(f) and not in_tag & set(f) for f in _KINDS.values())
 
 
-def _search(src: TagSource, tracks: list, title: str, values: list[str], album: str) -> AutoResult:
+def _all_lengths_known(found: Album) -> bool:
+    return len(found.lengths) == found.tracks and all(albummatch.seconds(v) for v in found.lengths)
+
+
+def _search(src: TagSource, tracks: list, title: str, values: list[str], album: str, strict: bool = False) -> AutoResult:
     artist = _first(tracks[0], "ALBUMARTIST") or _first(tracks[0], "ARTIST")
     rows = src.search(values)
     matches = coverfetch.rank(rows, title, artist, len(tracks))
     releases = []
-    candidates = candidate_rows(matches, len(tracks), _first(tracks[0], "MUSICBRAINZ_ALBUMID"))
+    candidates = candidate_rows(matches, len(tracks), "" if strict else _first(tracks[0], "MUSICBRAINZ_ALBUMID"))
     for number, row in enumerate(candidates, 1):
         with http.activity(tr("Ausgabe {1} von {2}", number, len(candidates))):
             found = src.album(row)
-        if _fits_album(found, album, artist):
+        if _fits_album(found, album, artist) and (not strict or _all_lengths_known(found)):
             releases.append(to_release(found, row, _needs_tight_lengths(found, album)))
     d: Decision = albummatch.decide(file_infos(tracks), releases, _first(tracks[0], "YEAR")[:4])
     return AutoResult(d.match, d.reason)

@@ -1,10 +1,13 @@
-"""Small controls of the settings page: a switch and a row of exclusive buttons."""
+"""Small controls of the settings pages: a switch, a row of exclusive buttons, the number format."""
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, QRectF, QSize, Qt
+from PySide6.QtCore import QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
-from PySide6.QtWidgets import QButtonGroup, QCheckBox, QFrame, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
+                               QWidget)
 
+from .. import numbering
+from ..i18n import tr
 from . import theme
 
 SWITCH_SIZE = QSize(38, 22)
@@ -44,6 +47,65 @@ class Switch(QCheckBox):
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         paint_switch(painter, self.rect(), self.isChecked(), self.hasFocus(), self.isEnabled())
+
+
+class _RowLabel(QLabel):
+    """The text of a settings row; a click on it works the row's switch."""
+    clicked = Signal()
+
+    def mouseReleaseEvent(self, event) -> None:
+        super().mouseReleaseEvent(event)
+        self.clicked.emit()
+
+
+def add_row(area: QVBoxLayout, text: str, control: QWidget) -> None:
+    """A settings row: the text on the left, the control on the right."""
+    row = QHBoxLayout()
+    row.setSpacing(20)
+    label = _RowLabel(text)
+    if isinstance(control, Switch):
+        label.clicked.connect(control.toggle)
+        control.setAccessibleName(text)
+    row.addWidget(label)
+    row.addStretch(1)
+    row.addWidget(control)
+    area.addLayout(row)
+
+
+def add_switch(area: QVBoxLayout, text: str, on: bool) -> Switch:
+    switch = Switch()
+    switch.setChecked(on)
+    add_row(area, text, switch)
+    return switch
+
+
+class NumberFormatEditor(QWidget):
+    """The format of track and disc numbers with a live example."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        area = QVBoxLayout(self)
+        area.setContentsMargins(0, 0, 0, 0)
+        area.setSpacing(12)
+        fmt = numbering.NumberFormat.load()
+        self.boxes: dict[str, Switch] = {}
+        for name, text in (("track_zeros", "Track mit führender Null"), ("track_total", "Track mit Gesamtzahl"),
+                           ("disc_on", "Discnummer schreiben"), ("disc_zeros", "Disc mit führender Null"),
+                           ("disc_total", "Disc mit Gesamtzahl")):
+            box = add_switch(area, tr(text), getattr(fmt, name))
+            box.toggled.connect(self._show_example)
+            self.boxes[name] = box
+        self.sample = QLabel()
+        self.sample.setObjectName("NumberSample")
+        area.addWidget(self.sample, 0, Qt.AlignmentFlag.AlignLeft)
+        self._show_example()
+
+    def format(self) -> numbering.NumberFormat:
+        return numbering.NumberFormat(**{name: box.isChecked() for name, box in self.boxes.items()})
+
+    def _show_example(self, *_args) -> None:
+        track, disc = numbering.example(self.format())
+        self.sample.setText(tr("Beispiel: Track {1}, Disc {2}", track, disc) if disc else tr("Beispiel: Track {1}", track))
 
 
 class Segmented(QFrame):

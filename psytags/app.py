@@ -114,6 +114,8 @@ def main(argv: list[str] | None = None) -> int:
     paths = [os.path.abspath(a) for a in argv[1:] if not a.startswith("-")]
     if "--new-instance" not in argv and _send_to_running(paths):
         return 0
+    from .ui.dialogs.setup import is_first_start
+    first_start = is_first_start()                     # before the window stores anything
     w = MainWindow(paths)
     w.show()
     w._ipc_server = _start_server(w)
@@ -128,4 +130,6 @@ def main(argv: list[str] | None = None) -> int:
     wake = QTimer()
     wake.start(500)
     wake.timeout.connect(lambda: None)
+    if first_start:
+        QTimer.singleShot(0, w.show_setup)
     return app.exec()

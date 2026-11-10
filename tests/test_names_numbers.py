@@ -397,26 +397,26 @@ class DialogTests(unittest.TestCase):
     def test_rename_dialog_starts_with_the_saved_scheme(self):
         d = self._rename()
         self.assertEqual(d.tokens(), namescheme.DEFAULT)
-        d._update_preview()
-        self.assertIn("Madball - (2024) - Hellfest", d.preview.text())
+        d.scheme.update_preview()
+        self.assertIn("Madball - (2024) - Hellfest", d.scheme.preview.text())
 
     def test_clicking_a_chip_removes_it_and_a_button_adds_it(self):
         d = self._rename()
-        d._remove(d.chips.item(0))
+        d.scheme.remove(d.scheme.chips.item(0))
         self.assertEqual(d.tokens(), namescheme.DEFAULT[1:])
-        d._add("title")
+        d.scheme.add("title")
         self.assertEqual(d.tokens()[-1], "title")
 
     def test_without_a_name_ok_is_off(self):
         d = self._rename()
-        d._fill([" - "])
-        d._update_preview()
+        d.scheme.fill([" - "])
+        d.scheme.update_preview()
         self.assertFalse(d.ok.isEnabled())
 
     def test_accept_remembers_scheme_and_cleanup(self):
         d = self._rename()
-        d._fill(["title"])
-        d.cleanup_box.setChecked(True)
+        d.scheme.fill(["title"])
+        d.scheme.cleanup_box.setChecked(True)
         d.accept()
         self.assertEqual(namescheme.load(), ["title"])
         self.assertTrue(namescheme.cleanup_enabled())

@@ -30,6 +30,22 @@ class Base(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
 
+class DiscogsTokenTests(Base):
+    def test_the_token_is_saved_without_spaces(self):
+        d = OptionsDialog(Options())
+        self.addCleanup(d.deleteLater)
+        d.discogs_token.setText(" abc ")
+        d.accept()
+        self.assertEqual(config.settings().value("discogs/token"), "abc")
+
+    def test_a_stored_token_is_shown_hidden(self):
+        config.settings().setValue("discogs/token", "abc")
+        d = OptionsDialog(Options())
+        self.addCleanup(d.deleteLater)
+        self.assertEqual(d.discogs_token.text(), "abc")
+        self.assertEqual(d.discogs_token.echoMode(), d.discogs_token.EchoMode.Password)
+
+
 class SwitchTests(Base):
     def test_a_click_turns_it_on_and_off(self):
         switch = Switch()
@@ -77,7 +93,12 @@ class DialogTests(Base):
 
     def test_the_page_follows_the_workflow(self):
         self.assertEqual(self._dialog().section_keys(),
-                         ["moods", "musicbrainz", "numbers", "cover", "genres", "files", "program"])
+                         ["moods", "musicbrainz", "discogs", "numbers", "cover", "genres", "files", "program"])
+
+    def test_the_discogs_token_stands_in_its_own_section(self):
+        d = self._dialog()
+        self.assertTrue(d._blocks["discogs"].isAncestorOf(d.discogs_token))
+        self.assertFalse(d._blocks["musicbrainz"].isAncestorOf(d.discogs_token))
 
     def test_it_can_open_at_a_section(self):
         self.assertEqual(self._dialog(section="genres").current_section(), "genres")

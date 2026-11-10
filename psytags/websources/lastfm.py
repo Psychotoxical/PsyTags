@@ -57,6 +57,11 @@ def _top_tags(method: str, api_key: str, **params: str) -> list[tuple[str, int]]
     return out
 
 
+def verify_key(api_key: str) -> None:
+    """One small request that needs a valid key. Raises LastfmError otherwise."""
+    _top_tags("tag.getTopTags", api_key)
+
+
 def album_genres(artist: str, album: str, api_key: str) -> list[str]:
     genres: list[str] = []
     if artist and album:

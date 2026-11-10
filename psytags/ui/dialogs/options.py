@@ -3,17 +3,17 @@ from __future__ import annotations
 
 import copy
 
-from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                                QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                                QPushButton, QScrollArea, QStyle, QStyledItemDelegate, QVBoxLayout, QWidget)
 
-from ... import config, numbering
+from ... import config
 from ...config import Column, Options, PanelField
 from ...i18n import tr
 from .. import theme
-from ..controls import SWITCH_SIZE, Segmented, Switch, paint_switch
+from ..controls import SWITCH_SIZE, NumberFormatEditor, Segmented, add_row, add_switch, paint_switch
 from ..persist import remember
 
 
@@ -183,15 +183,6 @@ class PanelDialog(_ListEditor):
         self._fill(len(self.items) - 1)
 
 
-class _RowLabel(QLabel):
-    """The text of a settings row; a click on it works the row's switch."""
-    clicked = Signal()
-
-    def mouseReleaseEvent(self, event) -> None:
-        super().mouseReleaseEvent(event)
-        self.clicked.emit()
-
-
 class _SourceDelegate(QStyledItemDelegate):
     """A cover source as a row: grip for dragging, name, switch."""
     ROW = 46
@@ -238,6 +229,7 @@ class OptionsDialog(QDialog):
     """One page in the order of the work: the steps of the main window, then files and program."""
     SECTIONS = (("moods", "1", "Moods", "Analyse aus dem Audio"),
                 ("musicbrainz", "2", "MusicBrainz", "Tags aus der Datenbank"),
+                ("discogs", "", "Discogs", "Wenn MusicBrainz ein Album offen lässt"),
                 ("numbers", "3", "Nummern", "Format von Track und Disc"),
                 ("cover", "4", "Cover", "Die erste Quelle, die ein Cover liefert, gewinnt."),
                 ("genres", "5", "Genres", "Von Last.fm"),
@@ -266,7 +258,7 @@ class OptionsDialog(QDialog):
         self._column = QVBoxLayout(page)
         self._column.setContentsMargins(30, 6, 30, 6)
         self._column.setSpacing(0)
-        fill = {"moods": self._moods, "musicbrainz": self._musicbrainz, "numbers": self._numbers,
+        fill = {"moods": self._moods, "musicbrainz": self._musicbrainz, "discogs": self._discogs, "numbers": self._numbers,
                 "cover": self._cover, "genres": self._genres, "files": self._files, "program": self._program}
         for i, (key, number, title, what) in enumerate(self.SECTIONS):
             if i:
@@ -361,24 +353,8 @@ class OptionsDialog(QDialog):
         self._blocks[key] = block
         return block
 
-    @staticmethod
-    def _row(area: QVBoxLayout, text: str, control: QWidget) -> None:
-        row = QHBoxLayout()
-        row.setSpacing(20)
-        label = _RowLabel(text)
-        if isinstance(control, Switch):
-            label.clicked.connect(control.toggle)
-            control.setAccessibleName(text)
-        row.addWidget(label)
-        row.addStretch(1)
-        row.addWidget(control)
-        area.addLayout(row)
-
-    def _switch(self, area: QVBoxLayout, text: str, on: bool) -> Switch:
-        switch = Switch()
-        switch.setChecked(on)
-        self._row(area, text, switch)
-        return switch
+    _row = staticmethod(add_row)
+    _switch = staticmethod(add_switch)
 
     @staticmethod
     def _segmented(items, chosen, fallback=None) -> Segmented:
@@ -434,19 +410,22 @@ class OptionsDialog(QDialog):
     def _musicbrainz(self, area: QVBoxLayout) -> None:
         self.drop_comments = self._switch(area, tr("Kommentare standardmäßig löschen"), self.opts.drop_comments)
 
+    def _discogs(self, area: QVBoxLayout) -> None:
+        self._hint(area, tr("Bleibt ein Album bei MusicBrainz offen, sieht PsyTags mit diesem Token bei Discogs nach. "
+                            "Von dort kommen nur Texte, keine Cover."))
+        link = QLabel(tr("Discogs-Token (kostenlos unter <a href='https://www.discogs.com/settings/developers'>"
+                         "discogs.com/settings/developers</a>):"))
+        link.setOpenExternalLinks(True)
+        link.setWordWrap(True)
+        area.addWidget(link)
+        self.discogs_token = QLineEdit(config.settings().value("discogs/token", ""))
+        self.discogs_token.setEchoMode(QLineEdit.EchoMode.Password)
+        area.addWidget(self.discogs_token)
+
     def _numbers(self, area: QVBoxLayout) -> None:
-        fmt = numbering.NumberFormat.load()
-        self.number_boxes = {}
-        for name, text in (("track_zeros", "Track mit führender Null"), ("track_total", "Track mit Gesamtzahl"),
-                           ("disc_on", "Discnummer schreiben"), ("disc_zeros", "Disc mit führender Null"),
-                           ("disc_total", "Disc mit Gesamtzahl")):
-            switch = self._switch(area, tr(text), getattr(fmt, name))
-            switch.toggled.connect(self._number_example)
-            self.number_boxes[name] = switch
-        self.number_sample = QLabel()
-        self.number_sample.setObjectName("NumberSample")
-        area.addWidget(self.number_sample, 0, Qt.AlignmentFlag.AlignLeft)
-        self._number_example()
+        self.numbers = NumberFormatEditor()
+        self.number_boxes, self.number_sample = self.numbers.boxes, self.numbers.sample
+        area.addWidget(self.numbers)
 
     def _cover(self, area: QVBoxLayout) -> None:
         from ...websources import coverprovider
@@ -525,23 +504,17 @@ class OptionsDialog(QDialog):
         area.addWidget(self.theme, 0, Qt.AlignmentFlag.AlignLeft)
 
     # ------------------------------------------------------------------ values
-    def _number_format(self) -> numbering.NumberFormat:
-        return numbering.NumberFormat(**{name: box.isChecked() for name, box in self.number_boxes.items()})
-
-    def _number_example(self, *_args) -> None:
-        track, disc = numbering.example(self._number_format())
-        self.number_sample.setText(tr("Beispiel: Track {1}, Disc {2}", track, disc) if disc else tr("Beispiel: Track {1}", track))
-
     def accept(self):
         from ...websources import coverprovider
         coverprovider.save_arrangement([(self.cover_sources.item(i).text(),
                                          self.cover_sources.item(i).checkState() == Qt.CheckState.Checked)
                                         for i in range(self.cover_sources.count())])
-        self._number_format().save()
+        self.numbers.format().save()
         s = config.settings()
         key = self.lastfm_key.text().strip()
         s.setValue("lastfm/api_key", key)
         s.setValue("lastfm/enabled", self.lastfm_on.isChecked() and bool(key))
+        s.setValue("discogs/token", self.discogs_token.text().strip())
         o = self.opts
         o.language = self.lang.currentData()
         o.theme = self.theme.currentData()

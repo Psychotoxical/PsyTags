@@ -74,6 +74,8 @@ def describe(url: str) -> str:
         return tr("Cover Art Archive: Cover")
     if host.endswith("audioscrobbler.com"):
         return tr("Last.fm: Genres")
+    if host.endswith("discogs.com"):
+        return tr("Discogs: Suche") if "/search" in parts.path else tr("Discogs: Album-Daten")
     return host
 
 
@@ -96,13 +98,14 @@ def _download(req: urllib.request.Request, url: str, timeout: float, read):
                 time.sleep(wait)
 
 
-def fetch(url: str, user_agent: str = "1", timeout: float = 30) -> str:
+def fetch(url: str, user_agent: str = "1", timeout: float = 30, headers: dict[str, str] | None = None) -> str:
     if url in _cache:
         return _decode(_cache[url])
-    headers = {"Accept-Encoding": "gzip",
-               "User-Agent": USER_AGENT if user_agent in ("", "1") else
-               BROWSER_AGENT if user_agent == "2" else user_agent}
-    req = urllib.request.Request(url, headers=headers)
+    sent = {"Accept-Encoding": "gzip",
+            "User-Agent": USER_AGENT if user_agent in ("", "1") else
+            BROWSER_AGENT if user_agent == "2" else user_agent,
+            **(headers or {})}
+    req = urllib.request.Request(url, headers=sent)
 
     def read(r):
         data = r.read()

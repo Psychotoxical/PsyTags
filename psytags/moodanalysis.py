@@ -49,6 +49,8 @@ MODELS: dict[str, tuple[str, str]] = {
                "7d6270acaa5f4bba4b115a0d6849aca05ed6bd153dcb6d9da4f6ab9f99ef10ff"),
 }
 
+MODEL_BYTES = 18027718 + 2739322        # for the progress of the first download
+
 # Output order of the classifier.
 MOOD_CLASSES: tuple[str, ...] = (
     "action", "adventure", "advertising", "background", "ballad", "calm", "children", "christmas",
@@ -166,10 +168,16 @@ def patches(mel: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # files
 
-def _download(url: str) -> bytes:
+def _download(url: str, report: Callable[[int], None] | None = None) -> bytes:
+    """``report`` gets the number of bytes received so far."""
     req = urllib.request.Request(url, headers={"User-Agent": "PsyTags"})
+    data = bytearray()
     with urllib.request.urlopen(req, timeout=120) as r:
-        return r.read()
+        while chunk := r.read(65536):
+            data.extend(chunk)
+            if report is not None:
+                report(len(data))
+    return bytes(data)
 
 
 def _sha256(path: str) -> str:
@@ -180,13 +188,27 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def ensure_models(folder: str, fetch: Callable[[str], bytes] | None = None) -> None:
-    """Make sure the model files exist in ``folder``; download and verify the missing ones."""
-    fetch = fetch or _download
+def models_present(folder: str) -> bool:
+    return all(os.path.exists(os.path.join(folder, name)) and _sha256(os.path.join(folder, name)) == digest
+               for name, (_url, digest) in MODELS.items())
+
+
+def ensure_models(folder: str, fetch: Callable[[str], bytes] | None = None,
+                  on_progress: Callable[[int, int], None] | None = None) -> None:
+    """Make sure the model files exist in ``folder``; download and verify the missing ones.
+    ``on_progress`` gets the bytes done so far and the bytes of all models."""
     os.makedirs(folder, exist_ok=True)
+    done = [0]
+
+    def report(received: int) -> None:
+        if on_progress is not None:
+            on_progress(done[0] + received, MODEL_BYTES)
+
+    fetch = fetch or (lambda url: _download(url, report))
     for name, (url, digest) in MODELS.items():
         path = os.path.join(folder, name)
         if os.path.exists(path) and _sha256(path) == digest:
+            done[0] += os.path.getsize(path)
             continue
         try:
             data = fetch(url)
@@ -198,6 +220,11 @@ def ensure_models(folder: str, fetch: Callable[[str], bytes] | None = None) -> N
         with open(part, "wb") as fh:
             fh.write(data)
         os.replace(part, path)
+        done[0] += len(data)
+
+
+def ffmpeg_available() -> bool:
+    return shutil.which("ffmpeg") is not None
 
 
 def _ffmpeg() -> str:

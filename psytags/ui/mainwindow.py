@@ -330,7 +330,7 @@ class MainWindow(QMainWindow):
 
     def _build_app_menu(self):
         m = self.app_menu = QMenu(self)
-        for a in (self.act_options, self.act_ext_tags, self.act_panel):
+        for a in (self.act_options, self.act_setup, self.act_ext_tags, self.act_panel):
             m.addAction(a)
         self.columns_menu = m.addMenu(tr("Spalte&n"))
         self.columns_menu.aboutToShow.connect(self._fill_columns_menu)
@@ -392,6 +392,7 @@ class MainWindow(QMainWindow):
         self.act_dir = A("Verzeichnis wechseln...", self.choose_directory, "Ctrl+D", "Verzeichnis wechseln...", "folder-open")
         self.act_add_dir = A("Verzeichnis hinzufügen...", self.add_directory, "Ctrl+H", "Fügt der Dateiansicht ein Verzeichnis hinzu.", "folder-add")
         self.act_options = A("&Optionen...", self.show_options, "Ctrl+O", "Zeigt den Optionendialog an.", "options")
+        self.act_setup = A("&Einrichtung...", self.show_setup)
         self.act_open_cfg = A("Konfigurationsordner öffnen", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(config.config_dir())))
         self.act_exit = A("&Beenden", self.close, "Alt+F4", "Beendet die Anwendung.")
         self.act_refresh = A("&Aktualisieren", self.refresh, "F5", "Aktualisiert die Dateiansicht.", "refresh")
@@ -889,7 +890,8 @@ class MainWindow(QMainWindow):
         """(command, menu text) for the cover context menu."""
         if not self.view.selected_tracks():
             return []
-        out = [("fetch_mb", tr("Cover von {1} laden", "MusicBrainz"))]
+        from ..websources import coverart
+        out = [("fetch_mb", tr("Cover von {1} laden", coverart.NAME))]
         out += [(f"provider:{s.name}", tr("Cover von {1} laden", s.name))
                 for s in self._cover_sources() if hasattr(s, "name")]
         return out
@@ -1046,13 +1048,13 @@ class MainWindow(QMainWindow):
         ``manual``: started by the user, so a too small cover may be taken after asking.
         Without ``interactive`` no dialog opens. Returns None if it did not run, "" if it
         worked, otherwise what went wrong."""
-        from ..websources import coverfetch, musicbrainz
+        from ..websources import coverart, coverfetch, musicbrainz
         from ..websources import http as wshttp
         from .dialogs.tagsources import ResultsDialog
         if not tracks:
             return None
         src = musicbrainz.Source()
-        label = src.name
+        label = coverart.NAME
         try:
             rows, matches = self._background(tr("Cover-Suche bei {1}", label),
                                              lambda: coverfetch.search(src, tracks))
@@ -1396,18 +1398,24 @@ class MainWindow(QMainWindow):
             self.run_source()
             return
         try:
-            res = self._background(tr("MusicBrainz durchsuchen: {1}", albumauto.album_title(tracks)),
-                                   lambda: albumauto.find_album(src, tracks))
+            second = self._tag_fallback()
+            used, res = self._background(tr("MusicBrainz durchsuchen: {1}", albumauto.album_title(tracks)),
+                                         lambda: albumauto.find_with_fallback(src, second, tracks))
         except (wshttp.FetchError, OSError) as e:
             QMessageBox.warning(self, "MusicBrainz", str(e))
             return
         if res.match is None:
             self.run_source(quick=True, note=tr("Nicht sicher erkannt: {1}", res.reason))
             return
-        self._import_match(src, res.match, interactive=True)
+        self._import_match(used, res.match, interactive=True)
         self._auto_done.update({id(t): t for t in tracks})
-        self.message(tr("MusicBrainz: {1} ({2}) automatisch gewählt, {3} Dateien",
+        self.message(tr("{1}: {2} ({3}) automatisch gewählt, {4} Dateien", used.name,
                         res.album.value("ALBUM", 0), albumauto.release_year(res.match), len(res.match.mapping)), 10000)
+
+    def _tag_fallback(self):
+        """The source for albums MusicBrainz leaves open, None without a token."""
+        from ..websources import discogs
+        return discogs.from_settings()
 
     def _import_match(self, src, match, interactive: bool) -> tuple[str | None, str | None]:
         """Write a certain match; returns the outcome of the cover and genre steps."""
@@ -1416,7 +1424,7 @@ class MainWindow(QMainWindow):
         disabled = set(config.string_list(self.settings, "tagsources/disabled_fields"))
         return self._finish_source_import(src.name, albumauto.plan_for(match, disabled),
                                           None, match.leftover_keys, interactive, complete=True,
-                                          archive=coverart.ids_of(album))
+                                          archive=coverart.ids_of(album) or ("", ""))   # no IDs: the other cover sources
 
     def _finish_source_import(self, name: str, plan: list, cover: bytes | None,
                               leftovers: list, interactive: bool = True,
@@ -1429,7 +1437,7 @@ class MainWindow(QMainWindow):
         use_cover = bool(cover) and self._cover_big_enough(cover, name)
         mime = "image/png" if cover and cover[:4] == b"\x89PNG" else "image/jpeg"
         values_by_track = {id(t): v for t, v in plan}
-        drop_comments = archive is not None and self.opts.drop_comments     # from MusicBrainz
+        drop_comments = archive is not None and self.opts.drop_comments     # chosen by the automatic or from MusicBrainz
 
         def apply(t):
             vals = values_by_track.get(id(t))
@@ -1549,18 +1557,20 @@ class MainWindow(QMainWindow):
         from ..websources import albumauto
         title = albumauto.album_title(tracks)
         try:
-            res = self._background(tr("MusicBrainz durchsuchen: {1}", title),
-                                   lambda: albumauto.find_album(src, tracks))
+            second = self._tag_fallback()
+            used, res = self._background(tr("MusicBrainz durchsuchen: {1}", title),
+                                         lambda: albumauto.find_with_fallback(src, second, tracks))
             if res.match is None:
                 return albumauto.BatchEntry(title, tracks, False, res.reason)
             with self._undo_group(title):
-                cover, genres = self._import_match(src, res.match, interactive=False)
+                cover, genres = self._import_match(used, res.match, interactive=False)
         except Exception as e:                      # one album must not end the whole run
             return albumauto.BatchEntry(title, tracks, False, (str(e) or type(e).__name__).splitlines()[0])
         if self._group_errors:
             return albumauto.BatchEntry(title, tracks, False, tr("Schreibfehler: {1}", " · ".join(self._group_errors[:3])))
         self._auto_done.update({id(t): t for t in tracks})
-        detail = " · ".join([albumauto.release_label(res.match)] + albumauto.match_notes(res.match)
+        origin = [tr("Von {1}", used.name)] if used is not src else []
+        detail = " · ".join([albumauto.release_label(res.match)] + origin + albumauto.match_notes(res.match)
                             + [n for n in (cover, genres) if n])
         entry = albumauto.BatchEntry(title, tracks, True, detail, list(res.match.leftover_keys), cover, genres)
         _remember_covers(entry)
@@ -1729,6 +1739,13 @@ class MainWindow(QMainWindow):
 
     def show_options(self):
         self._open_options()
+
+    def show_setup(self):
+        from .dialogs.setup import SetupDialog
+        d = SetupDialog(self.opts, self)
+        d.exec()
+        self.opts = d.opts
+        self.opts.save()
 
     def _open_options(self, tab: str = ""):
         from .dialogs.options import OptionsDialog

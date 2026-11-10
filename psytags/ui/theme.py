@@ -199,6 +199,8 @@ QPushButton#SectionLink:hover { color: $TEXT; background: transparent; }
 QPushButton#SectionLink:checked { background: $SELECTION; color: $TEXT; }
 QFrame#SectionRule { background: $BUTTON; border: none; min-height: 1px; max-height: 1px; }
 QLabel#SectionTitle { font-size: 14px; font-weight: 600; }
+QLabel#SetupWarning { background: $WARNING_BACKGROUND; border: 1px solid $WARNING; border-radius: 6px; padding: 10px 12px; }
+QStackedWidget#OptionsPage { background: $BACKGROUND; }
 QLabel#StepBadge { background: $BUTTON; color: $ACCENT; border-radius: 11px; font-size: 12px; font-weight: 700;
     min-width: 22px; max-width: 22px; min-height: 22px; max-height: 22px; }
 QLabel#NumberSample { background: $FIELD; border: 1px solid $BORDER; border-radius: 6px; padding: 6px 11px; }

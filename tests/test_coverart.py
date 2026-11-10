@@ -177,10 +177,10 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(entry.cover, "zu klein")
         self.assertEqual(entry.detail, "x · zu klein")
 
-    def test_the_cover_menu_only_offers_musicbrainz(self):
+    def test_the_cover_menu_names_the_cover_art_archive(self):
         win = self._win()
         win.view.selected_tracks.return_value = [Track()]
-        self.assertEqual(MainWindow._cover_fetch_entries(win), [("fetch_mb", "Cover von MusicBrainz laden")])
+        self.assertEqual(MainWindow._cover_fetch_entries(win), [("fetch_mb", "Cover von Cover Art Archive laden")])
 
     def test_the_cover_menu_is_empty_without_a_selection(self):
         win = self._win()
