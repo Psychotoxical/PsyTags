@@ -98,6 +98,6 @@ The color themes Mocha and Latte come from Catppuccin and are licensed under MIT
 
 ## License
 
-PsyTags is licensed under GPL-3.0-or-later.
+Copyright (C) 2026 Psychotoxical. PsyTags is licensed under GPL-3.0-or-later; the full text is in [LICENSE](LICENSE).
 
 The mood models are not part of this repository. They come from the Music Technology Group at Universitat Pompeu Fabra and are licensed under CC BY-NC-SA 4.0. The Last.fm terms allow non-commercial use only. The in-app About window lists all libraries and services with their licenses.
