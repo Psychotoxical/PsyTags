@@ -5,7 +5,7 @@ The usual way takes four moves:
 1. **Open folder** (Ctrl+D) to load the albums. **Add folder** (Ctrl+H) adds more.
 2. Press **All albums automatically** (Ctrl+Alt+B).
 3. Look in the [summary](help:summary) for what stayed open, and settle it there.
-4. Select everything (Ctrl+A) and name files and folders with **Rename** (Alt+1).
+4. Name all files and folders with **All** under **Rename**. **Selection** (Alt+1) only takes the selected files.
 
 ## What the automatic run does
 

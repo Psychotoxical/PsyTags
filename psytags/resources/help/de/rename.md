@@ -1,5 +1,7 @@
 # Umbenennen
 
+Im Schritt 6 nimmt **Auswahl** die markierten Dateien und **Alle** die ganze Liste.
+
 **Umbenennen** (Alt+1) benennt die markierten Dateien nach einem Schema, das Sie aus Bausteinen zusammenklicken. Es gibt nichts zu tippen und keine Formatsprache.
 
 ## Das Schema bauen

@@ -20,6 +20,7 @@ from ..undo import Recorder, UndoStack
 from .filelist import FileListModel, FileListView
 from .topbar import TopBar
 from .icons import icon
+from .persist import geometry_key
 from .tagpanel import TagPanel, image_to_bytes
 
 AUDIO_EXT = set(tags.SUPPORTED_EXTENSIONS)
@@ -421,6 +422,8 @@ class MainWindow(QMainWindow):
         # Workflow
         self.act_ttf = A("Umbenennen...", self.rename_files, "Alt+1",
                          "Benennt die ausgewählten Dateien nach dem eingestellten Schema um.", "tag-filename")
+        self.act_ttf_all = A("Alle Dateien umbenennen...", self.rename_all_files, None,
+                             "Benennt alle Dateien der Liste nach dem eingestellten Schema um.", "tag-filename")
         self.act_numbers = A("Nummern schreiben", self.number_selected, "Ctrl+K",
                              "Schreibt Track- und Discnummern der ausgewählten Alben.", "numbering")
         # Tag sources
@@ -454,7 +457,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Shift+Tab"), self, lambda: self._cycle_focus(-1))
 
     def _restore_state(self):
-        g = self.settings.value("window/geometry")
+        g = self.settings.value(geometry_key("window/geometry"))
         if g is not None:
             self.restoreGeometry(g)
         else:
@@ -479,7 +482,7 @@ class MainWindow(QMainWindow):
         config.save_columns(self.model.all_columns)
         self._save_sort()
         if not self.isMinimized():
-            self.settings.setValue("window/geometry", self.saveGeometry())
+            self.settings.setValue(geometry_key("window/geometry"), self.saveGeometry())
             self.settings.setValue("window/state", self.saveState(LAYOUT_VERSION))
             if self.panel_dock.isVisible() and not self.panel_dock.isFloating():
                 self.settings.setValue("window/panel_width", self.panel_dock.width())
@@ -530,7 +533,7 @@ class MainWindow(QMainWindow):
                   self.act_cover_add, self.act_cover_fetch, self.act_lastfm,
                   self.act_auto_mb):
             a.setEnabled(has_sel)
-        for a in (self.act_auto_all, self.act_moods_all):
+        for a in (self.act_auto_all, self.act_moods_all, self.act_ttf_all):
             a.setEnabled(bool(self.model.rows))
         self.act_batch_summary.setEnabled(bool(self._last_batch))
         self.act_save.setEnabled(has_sel)
@@ -1495,8 +1498,14 @@ class MainWindow(QMainWindow):
         self.panel.load(selection)
 
     def rename_files(self) -> None:
+        self._rename_with(self.view.selected_tracks)
+
+    def rename_all_files(self) -> None:
+        self._rename_with(lambda: list(self.model.rows))
+
+    def _rename_with(self, tracks_of) -> None:
         from .dialogs.rename import RenameDialog
-        tracks = self.view.selected_tracks()
+        tracks = tracks_of()
         if not tracks:
             return
         d = RenameDialog(tracks, self)
@@ -1505,8 +1514,7 @@ class MainWindow(QMainWindow):
         tokens, cleanup = d.tokens(), d.cleanup() and namescheme.FOLDER in d.tokens()
 
         def run() -> None:
-            chosen = self.view.selected_tracks()
-            self._rename([(t, namescheme.target_path(t, tokens)) for t in chosen], tr("Umbenennen"),
+            self._rename([(t, namescheme.target_path(t, tokens)) for t in tracks_of()], tr("Umbenennen"),
                          remove_old_albums=cleanup)
         run()
         self.last_action = run
@@ -1726,6 +1734,7 @@ class MainWindow(QMainWindow):
             m.addAction(a)
         m.addSeparator()
         m.addAction(self.act_ttf)
+        m.addAction(self.act_ttf_all)
         m.addAction(self.act_numbers)
         src = m.addMenu(tr("Tag-&Quellen"))
         src.aboutToShow.connect(lambda: self._fill_sources_submenu(src))

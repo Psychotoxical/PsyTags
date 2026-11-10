@@ -8,11 +8,20 @@ from psytags import convert, moodanalysis as ma
 
 
 class BundledFfmpegTests(unittest.TestCase):
-    def _package(self, folder):
-        path = os.path.join(folder, "ffmpeg", "ffmpeg.exe")
+    def _package(self, folder, name=None):
+        path = os.path.join(folder, "ffmpeg", name or ("ffmpeg.exe" if ma.sys.platform == "win32" else "ffmpeg"))
         os.makedirs(os.path.dirname(path))
         open(path, "wb").close()
         return path
+
+    def test_each_system_looks_for_its_own_program_name(self):
+        for platform, name in (("win32", "ffmpeg.exe"), ("linux", "ffmpeg")):
+            with tempfile.TemporaryDirectory() as folder, \
+                    mock.patch.object(ma.sys, "_MEIPASS", folder, create=True), \
+                    mock.patch.object(ma.sys, "platform", platform), \
+                    mock.patch.object(ma.shutil, "which", return_value=None):
+                path = self._package(folder, name)
+                self.assertEqual(ma._ffmpeg(), path)
 
     def test_the_package_uses_its_own_ffmpeg_first(self):
         with tempfile.TemporaryDirectory() as folder, \

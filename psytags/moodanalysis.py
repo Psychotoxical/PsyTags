@@ -224,9 +224,10 @@ def ensure_models(folder: str, fetch: Callable[[str], bytes] | None = None,
 
 
 def _find_ffmpeg() -> str | None:
-    """The ffmpeg inside the Windows package comes first, otherwise the installed one."""
+    """The ffmpeg inside the package comes first, otherwise the installed one."""
     package = getattr(sys, "_MEIPASS", "")
-    bundled = os.path.join(package, "ffmpeg", "ffmpeg.exe") if package else ""
+    name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+    bundled = os.path.join(package, "ffmpeg", name) if package else ""
     return bundled if bundled and os.path.isfile(bundled) else shutil.which("ffmpeg")
 
 

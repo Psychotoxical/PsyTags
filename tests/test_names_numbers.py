@@ -215,11 +215,37 @@ class DialogTests(unittest.TestCase):
         w = MainWindow()
         self.addCleanup(w.deleteLater)
         choices = [b.text() for b in w.topbar.findChildren(QPushButton) if b.objectName() == "StepChoice"]
-        self.assertEqual(choices, ["Auswahl", "Alle"])
+        self.assertEqual(choices, ["Auswahl", "Alle", "Auswahl", "Alle"])
         w.model.rows = [object()]
         w._update_actions()
         self.assertFalse(w.act_moods.isEnabled())
         self.assertTrue(w.act_moods_all.isEnabled())
+
+    def test_rename_step_offers_selection_and_all(self):
+        from psytags.ui.mainwindow import MainWindow
+        w = MainWindow()
+        self.addCleanup(w.deleteLater)
+        w.model.rows = [object()]
+        w._update_actions()
+        self.assertFalse(w.act_ttf.isEnabled())
+        self.assertTrue(w.act_ttf_all.isEnabled())
+
+    def test_renaming_all_takes_the_whole_list(self):
+        from psytags.ui.mainwindow import MainWindow
+        w = MainWindow()
+        self.addCleanup(w.deleteLater)
+        rows = [Fake(path="/music/A/1.mp3"), Fake(path="/music/B/2.mp3")]
+        w.model.rows = rows
+        dialog = mock.MagicMock()
+        dialog.return_value.exec.return_value = 1
+        dialog.return_value.tokens.return_value = namescheme.DEFAULT
+        dialog.return_value.cleanup.return_value = False
+        with mock.patch("psytags.ui.dialogs.rename.RenameDialog", dialog), \
+                mock.patch.object(namescheme, "target_path", lambda t, _tokens: t.path + ".neu"), \
+                mock.patch.object(w, "_rename") as rename:
+            w.rename_all_files()
+        self.assertEqual(dialog.call_args.args[0], rows)
+        self.assertEqual([pair[0] for pair in rename.call_args.args[0]], rows)
 
     def test_moods_step_needs_a_selection(self):
         from psytags.ui.mainwindow import MainWindow

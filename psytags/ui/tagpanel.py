@@ -275,6 +275,7 @@ class TagPanel(QWidget):
         self.custom_values: dict[str, list[str]] = {}
         self.tracks = []
         self.covers_dirty = False
+        self._opened_dir = ""
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         self.scroll = QScrollArea(self)
@@ -366,10 +367,24 @@ class TagPanel(QWidget):
     def set_directories(self, current: str, history: list[str]) -> None:
         if self.dir_combo is None:
             return
+        self._opened_dir = current
         self.dir_combo.blockSignals(True)
         self.dir_combo.clear()
         self.dir_combo.addItems(history)
-        self.dir_combo.setEditText(current)
+        self.dir_combo.blockSignals(False)
+        self._show_folder()
+
+    def _show_folder(self) -> None:
+        """The real folder of the selection; several albums show what they share."""
+        if self.dir_combo is None:
+            return
+        folders = sorted({t.folder for t in self.tracks})
+        try:
+            text = os.path.commonpath(folders) if folders else self._opened_dir
+        except ValueError:                               # different drives on Windows
+            text = self._opened_dir
+        self.dir_combo.blockSignals(True)
+        self.dir_combo.setEditText(text)
         self.dir_combo.lineEdit().setCursorPosition(0)
         self.dir_combo.blockSignals(False)
 
@@ -411,6 +426,7 @@ class TagPanel(QWidget):
             same = all(t.data.covers == first for t in self.tracks[1:])
             self.cover.show_covers(list(first) if same else [], not same)
         self.cover_info.setText(self.cover.info_text())
+        self._show_folder()
 
     def _cover_changed(self):
         self.covers_dirty = True

@@ -2,7 +2,7 @@
 
 PsyTags hört sich jeden Song selbst an und schreibt daraus Stimmungen in das Feld MOOD. Das passiert lokal auf Ihrem Rechner, es werden keine Audiodaten verschickt.
 
-Dafür braucht es zwei Modelle (20 MB, sie werden beim ersten Mal geladen oder im Einrichtungs-Assistenten) und das Programm **ffmpeg**. Unter Windows bringt PsyTags es mit, unter Linux installieren Sie es über die Paketverwaltung.
+Dafür braucht es zwei Modelle (20 MB, sie werden beim ersten Mal geladen oder im Einrichtungs-Assistenten) und das Programm **ffmpeg**. Das Windows-Paket und das AppImage bringen es mit. Läuft PsyTags unter Linux anders, installieren Sie es über die Paketverwaltung.
 
 ## So starten Sie es
 

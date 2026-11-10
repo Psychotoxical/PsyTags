@@ -5,7 +5,7 @@ Der übliche Weg besteht aus vier Handgriffen:
 1. **Ordner öffnen** (Strg+D) und die Alben laden. Mit **Ordner hinzufügen** (Strg+H) kommen weitere dazu.
 2. **Alle Alben automatisch** (Strg+Alt+B) drücken.
 3. In der [Übersicht](help:summary) nachsehen, was offen geblieben ist, und es dort erledigen.
-4. Alles markieren (Strg+A) und mit **Umbenennen** (Alt+1) Dateien und Ordner benennen.
+4. Mit **Alle** bei **Umbenennen** alle Dateien und Ordner benennen. **Auswahl** (Alt+1) nimmt nur die markierten Dateien.
 
 ## Was der automatische Lauf macht
 

@@ -96,6 +96,8 @@ EN_MORE: dict[str, str] = {
     "Verbindung klappt": "Connection works",
     "ffmpeg wurde nicht gefunden. Bitte über die Paketverwaltung installieren.": "ffmpeg was not found. Please install it with your package manager.",
     "Auto": "Auto",
+    "Alle Dateien umbenennen...": "Rename all files...",
+    "Benennt alle Dateien der Liste nach dem eingestellten Schema um.": "Renames all files in the list using the current scheme.",
     "Freie Software unter den Bedingungen der GPL": "Free software under the terms of the GPL",
     "Bibliotheken": "Libraries", "Diese Programme und Bibliotheken stecken in PsyTags.": "PsyTags is built on these programs and libraries.",
     "Oberfläche": "User interface", "Tags lesen und schreiben": "Reading and writing tags",

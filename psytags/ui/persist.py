@@ -1,16 +1,24 @@
 """Remember dialog geometry, splitter positions and list header states across restarts."""
 from __future__ import annotations
 
+import os
+
 from PySide6.QtCore import QByteArray
 from PySide6.QtWidgets import QDialog, QHeaderView, QSplitter, QTableView, QTreeView
 
 from .. import config
 
 
+def geometry_key(key: str) -> str:
+    """Tiling and floating desktops lay windows out differently, so each keeps its own."""
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
+    return f"{key}_{desktop}" if desktop else key
+
+
 def remember(dialog: QDialog, key: str) -> None:
     """Restore now and save whenever the dialog closes (OK, Cancel, Esc, X)."""
     s = config.settings()
-    g = s.value(f"dialogs/{key}/geometry")
+    g = s.value(geometry_key(f"dialogs/{key}/geometry"))
     if isinstance(g, (QByteArray, bytes)):
         dialog.restoreGeometry(g)
     for i, sp in enumerate(dialog.findChildren(QSplitter)):
@@ -34,7 +42,7 @@ def _headers(dialog) -> list[QHeaderView]:
 
 def _save(dialog: QDialog, key: str) -> None:
     s = config.settings()
-    s.setValue(f"dialogs/{key}/geometry", dialog.saveGeometry())
+    s.setValue(geometry_key(f"dialogs/{key}/geometry"), dialog.saveGeometry())
     for i, sp in enumerate(dialog.findChildren(QSplitter)):
         s.setValue(f"dialogs/{key}/splitter{i}", sp.saveState())
     for i, h in enumerate(_headers(dialog)):

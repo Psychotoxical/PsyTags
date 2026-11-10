@@ -1,5 +1,7 @@
 # Rename
 
+In step 6, **Selection** takes the selected files and **All** the whole list.
+
 **Rename** (Alt+1) names the selected files after a scheme you click together from chips. There is nothing to type and no format language.
 
 ## Building the scheme

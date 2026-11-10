@@ -1,7 +1,8 @@
 # PyInstaller spec: builds dist/PsyTags/PsyTags.exe (one folder, no console window).
 # Run from the repository root:  pyinstaller packaging/psytags.spec
 # On Windows the package brings its own ffmpeg: the one in PSYTAGS_FFMPEG, otherwise the one in
-# the PATH. Next to its bin folder the build expects the LICENSE of that ffmpeg.
+# the PATH. On Linux it does so only if PSYTAGS_FFMPEG is set, as for the AppImage.
+# Next to its bin folder the build expects the LICENSE of that ffmpeg.
 import os
 import shutil
 import sys
@@ -10,11 +11,11 @@ from PyInstaller.utils.hooks import collect_dynamic_libs
 
 
 def ffmpeg_files():
-    if sys.platform != "win32":
+    if sys.platform != "win32" and not os.environ.get("PSYTAGS_FFMPEG"):
         return []                       # Linux: from the package manager
     found = os.environ.get("PSYTAGS_FFMPEG") or shutil.which("ffmpeg")
     if not found:
-        raise SystemExit("ffmpeg.exe not found: set PSYTAGS_FFMPEG or put it in the PATH")
+        raise SystemExit("ffmpeg not found: set PSYTAGS_FFMPEG or put it in the PATH")
     exe = os.path.realpath(found)
     notice = os.path.join(os.path.dirname(os.path.dirname(exe)), "LICENSE")
     if not os.path.isfile(notice):
