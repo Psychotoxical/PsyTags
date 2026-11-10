@@ -97,7 +97,7 @@ def load(path: str) -> Provider:
         raise ProviderError(tr("{1}: name {2} ist schon vergeben", where, ARCHIVE))
     url = data["search_url"]
     if not re.match(r"https?://", url) or not ("{album}" in url or "{artist}" in url):
-        raise ProviderError(tr("{1}: search_url braucht http(s) und {{album}} oder {{artist}}", where))
+        raise ProviderError(tr("{1}: search_url braucht http(s) und {album} oder {artist}", where))
     if "embedded_json" in data:
         if _compile(where, "embedded_json", str(data["embedded_json"])).groups != 1:
             raise ProviderError(tr("{1}: embedded_json braucht genau eine Klammer-Gruppe", where))

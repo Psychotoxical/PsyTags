@@ -1113,8 +1113,14 @@ class MainWindow(QMainWindow):
         return ""
 
     def _add_source_entries(self, m: QMenu) -> None:
+        selected = bool(self.view.selected_tracks())
         a = m.addAction("MusicBrainz", lambda _=False: self.run_source())
-        a.setEnabled(bool(self.view.selected_tracks()))
+        a.setEnabled(selected)
+        second = self._tag_fallback()
+        if second is None:
+            m.addAction(tr("Discogs (kein Token eingetragen)")).setEnabled(False)
+        else:
+            m.addAction(second.name, lambda _=False: self.run_source(src=second)).setEnabled(selected)
 
     def _background(self, label: str, fn):
         """Run fn in a worker thread while keeping the UI responsive."""
@@ -1142,15 +1148,16 @@ class MainWindow(QMainWindow):
             raise box["e"]
         return box.get("v")
 
-    def run_source(self, quick: bool = False, note: str = ""):
-        """Search MusicBrainz by hand: search form, result list, adjust dialog."""
+    def run_source(self, quick: bool = False, note: str = "", src=None):
+        """Search a tag source by hand, MusicBrainz unless ``src`` says otherwise:
+        search form, result list, adjust dialog."""
         from ..websources import albumauto, coverart, musicbrainz
         from ..websources import http as wshttp
         from .dialogs.tagsources import AdjustDialog, ResultsDialog, SearchDialog
         tracks = self.view.selected_tracks()
         if not tracks:
             return
-        src = musicbrainz.Source()
+        src = src or musicbrainz.Source()
         name = src.name
         values = src.prefill(tracks)
         rows: list = []
@@ -1228,9 +1235,10 @@ class MainWindow(QMainWindow):
                 if not r:
                     return
                 plan = d.plan()
+                archive = coverart.ids_after_dialog(album, cover)
                 return self._finish_source_import(name, plan, cover if d.use_cover() else None, d.leftovers(),
                                                   complete=len(plan) == d.album.tracks,
-                                                  archive=coverart.ids_after_dialog(album, cover))
+                                                  archive=("", "") if archive is None else archive)   # no IDs: the other cover sources
 
     # ------------------------------------------------------------------ views
     def _fill_columns_menu(self):

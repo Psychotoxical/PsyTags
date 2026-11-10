@@ -15,6 +15,8 @@ from ...i18n import tr
 from .. import theme
 from ..controls import SWITCH_SIZE, NumberFormatEditor, Segmented, add_row, add_switch, paint_switch
 from ..persist import remember
+from ...websources import discogs, lastfm
+from .tagsources import run_async
 
 
 def _buttons(dlg) -> QDialogButtonBox:
@@ -181,6 +183,63 @@ class PanelDialog(_ListEditor):
     def new(self):
         self.items.append(PanelField(tr("Neues Feld"), "COMMENT"))
         self._fill(len(self.items) - 1)
+
+
+class KeyField(QWidget):
+    """A hidden key or token, with a mark that says whether its server takes it."""
+
+    def __init__(self, stored: str, verify):
+        super().__init__()
+        self.state = ""                 # "": nothing known, "ok", "bad"
+        self._verify = verify
+        self._asked = ""
+        self._jobs: list = []
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        self.input = QLineEdit(stored)
+        self.input.setEchoMode(QLineEdit.EchoMode.Password)
+        row.addWidget(self.input, 1)
+        self.mark = QLabel()
+        self.mark.setFixedWidth(18)
+        self.mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        row.addWidget(self.mark)
+        self.input.textChanged.connect(self._edited)
+        self.input.editingFinished.connect(self.check)
+
+    def check(self) -> None:
+        """Ask the server, once per input. The dialog stays usable meanwhile."""
+        key = self.input.text().strip()
+        if not key or key == self._asked:
+            return
+        self._asked = key
+        verify = self._verify
+
+        def work() -> tuple[str, bool]:
+            try:
+                verify(key)
+            except Exception:
+                return key, False
+            return key, True
+        self._jobs.append(run_async(work, self._answered))
+
+    def _edited(self) -> None:
+        self._asked = ""
+        self._show("")
+
+    def _answered(self, answer: tuple[str, bool]) -> None:
+        key, works = answer
+        if key == self.input.text().strip():    # else it was typed over meanwhile
+            self._show("ok" if works else "bad")
+
+    def _show(self, state: str) -> None:
+        self.state = state
+        text, color, tip = {"ok": ("✓", theme.ICON_POSITIVE, tr("Verbindung klappt")),
+                            "bad": ("✗", theme.ERROR, tr("Nicht angenommen, oder der Server ist gerade nicht erreichbar")),
+                            "": ("", "", "")}[state]
+        self.mark.setText(text)
+        self.mark.setToolTip(tip)
+        self.mark.setStyleSheet(f"color: {color}; font-size: 16px; font-weight: 700;" if color else "")
 
 
 class _SourceDelegate(QStyledItemDelegate):
@@ -396,6 +455,8 @@ class OptionsDialog(QDialog):
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
+        self.lastfm_field.check()
+        self.discogs_field.check()
         if self._wanted:
             key, self._wanted = self._wanted, ""
             QTimer.singleShot(0, lambda: self.show_section(key))    # the page has its final layout then
@@ -418,9 +479,9 @@ class OptionsDialog(QDialog):
         link.setOpenExternalLinks(True)
         link.setWordWrap(True)
         area.addWidget(link)
-        self.discogs_token = QLineEdit(config.settings().value("discogs/token", ""))
-        self.discogs_token.setEchoMode(QLineEdit.EchoMode.Password)
-        area.addWidget(self.discogs_token)
+        self.discogs_field = KeyField(config.settings().value("discogs/token", ""), lambda key: discogs.verify_token(key))
+        self.discogs_token = self.discogs_field.input
+        area.addWidget(self.discogs_field)
 
     def _numbers(self, area: QVBoxLayout) -> None:
         self.numbers = NumberFormatEditor()
@@ -482,9 +543,9 @@ class OptionsDialog(QDialog):
         link.setOpenExternalLinks(True)
         link.setWordWrap(True)
         area.addWidget(link)
-        self.lastfm_key = QLineEdit(stored)
-        self.lastfm_key.setEchoMode(QLineEdit.EchoMode.Password)
-        area.addWidget(self.lastfm_key)
+        self.lastfm_field = KeyField(stored, lambda key: lastfm.verify_key(key))
+        self.lastfm_key = self.lastfm_field.input
+        area.addWidget(self.lastfm_field)
 
     def _files(self, area: QVBoxLayout) -> None:
         o = self.opts

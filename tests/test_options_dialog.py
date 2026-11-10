@@ -1,11 +1,12 @@
 import os
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtCore import QEvent, QPointF, Qt, QThreadPool
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QStyleOptionViewItem, QTabWidget
@@ -14,6 +15,7 @@ from psytags import config
 from psytags.config import Options
 from psytags.ui.controls import Segmented, Switch
 from psytags.ui.dialogs.options import OptionsDialog
+from psytags.websources import discogs, http, lastfm
 
 
 class Base(unittest.TestCase):
@@ -44,6 +46,100 @@ class DiscogsTokenTests(Base):
         self.addCleanup(d.deleteLater)
         self.assertEqual(d.discogs_token.text(), "abc")
         self.assertEqual(d.discogs_token.echoMode(), d.discogs_token.EchoMode.Password)
+
+
+class KeyMarkTests(Base):
+    def _dialog(self):
+        d = OptionsDialog(Options())
+        self.addCleanup(d.deleteLater)
+        return d
+
+    def _settle(self):
+        QThreadPool.globalInstance().waitForDone()
+        self.app.processEvents()
+
+    def _shown_with_token(self, verify):
+        config.settings().setValue("discogs/token", "abc")
+        with mock.patch.object(discogs, "verify_token", verify):
+            d = self._dialog()
+            d.show()
+            self._settle()
+        return d
+
+    def test_only_building_the_dialog_asks_no_server(self):
+        config.settings().setValue("discogs/token", "abc")
+        with mock.patch.object(discogs, "verify_token") as verify:
+            self._dialog()
+            self._settle()
+        verify.assert_not_called()
+
+    def test_a_working_token_gets_the_green_mark(self):
+        verify = mock.MagicMock()
+        d = self._shown_with_token(verify)
+        verify.assert_called_once_with("abc")
+        self.assertEqual(d.discogs_field.state, "ok")
+        self.assertEqual(d.discogs_field.mark.text(), "✓")
+
+    def test_a_refused_token_gets_no_green_mark(self):
+        d = self._shown_with_token(mock.MagicMock(side_effect=http.FetchError("nein")))
+        self.assertEqual(d.discogs_field.state, "bad")
+        self.assertNotEqual(d.discogs_field.mark.text(), "✓")
+
+    def test_an_empty_field_asks_no_server(self):
+        with mock.patch.object(discogs, "verify_token") as verify:
+            d = self._dialog()
+            d.show()
+            self._settle()
+        verify.assert_not_called()
+        self.assertEqual(d.discogs_field.state, "")
+
+    def test_typing_takes_the_old_mark_away(self):
+        d = self._shown_with_token(mock.MagicMock())
+        d.discogs_token.setText("abcd")
+        self.assertEqual(d.discogs_field.state, "")
+
+    def test_finishing_the_input_checks_the_new_token(self):
+        d = self._dialog()
+        with mock.patch.object(discogs, "verify_token") as verify:
+            d.discogs_token.setText("neu")
+            d.discogs_token.editingFinished.emit()
+            self._settle()
+        verify.assert_called_once_with("neu")
+        self.assertEqual(d.discogs_field.state, "ok")
+
+    def test_the_same_token_is_not_asked_twice(self):
+        verify = mock.MagicMock()
+        d = self._shown_with_token(verify)
+        with mock.patch.object(discogs, "verify_token", verify):
+            d.discogs_token.editingFinished.emit()
+            self._settle()
+        verify.assert_called_once()
+
+    def test_an_answer_for_an_older_input_is_ignored(self):
+        d = self._dialog()
+        d.discogs_token.setText("neu")
+        d.discogs_field._answered(("alt", True))
+        self.assertEqual(d.discogs_field.state, "")
+
+    def test_closing_before_the_answer_is_harmless(self):
+        import shiboken6
+        d = OptionsDialog(Options())
+        release = threading.Event()
+        with mock.patch.object(discogs, "verify_token", lambda key: release.wait(5)):
+            d.discogs_token.setText("abc")
+            d.discogs_field.check()
+            shiboken6.delete(d)
+            release.set()
+            self._settle()
+
+    def test_lastfm_has_the_mark_too(self):
+        config.settings().setValue("lastfm/api_key", "abc")
+        with mock.patch.object(lastfm, "verify_key") as verify:
+            d = self._dialog()
+            d.show()
+            self._settle()
+        verify.assert_called_once_with("abc")
+        self.assertEqual(d.lastfm_field.state, "ok")
 
 
 class SwitchTests(Base):

@@ -67,6 +67,7 @@ class SearchTests(unittest.TestCase):
         self.assertEqual(rows[0]["Artist"], "Ann")
         self.assertEqual(rows[0]["Album"], "Big Album")
         self.assertEqual(rows[0]["_url"], "9")
+        self.assertEqual(rows[0]["_preview"], "https://www.discogs.com/release/9")
         self.assertTrue(albumauto.is_digital(rows[0]))
 
     def test_a_row_carries_no_picture(self):
@@ -274,6 +275,65 @@ class FallbackTests(unittest.TestCase):
     def test_rows_with_the_right_count_come_first(self):
         rows = [NS(row={"_url": "none", "Tracks": "", "Format": "CD"}), NS(row={"_url": "four", "Tracks": "4", "Format": "CD"})]
         self.assertEqual(albumauto.candidate_rows(rows, 4)[0]["_url"], "four")
+
+
+class ManualTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from PySide6.QtWidgets import QApplication
+        cls.app = QApplication.instance() or QApplication([])
+
+    def _entries(self, second):
+        from PySide6.QtWidgets import QMenu
+        from psytags.ui import mainwindow as mw
+        menu = QMenu()
+        self.addCleanup(menu.deleteLater)
+        win = mock.MagicMock()
+        win._tag_fallback.return_value = second
+        win.view.selected_tracks.return_value = [NS()]
+        mw.MainWindow._add_source_entries(win, menu)
+        return win, {a.text(): a for a in menu.actions()}
+
+    def test_with_a_token_the_menu_offers_discogs(self):
+        second = NS(name="Discogs")
+        win, actions = self._entries(second)
+        self.assertTrue(actions["Discogs"].isEnabled())
+        actions["Discogs"].trigger()
+        win.run_source.assert_called_once_with(src=second)
+
+    def test_without_a_token_the_entry_says_why_it_is_off(self):
+        _win, actions = self._entries(None)
+        entry = next(a for text, a in actions.items() if text.startswith("Discogs"))
+        self.assertFalse(entry.isEnabled())
+        self.assertIn("Token", entry.text())
+
+    def _run(self, source, album):
+        from psytags.ui import mainwindow as mw
+        from psytags.ui.dialogs import tagsources as ts
+        win = mock.MagicMock()
+        win.view.selected_tracks.return_value = [_track("a.mp3", "One")]
+        win._background.side_effect = lambda label, call: call()
+        with mock.patch.object(ts, "SearchDialog") as search, mock.patch.object(ts, "ResultsDialog") as results, \
+                mock.patch.object(ts, "AdjustDialog") as adjust:
+            search.return_value.values.return_value = ["x", "y"]
+            results.return_value.exec.return_value = 1
+            results.return_value.selected.return_value = {"_url": "1"}
+            adjust.return_value.exec.return_value = 1
+            adjust.return_value.plan.return_value = []
+            adjust.return_value.use_cover.return_value = False
+            adjust.return_value.album = album
+            mw.MainWindow.run_source(win, src=source)
+        return win, search
+
+    def test_a_hand_search_uses_the_chosen_source(self):
+        source = _source(_album(["One"]))
+        win, search = self._run(source, _album(["One"]))
+        self.assertIs(search.call_args[0][0], source)
+        self.assertEqual(win._finish_source_import.call_args[0][0], "Discogs")
+
+    def test_after_a_hand_search_the_cover_sources_still_run(self):
+        win, _search = self._run(_source(_album(["One"])), _album(["One"]))
+        self.assertEqual(win._finish_source_import.call_args[1]["archive"], ("", ""))
 
 
 class WiringTests(unittest.TestCase):

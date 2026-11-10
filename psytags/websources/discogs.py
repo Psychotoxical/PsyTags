@@ -96,6 +96,7 @@ def _row(result: dict) -> dict[str, str]:
     formats = result.get("format") or []
     labels = result.get("label") or []
     return {
+        "_preview": f"https://www.discogs.com/release/{_text(result.get('id'))}",
         "_url": _text(result.get("id")),
         "Artist": _clean_name(artist),
         "Album": album.strip(),
