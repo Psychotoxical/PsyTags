@@ -71,6 +71,7 @@ QPushButton#HeaderButton, QToolButton#MenuButton {
     background: $BUTTON; color: $TEXT; border: 1px solid $FIELD_BORDER; border-radius: 6px;
     min-height: 32px; min-width: 0; padding: 0 14px;
 }
+QToolButton#MenuButton { max-height: 32px; }
 QToolButton#MenuButton::menu-indicator { image: none; width: 0; }
 QPushButton#HeaderButton:hover, QToolButton#MenuButton:hover { background: $HOVER; }
 QPushButton#HeaderButton:disabled { color: $DISABLED; }

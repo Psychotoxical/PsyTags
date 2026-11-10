@@ -57,6 +57,18 @@ class FoldingTests(unittest.TestCase):
         self.assertFalse(self.bar.step_widgets[1].title_label.isHidden())
         self.assertEqual(self.bar.step_widgets[0].title_label.text(), self.bar.step_widgets[0].title)
 
+    def test_the_header_controls_are_equally_high(self):
+        from PySide6.QtWidgets import QLineEdit, QPushButton, QToolButton
+        from psytags.ui import theme
+        self.window.setStyleSheet(theme.style_sheet())
+        self.window.show()
+        self.addCleanup(self.window.hide)
+        QApplication.processEvents()
+        bar = self.bar.header_bar
+        heights = {w.height() for w in bar.findChildren(QPushButton) + bar.findChildren(QLineEdit)
+                   + [b for b in bar.findChildren(QToolButton) if b.objectName() == "MenuButton"]}
+        self.assertEqual(len(heights), 1, heights)
+
     def test_the_bars_do_not_hold_the_window_wide(self):
         self.assertEqual(self.bar.minimumSizeHint().width(), 0)
 

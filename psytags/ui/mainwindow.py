@@ -1764,10 +1764,8 @@ class MainWindow(QMainWindow):
             self.panel.blank_comments = self.opts.drop_comments
 
     def about(self):
-        from .. import __version__
-        QMessageBox.about(self, tr("Über PsyTags..."),
-                          f"<b>PsyTags {__version__}</b><br>"
-                          + tr("Schlanker Tag-Editor mit Automatik und Mood-Analyse aus dem Audio."))
+        from .dialogs.about import AboutDialog
+        AboutDialog(self).exec()
 
 
 def QStandardPathsMusic() -> str:
