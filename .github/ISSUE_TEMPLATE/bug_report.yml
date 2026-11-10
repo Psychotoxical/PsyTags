@@ -1,0 +1,63 @@
+name: Bug report
+description: Something does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please test on copies of your files first; PsyTags writes directly into them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        1. Opened a folder with 12 FLAC files
+        2. Ran "MusicBrainz automatically" (Ctrl+Shift+B)
+        3. Expected the album to be tagged, but ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PsyTags version
+      description: Shown in ≡ → About PsyTags.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux (AppImage)
+        - Linux (from source)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: desktop
+    attributes:
+      label: Linux desktop
+      description: Only on Linux, e.g. KDE Plasma, GNOME, Hyprland.
+  - type: input
+    id: formats
+    attributes:
+      label: File formats involved
+      placeholder: "FLAC, MP3"
+  - type: textarea
+    id: log
+    attributes:
+      label: Error message or screenshot
+      description: Paste error messages as text if possible. Screenshots can be dragged in.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: The report contains no API keys or tokens.
+          required: true

@@ -1,0 +1,51 @@
+name: Album not found or wrongly matched
+description: The automatic tagging left an album open, or picked the wrong release.
+labels: ["matching"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PsyTags leaves an album open rather than tagging it wrongly, so an open album is often expected. A report helps most when the album exists on MusicBrainz (or Discogs) with the same tracks.
+  - type: input
+    id: album
+    attributes:
+      label: Artist and album
+      placeholder: "Black Tiger – Black Tiger (1983)"
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: What happened?
+      options:
+        - Album stayed open, although it exists
+        - Wrong release was picked
+        - Wrong track order or numbers
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: The right release
+      description: Link to the release on MusicBrainz or Discogs, if you know it.
+      placeholder: "https://musicbrainz.org/release/..."
+  - type: textarea
+    id: files
+    attributes:
+      label: Your files
+      description: Number of files and their titles, ideally with lengths. A screenshot of the file list is fine.
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: What the summary said
+      description: The reason shown in the summary after the automatic run, if any.
+  - type: input
+    id: version
+    attributes:
+      label: PsyTags version
+      placeholder: "0.1.0"
+    validations:
+      required: true

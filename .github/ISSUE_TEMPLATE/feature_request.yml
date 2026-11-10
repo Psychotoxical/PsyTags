@@ -1,0 +1,32 @@
+name: Feature request
+description: An idea for something PsyTags should do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PsyTags aims to stay lean: few clicks, clear defaults, no option for everything. Ideas that make tagging large collections faster or safer fit best.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to get done?
+      description: Describe the task or problem, not only the solution.
+      placeholder: "When I tag compilations, I have to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could PsyTags help?
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you do it today?
+      description: Workarounds, other tools, or steps by hand.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I searched the existing issues.
+          required: true
