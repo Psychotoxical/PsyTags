@@ -113,6 +113,18 @@ class WindowTests(Base):
         w._message_timer.timeout.emit()
         self.assertEqual(w.status_box.now.text(), "Bereit")
 
+    def test_the_description_of_a_button_goes_by_itself(self):
+        from PySide6.QtCore import QCoreApplication
+        from PySide6.QtGui import QStatusTipEvent
+        w = self._window()
+        QCoreApplication.sendEvent(w, QStatusTipEvent("Schreibt Track- und Discnummern."))
+        self.assertEqual(w.statusBar().currentMessage(), "Schreibt Track- und Discnummern.")
+        with mock.patch.object(w.statusBar(), "showMessage") as show:
+            QCoreApplication.sendEvent(w, QStatusTipEvent("Neu"))
+        show.assert_called_once_with("Neu", w.STATUS_TIP_MS)          # with a timeout, not for good
+        QCoreApplication.sendEvent(w, QStatusTipEvent(""))
+        self.assertEqual(w.statusBar().currentMessage(), "")
+
     def test_switched_off_the_status_bar_shows_them_as_before(self):
         config.settings().setValue(statusbox.SETTING, False)
         w = self._window()
