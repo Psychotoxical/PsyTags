@@ -60,7 +60,7 @@ class _ListEditor(QDialog):
         self._loading = True
         self.list.clear()
         for it in self.items:
-            li = QListWidgetItem(it.name.replace("&", ""))
+            li = QListWidgetItem(tr(it.name).replace("&", ""))
             li.setFlags(li.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             li.setCheckState(Qt.CheckState.Checked if it.enabled else Qt.CheckState.Unchecked)
             self.list.addItem(li)
@@ -116,7 +116,7 @@ class ColumnsDialog(_ListEditor):
             return
         c = self.items[r]
         self._loading = True
-        self.name.setText(c.name)
+        self.name.setText(tr(c.name))
         self.value.setText(c.value)
         self.field.setText(c.field)
         self.sort.setText(c.sort)
@@ -128,10 +128,11 @@ class ColumnsDialog(_ListEditor):
         if self._loading or r < 0:
             return
         c = self.items[r]
-        c.name, c.value, c.field, c.sort = (self.name.text(), self.value.text(),
-                                            self.field.text(), self.sort.text())
+        if self.name.text() != tr(c.name):      # a default name stays German, so it follows the language
+            c.name = self.name.text()
+        c.value, c.field, c.sort = self.value.text(), self.field.text(), self.sort.text()
         c.numeric = self.numeric.isChecked()
-        self.list.item(r).setText(c.name.replace("&", ""))
+        self.list.item(r).setText(tr(c.name).replace("&", ""))
 
     def new(self):
         self.items.append(Column(tr("Neue Spalte"), "%title%", field="%title%"))
@@ -165,7 +166,7 @@ class PanelDialog(_ListEditor):
             return
         f = self.items[r]
         self._loading = True
-        self.name.setText(f.name)
+        self.name.setText(tr(f.name))
         self.value.setEditText(f.value)
         fracs = [1, 1 / 2, 1 / 3, 1 / 4]
         self.size.setCurrentIndex(min(range(4), key=lambda i: abs(fracs[i] - f.fraction)))
@@ -176,9 +177,11 @@ class PanelDialog(_ListEditor):
         if self._loading or r < 0:
             return
         f = self.items[r]
-        f.name, f.value = self.name.text(), self.value.currentText().upper()
+        if self.name.text() != tr(f.name):
+            f.name = self.name.text()
+        f.value = self.value.currentText().upper()
         f.size = (self.size.currentIndex() + 1) if f.version == 0 else 12 // (self.size.currentIndex() + 1)
-        self.list.item(r).setText(f.name.replace("&", ""))
+        self.list.item(r).setText(tr(f.name).replace("&", ""))
 
     def new(self):
         self.items.append(PanelField(tr("Neues Feld"), "COMMENT"))

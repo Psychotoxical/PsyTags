@@ -148,6 +148,7 @@ DEFAULT_PANEL = [
     PanelField("&Verzeichnis", "_DIRECTORY"),
     PanelField("Label/Verlag", "PUBLISHER"),
     PanelField("MusicBrainz Album-ID", "MUSICBRAINZ_ALBUMID"),
+    PanelField("Albumtyp", "MUSICBRAINZ_ALBUMTYPE"),
 ]
 
 

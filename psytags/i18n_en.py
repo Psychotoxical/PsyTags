@@ -277,7 +277,7 @@ EN_MORE: dict[str, str] = {
     "Kommentar": "Comment", "Geändert": "Modified", "Komponist": "Composer",
     "&Titel": "Tit&le", "&Interpret": "Art&ist", "Al&bum": "&Album", "&Jahr": "&Year", "T&rack": "T&rack",
     "&Genre": "&Genre", "Ko&mmentar": "Co&mment", "&Verzeichnis": "&Directory",
-    "Label/Verlag": "Label/Publisher", "MusicBrainz Album-ID": "MusicBrainz Album ID",
+    "Label/Verlag": "Label/Publisher", "MusicBrainz Album-ID": "MusicBrainz Album ID", "Albumtyp": "Album type",
     'Ordner öffnen': 'Open folder',
     'Ordner hinzufügen': 'Add folder',
     'Speichern': 'Save',

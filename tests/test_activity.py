@@ -7,6 +7,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QLabel
 
 from psytags import config
@@ -142,6 +143,12 @@ class WindowTests(unittest.TestCase):
             d.show_activity()
         QApplication.processEvents()
         self.assertEqual(d.width(), width)
+
+    def test_only_the_close_button_is_offered(self):
+        flags = self._dialog().windowFlags()
+        self.assertTrue(flags & Qt.WindowType.WindowCloseButtonHint)
+        self.assertFalse(flags & Qt.WindowType.WindowMinimizeButtonHint)
+        self.assertFalse(flags & Qt.WindowType.WindowMaximizeButtonHint)
 
     def test_the_timer_stops_with_the_window(self):
         from psytags.ui.mainwindow import _StayingProgress

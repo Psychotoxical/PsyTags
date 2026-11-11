@@ -89,6 +89,9 @@ class _StayingProgress(QDialog):
     def __init__(self, text: str, maximum: int, parent):
         super().__init__(parent)
         self.stop = threading.Event()
+        # Only the close button: minimizing or maximizing a progress window makes no sense.
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.CustomizeWindowHint
+                            | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowCloseButtonHint)
         self.setFixedWidth(560)
         column = QVBoxLayout(self)
         column.setContentsMargins(22, 20, 22, 18)

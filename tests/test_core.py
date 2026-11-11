@@ -318,3 +318,10 @@ class RealFileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DefaultPanelTests(unittest.TestCase):
+    def test_the_album_type_is_a_default_field_after_the_album_id(self):
+        from psytags import config
+        values = [f.value for f in config.DEFAULT_PANEL]
+        self.assertEqual(values.index("MUSICBRAINZ_ALBUMTYPE"), values.index("MUSICBRAINZ_ALBUMID") + 1)
