@@ -5,7 +5,7 @@
 
 The summary opens by itself at the end of a run. The **Summary** button at the top brings it back at any time while the program is running. It always shows the last run.
 
-Open albums are listed first.
+Everything that still needs work comes first: open albums, then albums from Discogs, then albums with a missing cover or missing genres. Finished albums follow below.
 
 ## What the columns mean
 

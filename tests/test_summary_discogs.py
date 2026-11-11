@@ -27,6 +27,19 @@ class ActionTests(unittest.TestCase):
         self.assertEqual(ts.summary_action(_entry("Discogs"), 4), "musicbrainz")
         self.assertEqual(ts.summary_action(_entry("MusicBrainz"), 4), "")
 
+    def test_everything_with_work_left_comes_first(self):
+        done = _entry("MusicBrainz")
+        no_cover = _entry("MusicBrainz")
+        no_cover.cover = "Kein Cover gefunden"
+        no_genres = _entry("MusicBrainz")
+        no_genres.genres = "Last.fm: keine Genres"
+        rows = [done, no_cover, _entry("Discogs"), no_genres, _entry("MusicBrainz", ok=False)]
+        order = sorted(rows, key=ts.summary_rank)
+        self.assertFalse(order[0].ok)
+        self.assertEqual(order[1].source, "Discogs")
+        self.assertEqual(set(map(id, order[2:4])), {id(no_cover), id(no_genres)})
+        self.assertIs(order[4], done)
+
 
 class DialogTests(unittest.TestCase):
     @classmethod
