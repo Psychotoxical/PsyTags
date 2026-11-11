@@ -6,7 +6,7 @@ import os
 from PySide6.QtCore import QSize, Qt, QUrl
 from PySide6.QtGui import (QBrush, QColor, QDesktopServices, QFont, QTextBlockFormat, QTextCharFormat, QTextCursor,
                            QTextDocument, QTextFrameFormat, QTextLength, QTextTable)
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QTextBrowser,
+from PySide6.QtWidgets import (QDialog, QHBoxLayout, QListWidget, QListWidgetItem, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
 from .. import i18n

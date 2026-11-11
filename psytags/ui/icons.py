@@ -10,7 +10,7 @@ import os
 from functools import lru_cache
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
-from PySide6.QtGui import (QBrush, QColor, QGuiApplication, QIcon, QImage, QPainter, QPainterPath, QPen,
+from PySide6.QtGui import (QColor, QGuiApplication, QIcon, QImage, QPainter, QPainterPath, QPen,
                            QPixmap, QPolygonF)
 
 from . import theme
