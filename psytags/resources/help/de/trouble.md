@@ -26,14 +26,14 @@ Warum einzelne Alben offen bleiben, steht unter [Die Übersicht](help:summary).
 |---|---|
 | ffmpeg wird nicht gefunden | Im Windows-Paket und im AppImage ist es dabei, laden Sie PsyTags dann neu herunter. Läuft PsyTags unter Linux anders, installieren Sie es über die Paketverwaltung und starten PsyTags neu. |
 | Die Modelle laden nicht | Internetverbindung prüfen und den **Einrichtungs-Assistenten** im Menü ≡ erneut öffnen. |
-| Die Moods wirken falsch | Unter **Optionen → Moods** eine andere Menge wählen und neu analysieren. |
+| Die Moods wirken falsch | Unter **Optionen → Automatik → Moods** eine andere Menge wählen und neu analysieren. |
 
 ## Dienste
 
 | Problem | Was hilft |
 |---|---|
 | Rotes Kreuz hinter einem Schlüssel | Schlüssel prüfen, auch auf Leerzeichen. Tritt es plötzlich auf, ist vielleicht nur der Dienst nicht erreichbar. |
-| „Discogs lehnt den Token ab“ | Unter discogs.com/settings/developers einen neuen Token erzeugen und unter **Optionen → Discogs** eintragen. |
+| „Discogs lehnt den Token ab“ | Unter discogs.com/settings/developers einen neuen Token erzeugen und unter **Optionen → Konten und Quellen → Discogs** eintragen. |
 | Discogs steht ausgegraut im Menü | Es ist noch kein Token eingetragen. |
 | MusicBrainz ist ausgelastet | PsyTags versucht es selbst noch einmal. Bleibt es dabei, später erneut starten. |
 | Kein Cover | Das Cover Art Archive braucht eine MusicBrainz-ID. Fügen Sie weitere Quellen mit [Cover-Plugins](help:plugins) hinzu. |

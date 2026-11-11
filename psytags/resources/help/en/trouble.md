@@ -26,14 +26,14 @@ Why single albums stay open is explained under [The summary](help:summary).
 |---|---|
 | ffmpeg is not found | The Windows package and the AppImage bring it along, so download PsyTags again. If you run PsyTags on Linux any other way, install it with your package manager and restart PsyTags. |
 | The models do not load | Check your internet connection and open the **setup assistant** in the ≡ menu again. |
-| The moods seem wrong | Choose another amount under **Options → Moods** and analyze again. |
+| The moods seem wrong | Choose another amount under **Options → Automatic → Moods** and analyze again. |
 
 ## Services
 
 | Problem | What helps |
 |---|---|
 | Red cross behind a key | Check the key, also for spaces. If it appears suddenly, the service may just be unreachable. |
-| "Discogs refuses the token" | Create a new token at discogs.com/settings/developers and enter it under **Options → Discogs**. |
+| "Discogs refuses the token" | Create a new token at discogs.com/settings/developers and enter it under **Options → Accounts and sources → Discogs**. |
 | Discogs is grayed out in the menu | No token has been entered yet. |
 | MusicBrainz is busy | PsyTags tries again by itself. If it stays that way, start again later. |
 | No cover | The Cover Art Archive needs a MusicBrainz ID. Add more sources with [cover plugins](help:plugins). |

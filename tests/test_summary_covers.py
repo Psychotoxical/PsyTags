@@ -89,7 +89,7 @@ class WiringTests(unittest.TestCase):
         with mock.patch.object(albumauto, "find_album", return_value=NS(match=match, reason="")), \
                 mock.patch.object(albumauto, "album_title", return_value="A"), \
                 mock.patch.object(albumauto, "release_label", return_value="A (2001)"):
-            entry = mw.MainWindow._auto_one(win, "src", [t])
+            entry = mw.MainWindow._auto_one(win, NS(name="MusicBrainz"), [t])
         self.assertEqual(entry.cover_seen, mw._front_covers([t]))
 
     def _summary(self, win, dialogs):
@@ -107,11 +107,8 @@ class WiringTests(unittest.TestCase):
     def test_a_manually_tagged_album_is_recorded_too(self):
         t = track()
         e = albumauto.BatchEntry("A", [t], False, "offen", [], None, None)
-        chosen = mock.MagicMock(chosen=e, action="manual")
-        chosen.exec.return_value = 1
-        win = mock.MagicMock(_last_batch=[e])
-        win.run_source.return_value = ("kein Treffer", "")
-        self._summary(win, [chosen])
+        win = mock.MagicMock(_last_batch=[e], _auto_done={})
+        mw.MainWindow._note_in_summary(win, "MusicBrainz", [t], ("kein Treffer", ""))
         self.assertEqual(e.cover_seen, mw._front_covers([t]))
 
 

@@ -95,6 +95,69 @@ class AlbumBandTests(unittest.TestCase):
         status = dict(album_bands([a1, a2])[0].status)
         self.assertEqual(status, {"Album": True, "Cover": True, "Genres": False, "Moods": True})
 
+    def test_an_album_from_discogs_is_marked_as_such(self):
+        from psytags.ui.filelist import DISCOGS
+        a1, a2 = _track("A", 1, 1), _track("A", 1, 2)
+        for t in (a1, a2):
+            t.set("DISCOGS_RELEASE_ID", "77")
+        self.assertEqual(album_bands([a1, a2])[0].status[0], ("Discogs", DISCOGS))
+        a1.set("MUSICBRAINZ_ALBUMID", "x")             # MusicBrainz clears the Discogs ID of its files
+        a1.set("DISCOGS_RELEASE_ID", [])
+        self.assertEqual(album_bands([a1, a2])[0].status[0], ("Album", False))
+        a2.set("MUSICBRAINZ_ALBUMID", "x")
+        self.assertEqual(album_bands([a1, a2])[0].status[0], ("Album", True))
+
+
+class BandClickTests(unittest.TestCase):
+    """A click on an album heading selects the album; with Ctrl it adds the album or takes it out."""
+
+    def setUp(self):
+        import os
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication
+        from psytags.ui.filelist import FileListView
+        self.app = QApplication.instance() or QApplication([])
+        self.a = [_track("A", 1, 1), _track("A", 1, 2)]
+        self.b = [_track("B", 1, 1), _track("B", 1, 2)]
+        m = FileListModel([config.Column(**c.__dict__) for c in config.DEFAULT_COLUMNS])
+        m.set_tracks(self.a + self.b)
+        self.view = FileListView(m)
+        self.addCleanup(self.view.deleteLater)
+        self.view.resize(600, 400)
+        self.view._refresh_bands()
+
+    def _click_band(self, tracks, ctrl=False):
+        from PySide6.QtCore import QPoint, Qt
+        from PySide6.QtTest import QTest
+        row = self.view.model().rows.index(tracks[0])
+        y = self.view.rowViewportPosition(row) + 4
+        mods = Qt.KeyboardModifier.ControlModifier if ctrl else Qt.KeyboardModifier.NoModifier
+        QTest.mouseClick(self.view.viewport(), Qt.MouseButton.LeftButton, mods, QPoint(40, y))
+
+    def _selected(self):
+        return self.view.selected_tracks()
+
+    def test_a_click_selects_only_that_album(self):
+        self._click_band(self.a)
+        self._click_band(self.b)
+        self.assertEqual(self._selected(), self.b)
+
+    def test_ctrl_adds_a_second_album(self):
+        self._click_band(self.a)
+        self._click_band(self.b, ctrl=True)
+        self.assertEqual(self._selected(), self.a + self.b)
+
+    def test_ctrl_adds_an_album_to_single_songs(self):
+        self.view.select_tracks([self.a[1]])
+        self._click_band(self.b, ctrl=True)
+        self.assertEqual(self._selected(), [self.a[1]] + self.b)
+
+    def test_ctrl_on_a_selected_album_takes_it_out(self):
+        self._click_band(self.a)
+        self._click_band(self.b, ctrl=True)
+        self._click_band(self.a, ctrl=True)
+        self.assertEqual(self._selected(), self.b)
+
 
 class ThemeTests(unittest.TestCase):
     def tearDown(self):

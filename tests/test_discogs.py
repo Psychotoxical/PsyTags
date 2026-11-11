@@ -85,6 +85,9 @@ class AlbumTests(unittest.TestCase):
         self.assertEqual(a.value("CATALOGNUMBER", 0), "CAT1")
         self.assertEqual(a.value("BARCODE", 0), "123")
 
+    def test_the_release_id_marks_the_album_as_from_discogs(self):
+        self.assertEqual(album_from(RELEASE).value("DISCOGS_RELEASE_ID", 0), str(RELEASE["id"]))
+
     def test_an_unknown_day_or_month_is_left_out(self):
         self.assertEqual(album_from({**RELEASE, "released": "2018-10-00"}).value("YEAR", 0), "2018-10")
         self.assertEqual(album_from({**RELEASE, "released": "2018-00-00"}).value("YEAR", 0), "2018")
@@ -302,8 +305,8 @@ class ManualTests(unittest.TestCase):
     def test_with_a_token_the_menu_offers_discogs(self):
         second = NS(name="Discogs")
         win, actions = self._entries(second)
-        self.assertTrue(actions["Discogs"].isEnabled())
-        actions["Discogs"].trigger()
+        self.assertTrue(actions["Discogs …"].isEnabled())
+        actions["Discogs …"].trigger()
         win.run_source.assert_called_once_with(src=second)
 
     def test_without_a_token_the_entry_says_why_it_is_off(self):

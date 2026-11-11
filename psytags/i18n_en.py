@@ -214,10 +214,7 @@ EN_MORE: dict[str, str] = {
     "Tag": "Tag", "Größe": "Size", "Moods": "Moods",
     "Cover laden": "Loading cover",
     # covers from tag sources, Last.fm
-    "Cover von {1} laden": "Load cover from {1}", "Cover-Mindestgröße ({1} px)...": "Minimum cover size ({1} px)...",
-    "Cover-Mindestgröße": "Minimum cover size",
-    "Cover aus Tag-Quellen nur übernehmen ab (Pixel, 0 = immer):":
-        "Only take covers from tag sources from (pixels, 0 = always):",
+    "Cover von {1} laden": "Load cover from {1}",
     "Cover von {1} zu klein ({2}x{3}, mindestens {4}) – nicht übernommen":
         "Cover from {1} too small ({2}x{3}, at least {4}) – not used",
     "Das Cover von {1} ist nur {2}x{3} groß (Mindestgröße {4}). Trotzdem übernehmen?":
@@ -350,4 +347,40 @@ EN_MORE: dict[str, str] = {
     'Last.fm: Genres': 'Last.fm: genres',
     'MusicBrainz ist ausgelastet, neuer Versuch gleich': 'MusicBrainz is busy, trying again shortly',
     'Ausgabe {1} von {2}': 'Edition {1} of {2}',
+    'Automatik': 'Automatic',
+    'Schritte des automatischen Laufs': 'Steps of the automatic run',
+    'Konten und Quellen': 'Accounts and sources',
+    'Schlüssel, Token, Cover-Plugins': 'Keys, tokens, cover plugins',
+    'Diese Schritte laufen bei „Alle Alben automatisch“ in dieser Reihenfolge, Nummern und Cover auch nach einer '
+    'manuellen Suche. Was Sie nicht brauchen, schalten Sie aus.':
+        'These steps run for “All albums automatically” in this order, numbers and cover also after a manual '
+        'search. Switch off what you do not need.',
+    'MusicBrainz': 'MusicBrainz',
+    'Discogs': 'Discogs',
+    'Digitale Ausgaben bevorzugen': 'Prefer digital releases',
+    'Passen mehrere Ausgaben gleich gut, nimmt PsyTags die digitale. Ausgeschaltet zählt nur, wie gut Titel und '
+    'Längen passen. Bleibt ein Album offen, springt Discogs ein, wenn unter „Konten und Quellen“ ein Token steht.':
+        'If several releases fit equally well, PsyTags takes the digital one. Switched off, only titles and lengths '
+        'count. If an album stays open, Discogs steps in when a token is set under “Accounts and sources”.',
+    'Schreibt Track- und Discnummern, sobald jede Datei ihren Track gefunden hat.':
+        'Writes track and disc numbers once every file has found its track.',
+    'Vorhandene Cover ersetzen': 'Replace existing covers',
+    'Ausgeschaltet behalten Alben, die schon ein Cover haben, ihr Cover. Holen Sie ein Cover von Hand, wird es '
+    'immer ersetzt.':
+        'Switched off, albums that already have a cover keep it. A cover you fetch by hand always replaces it.',
+    'Mindestgröße (0 = jede Größe)': 'Minimum size (0 = any size)',
+    'Erledigt · {1}': 'Done · {1}',
+    'Aktivität': 'Activity',
+    '{1} s': '{1} s', '{1} min {2} s': '{1} min {2} s', '{1} h {2} min': '{1} h {2} min',
+    '{1} Alben ({2} Dateien) in {3}: {4} erledigt, {5} offen': '{1} albums ({2} files) in {3}: {4} done, {5} open',
+    'Statusmeldungen als Kasten im Tag-Panel zeigen': 'Show status messages as a box in the tag panel',
+    'MusicBrainz erneut versuchen': 'Try MusicBrainz again',
+    'Dieses Album noch einmal bei MusicBrainz suchen': 'Search this album on MusicBrainz again',
+    'Bisher von {1}': 'So far from {1}',
+    'Braucht den API-Key von Last.fm unter „Konten und Quellen“.': 'Needs the Last.fm API key under “Accounts and sources”.',
+    'Weitere Cover-Quellen': 'More cover sources',
+    'Ein Plugin ist eine kleine Datei im Plugin-Ordner. Seine Quelle erscheint danach in der Liste der Cover-Quellen '
+    'unter „Automatik“.':
+        'A plugin is a small file in the plugin folder. Its source then appears in the list of cover sources under '
+        '“Automatic”.',
 }

@@ -204,25 +204,66 @@ class DialogTests(Base):
     def test_there_are_no_tabs_any_more(self):
         self.assertIsNone(self._dialog().findChild(QTabWidget))
 
-    def test_the_page_follows_the_workflow(self):
-        self.assertEqual(self._dialog().section_keys(),
-                         ["moods", "musicbrainz", "discogs", "numbers", "cover", "genres", "files", "program"])
-
-    def test_the_discogs_token_stands_in_its_own_section(self):
+    def test_four_pages_and_the_steps_in_the_order_of_the_run(self):
         d = self._dialog()
+        self.assertEqual(d.PAGES, ("automatic", "sources", "files", "program"))
+        self.assertEqual(d.STEPS, ("moods", "musicbrainz", "numbers", "cover", "genres"))
+        automatic = d._scrolls["automatic"].widget()
+        self.assertTrue(all(automatic.isAncestorOf(d._blocks[s]) for s in d.STEPS))
+
+    def test_keys_and_plugins_stand_under_accounts_and_sources(self):
+        d = self._dialog()
+        sources = d._scrolls["sources"].widget()
+        for widget in (d.discogs_token, d.lastfm_key):
+            self.assertTrue(sources.isAncestorOf(widget))
         self.assertTrue(d._blocks["discogs"].isAncestorOf(d.discogs_token))
         self.assertFalse(d._blocks["musicbrainz"].isAncestorOf(d.discogs_token))
 
-    def test_it_can_open_at_a_section(self):
-        self.assertEqual(self._dialog(section="genres").current_section(), "genres")
-
-    def test_it_starts_at_the_top(self):
-        self.assertEqual(self._dialog().current_section(), "moods")
-
-    def test_a_link_goes_to_its_section(self):
+    def test_every_part_can_be_opened(self):
         d = self._dialog()
-        d.show_section("cover")
-        self.assertEqual(d.current_section(), "cover")
+        for key in d.section_keys():
+            d.show_section(key)
+            self.assertEqual(d.current_page(), d.SECTION_PAGE[key])
+
+    def test_it_can_open_at_a_section(self):
+        d = self._dialog(section="lastfm")
+        self.assertEqual(d.current_section(), "lastfm")
+        self.assertEqual(d.current_page(), "sources")
+
+    def test_it_starts_with_the_automatic_steps(self):
+        d = self._dialog()
+        self.assertEqual(d.current_page(), "automatic")
+        self.assertTrue(d._tabs["automatic"].isChecked())
+
+    def test_a_card_on_top_goes_to_its_page(self):
+        d = self._dialog()
+        d._tabs["files"].click()
+        self.assertEqual(d.current_page(), "files")
+
+    def test_a_step_switched_off_greys_out_its_settings(self):
+        d = self._dialog()
+        d.auto_numbers.setChecked(False)
+        self.assertFalse(d.number_boxes["track_zeros"].isEnabled())
+        d.auto_numbers.setChecked(True)
+        self.assertTrue(d.number_boxes["track_zeros"].isEnabled())
+
+    def test_the_steps_start_as_today(self):
+        d = self._dialog()
+        for switch in (d.auto_moods, d.auto_numbers, d.auto_cover, d.prefer_digital, d.replace_covers):
+            self.assertTrue(switch.isChecked())
+
+    def test_the_new_choices_are_saved(self):
+        d = self._dialog()
+        for switch in (d.auto_moods, d.auto_numbers, d.auto_cover, d.prefer_digital, d.replace_covers):
+            switch.setChecked(False)
+        d.cover_min.setValue(500)
+        d.accept()
+        o = d.opts
+        self.assertEqual((o.auto_moods, o.auto_numbers, o.auto_cover, o.prefer_digital, o.replace_covers),
+                         (False,) * 5)
+        self.assertEqual(int(config.settings().value("tagsources/cover_min_size")), 500)
+        o.save()
+        self.assertFalse(Options.load().prefer_digital)
 
     def test_the_controls_start_from_the_options(self):
         d = self._dialog(Options(language="en", theme="latte", id3_version=4, keep_mtime=True, subfolders=False))

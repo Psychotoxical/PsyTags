@@ -15,7 +15,7 @@ In the automatic run, the analysis is the first step.
 
 ## How many moods
 
-Under **Options → Moods** choose **Few**, **Normal** or **Many**. This applies to new analyses. Existing moods only change when the songs are analyzed again.
+Under **Options → Automatic → Moods** choose **Few**, **Normal** or **Many**. This applies to new analyses. Existing moods only change when the songs are analyzed again.
 
 An analysis replaces the MOOD field. No later step overwrites the result, not even the tag sources.
 

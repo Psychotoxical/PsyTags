@@ -27,4 +27,4 @@ Während des Laufs kann das Fenster im Hintergrund bleiben. Ein Lauf lässt sich
 
 Jeder Schritt lässt sich auch allein für die markierten Dateien ausführen, über die Leiste oben oder die [Tastaturkürzel](help:shortcuts).
 
-In der Dateiliste zeigt jede Album-Zeile rechts den Stand von Album, Cover, Genres und Moods.
+In der Dateiliste zeigt jede Album-Zeile rechts den Stand von Album, Cover, Genres und Moods. Ein gelbes **Discogs** heißt: getaggt, aber von Discogs statt MusicBrainz.

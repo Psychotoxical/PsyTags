@@ -202,6 +202,20 @@ QFrame#SectionRule { background: $BUTTON; border: none; min-height: 1px; max-hei
 QLabel#SectionTitle { font-size: 14px; font-weight: 600; }
 QLabel#SetupWarning { background: $WARNING_BACKGROUND; border: 1px solid $WARNING; border-radius: 6px; padding: 10px 12px; }
 QStackedWidget#OptionsPage { background: $BACKGROUND; }
+QPushButton#PageCard { background: $BUTTON; color: $TEXT; border: 1px solid $BORDER; border-radius: 8px;
+    min-height: 52px; min-width: 0; padding: 0; text-align: left; }
+QPushButton#PageCard:hover { background: $HOVER; }
+QPushButton#PageCard:checked { background: $HOVER; border: 2px solid $ACCENT; }
+QPushButton#PageCard QLabel { background: transparent; }
+QFrame#StatusBox { background: $BUTTON; border: 1px solid $BORDER; border-radius: 8px; }
+QFrame#StatusBox QLabel { background: transparent; }
+QLabel#StatusNow { font-weight: 600; }
+QLabel#StatusOld { color: $SECONDARY; font-size: 12px; }
+QLabel#StatusTime { color: $SECONDARY; font-size: 11px; }
+QProgressBar#StatusBar { background: $FIELD; border: none; border-radius: 2px; min-height: 4px; max-height: 4px; }
+QProgressBar#StatusBar::chunk { background: $ACCENT; border-radius: 2px; }
+QFrame#OptionsCard { background: $BUTTON; border: 1px solid $BORDER; border-radius: 8px; }
+QFrame#OptionsCard QLabel, QFrame#OptionsCard > QWidget { background: transparent; }
 QLabel#StepBadge { background: $BUTTON; color: $ACCENT; border-radius: 11px; font-size: 12px; font-weight: 700;
     min-width: 22px; max-width: 22px; min-height: 22px; max-height: 22px; }
 QListWidget#HelpNav { background: $CHROME; border: none; padding: 12px 10px; outline: none; }

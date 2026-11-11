@@ -43,6 +43,7 @@ class FailedSaveTests(unittest.TestCase):
             self.tracks.append(t)
         from psytags.ui.mainwindow import MainWindow
         self.window = MainWindow()
+        self.window._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(self.window.deleteLater)
         self.window.model.set_tracks(self.tracks)
         self.window.view.select_tracks([self.tracks[0]])

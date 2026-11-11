@@ -15,7 +15,7 @@ Beim automatischen Lauf ist die Analyse der erste Schritt.
 
 ## Wie viele Moods
 
-Unter **Optionen → Moods** wählen Sie **Wenige**, **Normal** oder **Viele**. Das gilt für neue Analysen. Vorhandene Moods ändern sich erst, wenn die Songs neu analysiert werden.
+Unter **Optionen → Automatik → Moods** wählen Sie **Wenige**, **Normal** oder **Viele**. Das gilt für neue Analysen. Vorhandene Moods ändern sich erst, wenn die Songs neu analysiert werden.
 
 Eine Analyse ersetzt das Feld MOOD. Kein späterer Schritt überschreibt das Ergebnis wieder, auch nicht die Tag-Quellen.
 

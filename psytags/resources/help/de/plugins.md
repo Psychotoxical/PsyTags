@@ -7,12 +7,12 @@ PsyTags lädt Cover aus dem Cover Art Archive. Weitere Quellen fügen Sie mit ei
 
 ## Ein Plugin einrichten
 
-1. **Optionen → Cover → Plugin-Ordner öffnen** aufrufen.
+1. **Optionen → Konten und Quellen → Plugin-Ordner öffnen** aufrufen.
 2. Die `.json`-Datei in diesen Ordner kopieren.
-3. **Optionen** schließen und neu öffnen. Die neue Quelle steht jetzt unter **Cover**.
+3. **Optionen** schließen und neu öffnen. Die neue Quelle steht jetzt unter **Automatik → Cover**.
 4. Die Quellen in die gewünschte Reihenfolge ziehen. Von oben nach unten gilt: Die erste Quelle, die ein Cover liefert, gewinnt.
 
-Der Ordner ist unter Windows `%LOCALAPPDATA%\psytags\cover-provider` und unter Linux `~/.config/psytags/cover-provider`. Um ein Plugin zu entfernen, löschen Sie seine Datei. Pausieren können Sie es unter **Optionen → Cover**.
+Der Ordner ist unter Windows `%LOCALAPPDATA%\psytags\cover-provider` und unter Linux `~/.config/psytags/cover-provider`. Um ein Plugin zu entfernen, löschen Sie seine Datei. Pausieren können Sie es unter **Optionen → Automatik → Cover**.
 
 PsyTags liefert kein Plugin für einen Dienst mit unklaren Nutzungsbedingungen mit. Für die Plugins, die Sie hinzufügen, sind Sie selbst verantwortlich: Prüfen Sie, ob der Dienst das erlaubt.
 
@@ -136,7 +136,7 @@ Die Cover-Mindestgröße gilt für jede Quelle.
 
 ## Wenn es nicht klappt
 
-Eine fehlerhafte Datei wird abgelehnt und unter **Optionen → Cover** rot aufgeführt. Die übrigen Quellen stört das nicht. Diese Meldungen beginnen mit dem Dateinamen:
+Eine fehlerhafte Datei wird abgelehnt und unter **Optionen → Konten und Quellen → Cover-Plugins** rot aufgeführt. Die übrigen Quellen stört das nicht. Diese Meldungen beginnen mit dem Dateinamen:
 
 | Meldung | Was zu tun ist |
 |---|---|
@@ -163,4 +163,4 @@ Im Betrieb steht der Grund in der Übersicht des Laufs:
 | HTTP 429 | Zu viele Anfragen. `min_interval` erhöhen. |
 | Cover von … zu klein | Das Bild liegt unter der Mindestgröße. Suchen Sie mit `image_replace` eine größere Variante. |
 
-Das Plugin fehlt unter **Optionen → Cover**? Die Datei muss auf `.json` enden und direkt im Plugin-Ordner liegen, und **Optionen** muss nach dem Kopieren neu geöffnet werden.
+Das Plugin fehlt unter **Optionen → Automatik → Cover**? Die Datei muss auf `.json` enden und direkt im Plugin-Ordner liegen, und **Optionen** muss nach dem Kopieren neu geöffnet werden.

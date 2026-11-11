@@ -35,6 +35,7 @@ class SwitchTests(Base):
     def _window(self):
         from psytags.ui.mainwindow import MainWindow
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         MainWindow.current = w
         self.addCleanup(lambda: setattr(MainWindow, "current", None))
         return w

@@ -267,7 +267,7 @@ class ChainTests(unittest.TestCase):
         p = provider()
         win, result = self._chain([cp.ARCHIVE, p], archive="kein Cover")
         self.assertEqual(result, "")
-        win.fetch_provider_cover.assert_called_once_with(p, ["t"], True, True)
+        win.fetch_provider_cover.assert_called_once_with(p, ["t"], True, True, keep=False)
 
     def test_a_provider_can_come_first(self):
         win, result = self._chain([provider(), cp.ARCHIVE])
@@ -425,6 +425,7 @@ class WindowTests(Guarded):
 
     def test_a_bad_file_is_reported_once(self):
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         self.drop("b.json", "{nein")
         with mock.patch.object(w, "message") as message:
@@ -435,6 +436,7 @@ class WindowTests(Guarded):
 
     def test_waiting_returns_the_answer_and_closes(self):
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         self.assertEqual(w._waiting("Bitte warten", lambda: 7), 7)
         with self.assertRaises(ValueError):
@@ -444,6 +446,7 @@ class WindowTests(Guarded):
         import threading
         from psytags.ui.mainwindow import _Canceled, _StayingProgress
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         release = threading.Event()
         self.addCleanup(release.set)

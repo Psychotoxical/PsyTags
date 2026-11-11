@@ -12,7 +12,7 @@ Open albums are listed first.
 | Column | Meaning |
 |---|---|
 | Album | Artist and album |
-| Result | **Done** or **Open** |
+| Result | **Done** or **Open**; **Done · Discogs** on yellow when Discogs stepped in |
 | Cover, Genres | ☒ worked, ☐ failed, – did not run. The tooltip gives the reason. |
 | Details | The chosen release and notes such as "From Discogs" or "Last track missing"; for open albums, the reason |
 
@@ -20,7 +20,11 @@ Open albums are listed first.
 
 **Open albums:** the **Edit** button or a double click opens the MusicBrainz results, with the reason the album stayed open above them. You choose and adjust the assignment yourself. Afterwards it says "Tagged manually".
 
-If MusicBrainz finds nothing, select the album in the list and search by hand with **Tag Sources → Discogs**.
+If MusicBrainz finds nothing, it pays to play with the album title in the search form: leave out the last word or an addition such as "Remastered", and check that title and artist are spelled correctly. A single typo in the album tag is enough for the database to find nothing.
+
+If that does not help, select the album in the list and search by hand with **Search manually → Discogs …** in the right-click menu.
+
+If Discogs tagged an album, its row offers **Try MusicBrainz again**. It opens the MusicBrainz search; after saving, the row shows the new result. This holds for every manual search: an album from the last run that you tag by hand is listed as done afterwards, wherever you started the search.
 
 **Missing cover or genres:** the **Retry** button asks again. For a cover, you can pick from the results when no match is certain. The summary notices a cover you set some other way the next time it opens.
 
