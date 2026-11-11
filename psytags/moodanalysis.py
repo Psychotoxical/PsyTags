@@ -21,6 +21,7 @@ from typing import Callable, NamedTuple, Sequence
 
 import numpy as np
 
+from . import longpath
 from .i18n import tr
 from .websources import http
 
@@ -252,7 +253,7 @@ def _ffmpeg() -> str:
 
 def decode(path: str) -> np.ndarray:
     """The first audio stream as 16 kHz mono float32."""
-    cmd = [_ffmpeg(), "-nostdin", "-v", "error", "-i", path, "-map", "0:a:0", "-ac", "1",
+    cmd = [_ffmpeg(), "-nostdin", "-v", "error", "-i", longpath.io(path), "-map", "0:a:0", "-ac", "1",
            "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"]
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     p = subprocess.run(cmd, capture_output=True, check=True, creationflags=flags)
