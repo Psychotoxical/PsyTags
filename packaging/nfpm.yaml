@@ -17,8 +17,10 @@ homepage: https://github.com/Psychotoxical/PsyTags
 license: GPL-3.0-or-later
 
 contents:
-  - src: dist/PsyTags/
-    dst: /opt/psytags/
+  # tree keeps the symlinks PyInstaller puts next to the executable
+  - src: dist/PsyTags
+    dst: /opt/psytags
+    type: tree
   - src: /opt/psytags/PsyTags
     dst: /usr/bin/psytags
     type: symlink
