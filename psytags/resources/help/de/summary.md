@@ -5,7 +5,7 @@
 
 Die Übersicht öffnet sich am Ende des Laufs von selbst. Mit dem Knopf **Übersicht** oben holen Sie sie jederzeit zurück, solange das Programm läuft. Sie zeigt immer den letzten Lauf.
 
-Offene Alben stehen ganz oben.
+Alles, was noch Arbeit braucht, steht oben: zuerst offene Alben, dann Alben von Discogs, dann Alben mit fehlendem Cover oder fehlenden Genres. Fertige Alben folgen darunter.
 
 ## Was die Spalten bedeuten
 

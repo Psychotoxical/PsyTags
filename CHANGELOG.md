@@ -4,9 +4,19 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Added
+
+- **Files added to a tagged album**, such as bonus tracks, take the album's values from the other files during the automatic run: album ID, release group, album artist, year, original year and sort names. MusicBrainz is not asked, only empty fields are filled, and players such as Navidrome see one album again.
+
+### Changed
+
+- **The summary lists every album that still needs work first**, whatever is missing: open albums, then albums from Discogs, then albums without a cover or genres. Finished albums follow below.
+
 ### Fixed
 
 - **The description of the last hovered button stayed in the status bar**, for example after a run. It now goes away after a few seconds.
+- **The Tag Panel kept the values of removed files** when every file was taken out of the list. It is now empty.
+- **Adding a cover from a file** opens in the folder of the selected album instead of the last opened folder.
 
 ## [0.1.4] - 2026-11-11
 

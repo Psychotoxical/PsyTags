@@ -245,6 +245,42 @@ def group_albums(tracks: list) -> list[list]:
     return list(groups.values())
 
 
+# What one release gives every file alike; a file added to a tagged album may take it over
+ALBUM_FIELDS = ("MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_RELEASEGROUPID", "MUSICBRAINZ_ALBUMARTISTID",
+                "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "ALBUMARTIST",
+                "ALBUMARTISTSORT", "ORIGYEAR", "YEAR", "ASIN", "CATALOGNUMBER", "PUBLISHER", "BARCODE",
+                "COMPILATION")
+# Belongs to the artist of a song: only from files of the same artist
+ARTIST_FIELDS = ("ARTISTSORT", "MUSICBRAINZ_ARTISTID")
+
+
+def _shared(tracks: list, name: str) -> list[str]:
+    """The value all ``tracks`` have alike, else nothing."""
+    values = {tuple(t.get(name)) for t in tracks}
+    return list(values.pop()) if len(values) == 1 else []
+
+
+def album_gaps(tracks: list) -> list[tuple]:
+    """Files of an album without a MusicBrainz release while the others have one, e.g. bonus
+    tracks added later: (file, values from the others). Only empty fields are filled; nothing
+    when the tagged files belong to different releases."""
+    tagged = [t for t in tracks if _first(t, "MUSICBRAINZ_ALBUMID")]
+    bare = [t for t in tracks if not _first(t, "MUSICBRAINZ_ALBUMID")]
+    if not tagged or not bare or len({_first(t, "MUSICBRAINZ_ALBUMID") for t in tagged}) != 1:
+        return []
+    plan = []
+    for t in bare:
+        values = {}
+        same_artist = [s for s in tagged if s.get("ARTIST") == t.get("ARTIST")]
+        for names, source in ((ALBUM_FIELDS, tagged), (ARTIST_FIELDS, same_artist)):
+            for name in names:
+                shared = _shared(source, name) if source else []
+                if shared and not t.get(name):
+                    values[name] = shared
+        plan.append((t, values))
+    return plan
+
+
 def album_title(tracks: list) -> str:
     t = tracks[0]
     album = _first(t, "ALBUM")

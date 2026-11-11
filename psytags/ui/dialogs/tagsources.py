@@ -474,6 +474,18 @@ def from_second_source(entry) -> bool:
     return entry.ok and entry.source not in ("", "MusicBrainz")
 
 
+def summary_rank(entry) -> int:
+    """Order in the summary: everything that still needs a hand on top, whatever it is (open,
+    from the second source, cover or genres missing), the finished albums below."""
+    if not entry.ok:
+        return 0
+    if from_second_source(entry):
+        return 1
+    if entry.cover or entry.genres:
+        return 2
+    return 3
+
+
 def summary_action(entry, column: int | None) -> str:
     """What opening a summary row does: "manual", "cover", "genres", "musicbrainz" or "" for
     nothing. A click on the cover or genre box only concerns that step."""
@@ -527,7 +539,7 @@ class BatchSummaryDialog(QDialog):
         for column in range(4):
             self.table.header().setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
         self.table.header().setStretchLastSection(True)
-        for e in sorted(entries, key=lambda x: (x.ok, not from_second_source(x))):
+        for e in sorted(entries, key=summary_rank):
             result = tr("Erledigt · {1}", e.source) if from_second_source(e) else tr("Erledigt") if e.ok else tr("Offen")
             it = QTreeWidgetItem([e.title, result, "", "", e.detail])
             it.setData(0, Qt.ItemDataRole.UserRole, e)

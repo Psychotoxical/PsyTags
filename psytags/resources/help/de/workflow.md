@@ -21,6 +21,8 @@ Für jedes Album der Liste, in dieser Reihenfolge:
 
 Ein Album wird nur getaggt, wenn es eindeutig passt. Sonst bleibt es unverändert und steht in der Übersicht als offen, nur die Moods sind dann schon geschrieben. Lieber offen als falsch.
 
+Haben in einem Album schon einige Dateien ein MusicBrainz-Release und andere nicht, etwa nachträglich eingefügte Bonustracks, wird MusicBrainz nicht gefragt. Die übrigen Dateien bekommen die Werte des Albums von den anderen: Album-ID, Release-Group, Album-Interpret, Jahr, Originaljahr und Sortiernamen. Nur leere Felder werden gefüllt, Titel und Track-ID bleiben, wie sie sind. So erkennen Player wie Navidrome alle Dateien als ein Album.
+
 Während des Laufs kann das Fenster im Hintergrund bleiben. Ein Lauf lässt sich abbrechen, was bis dahin fertig ist, bleibt erhalten.
 
 ## Einzelne Schritte

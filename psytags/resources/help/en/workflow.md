@@ -21,6 +21,8 @@ For each album in the list, in this order:
 
 An album is only tagged when it clearly fits. Otherwise it stays unchanged and is listed as open in the summary, with only the moods already written. Better open than wrong.
 
+If some files of an album already have a MusicBrainz release and others do not, such as bonus tracks added later, MusicBrainz is not asked. The other files take the album's values from the tagged ones: album ID, release group, album artist, year, original year and sort names. Only empty fields are filled; titles and track IDs stay as they are. That way players such as Navidrome see all files as one album.
+
 The window can stay in the background during a run. You can cancel a run, and whatever is finished by then stays.
 
 ## Single steps
