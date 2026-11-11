@@ -67,9 +67,11 @@ AAC, AIFF, APE, DSF, FLAC, M4A, M4B, MP2, MP3, MP4, MPC, OGG, Opus, Speex, TAK, 
 Download from the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page:
 
 - **Windows 10 and 11:** `PsyTags-Setup-<version>.exe`. It installs for your user without admin rights; the first page also offers an installation for all users. Your settings stay when you uninstall.
-- **Linux:** `PsyTags-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
+- **Debian, Ubuntu, Mint:** `psytags_<version>_amd64.deb`, installed with `sudo apt install ./psytags_<version>_amd64.deb`.
+- **Fedora, openSUSE:** `psytags-<version>-1.x86_64.rpm`, installed with `sudo dnf install ./psytags-<version>-1.x86_64.rpm` or `sudo zypper install`.
+- **Other Linux:** `PsyTags-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
 
-Both come with ffmpeg for the mood analysis.
+All of them come with ffmpeg for the mood analysis.
 
 ## Running from source
 
@@ -90,7 +92,14 @@ On Windows the scripts are in `.venv\Scripts`.
 ```
 pip install -e .
 QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests
+ruff check .
 ```
+
+Changes go to `main` through pull requests only. Every pull request runs the tests on Linux and Windows, Ruff, ShellCheck and actionlint, and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora.
+
+## Releases
+
+A release starts with a new version number in `psytags/__init__.py` and `pyproject.toml` and its section in `CHANGELOG.md`. Once that is on `main`, the workflow creates a release draft with the section as text and the installer, AppImage, deb and rpm attached. Publishing the draft creates the tag.
 
 ## Acknowledgements
 

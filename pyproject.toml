@@ -12,6 +12,18 @@ dependencies = ["PySide6>=6.6", "mutagen>=1.47", "numpy>=2.0", "onnxruntime>=1.2
 [project.gui-scripts]
 psytags = "psytags.app:main"
 
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E9", "F", "B"]
+# zip() without strict= and QModelIndex() as a default argument are intended
+ignore = ["B905", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# the paste counter is a deliberate mutable default; the lambdas run synchronously inside the loop
+"psytags/ui/mainwindow.py" = ["B006", "B023"]
+
 [tool.setuptools.packages.find]
 include = ["psytags*"]
 

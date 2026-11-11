@@ -1,9 +1,7 @@
 """The dialog with every field of a file (All fields, Alt+T)."""
 from __future__ import annotations
 
-import copy
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QDialogButtonBox,
                                QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QTableWidget,

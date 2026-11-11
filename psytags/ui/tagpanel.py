@@ -4,10 +4,9 @@ from __future__ import annotations
 import os
 
 from mutagen._constants import GENRES
-from PySide6.QtCore import QByteArray, QBuffer, QMimeData, QPoint, QRect, QSize, Qt, Signal
-from PySide6.QtGui import QAction, QDrag, QImage, QPainter, QPen, QPixmap
-from PySide6.QtWidgets import (QApplication, QComboBox, QCompleter, QFrame, QGridLayout,
-                               QHBoxLayout, QLabel, QMenu, QScrollArea, QSizePolicy,
+from PySide6.QtCore import QByteArray, QBuffer, QMimeData, QPoint, QRect, Qt, Signal
+from PySide6.QtGui import QDrag, QImage, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import (QApplication, QComboBox, QCompleter, QFrame, QHBoxLayout, QLabel, QMenu, QScrollArea, QSizePolicy,
                                QToolButton, QVBoxLayout, QWidget)
 
 from .. import genremood, tags

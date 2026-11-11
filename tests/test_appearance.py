@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication
 
 from psytags import config
 from psytags.config import Options
-from psytags.i18n import language, set_language
+from psytags.i18n import set_language
 from psytags.ui import icons, theme
 
 

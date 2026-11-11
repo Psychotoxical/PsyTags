@@ -4,7 +4,8 @@
 
 ## Checked
 
-- [ ] `QT_QPA_PLATFORM=offscreen python -m unittest discover tests` passes
+- [ ] `QT_QPA_PLATFORM=offscreen python -m unittest discover tests` and `ruff check .` pass
+- [ ] `CHANGELOG.md` has an entry if users notice the change
 - [ ] New texts exist in German and English
 - [ ] Help pages in `psytags/resources/help/` are updated if a function changed
 - [ ] Tested on copies, not on a real collection

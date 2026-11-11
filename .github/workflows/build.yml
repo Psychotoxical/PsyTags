@@ -1,20 +1,55 @@
-name: Pakete bauen
+name: CI und Pakete
 
+# Every pull request and every push to main runs the checks and builds all packages.
+# On main, a version without a published release gets a release draft with these packages.
 on:
+  pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  tests:
-    runs-on: ubuntu-22.04
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.17.1
+      - name: Ruff
+        run: ruff check --output-format github .
+      - name: ShellCheck
+        run: shellcheck packaging/*.sh
+      - name: actionlint
+        run: |
+          curl -fsSL -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color
+
+  tests:
+    name: Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Bibliotheken für Qt
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libdbus-1-3 libfontconfig1
       - run: pip install .
       - name: Tests
@@ -28,32 +63,35 @@ jobs:
       matrix:
         target: [linux, windows]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - id: cache
+        uses: actions/cache@v6
+        with:
+          path: ffmpeg-out
+          key: ffmpeg-${{ matrix.target }}-${{ hashFiles('packaging/build_ffmpeg.sh') }}
       - name: Werkzeuge
+        if: steps.cache.outputs.cache-hit != 'true'
         run: sudo apt-get update && sudo apt-get install -y nasm mingw-w64
-      - run: packaging/build_ffmpeg.sh ${{ matrix.target }} ffmpeg-out
-      - uses: actions/upload-artifact@v4
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: packaging/build_ffmpeg.sh ${{ matrix.target }} ffmpeg-out
+      - uses: actions/upload-artifact@v7
         with:
           name: ffmpeg-${{ matrix.target }}
           path: ffmpeg-out
 
   windows:
-    needs: [tests, ffmpeg]
+    needs: [lint, tests, ffmpeg]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: ffmpeg-windows
           path: ffmpeg
       - run: pip install . pyinstaller
-      - name: Tests
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: python -m unittest discover tests
       - name: Paket
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}\ffmpeg\bin\ffmpeg.exe
@@ -83,28 +121,28 @@ jobs:
           if (-not (Test-Path "$dir\PsyTags.exe")) { throw "PsyTags.exe fehlt" }
           $u = Start-Process "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
           if ($u.ExitCode) { throw "Deinstallation: $($u.ExitCode)" }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: PsyTags-Windows-Setup
           path: dist/PsyTags-Setup-*.exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: PsyTags-Windows
           path: dist/PsyTags
 
-  appimage:
-    needs: [tests, ffmpeg]
+  linux:
+    needs: [lint, tests, ffmpeg]
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Bibliotheken für Qt
         run: >
           sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libdbus-1-3 libfontconfig1
           libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xkb1 libxkbcommon-x11-0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: ffmpeg-linux
           path: ffmpeg
@@ -115,7 +153,7 @@ jobs:
           PSYTAGS_FFMPEG: ${{ github.workspace }}/ffmpeg/bin/ffmpeg
         run: python -m PyInstaller --noconfirm --clean packaging/psytags.spec
       - run: packaging/build_appimage.sh
-      - name: Startet das Paket?
+      - name: Startet das AppImage?
         env:
           QT_QPA_PLATFORM: offscreen
           APPIMAGE_EXTRACT_AND_RUN: "1"
@@ -123,7 +161,98 @@ jobs:
           status=0
           timeout 15 dist/PsyTags-x86_64.AppImage || status=$?
           test "$status" = 124
-      - uses: actions/upload-artifact@v4
+      - name: deb und rpm
+        run: packaging/build_linux_packages.sh
+      - uses: actions/upload-artifact@v7
         with:
           name: PsyTags-Linux-AppImage
           path: dist/PsyTags-x86_64.AppImage
+      - uses: actions/upload-artifact@v7
+        with:
+          name: PsyTags-Linux-deb
+          path: dist/psytags_*_amd64.deb
+      - uses: actions/upload-artifact@v7
+        with:
+          name: PsyTags-Linux-rpm
+          path: dist/psytags-*.x86_64.rpm
+
+  deb:
+    name: deb installiert sich (Ubuntu 24.04)
+    needs: linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: PsyTags-Linux-deb
+      - run: sudo apt-get update && sudo apt-get install -y ./psytags_*_amd64.deb
+      - name: Startet PsyTags?
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          status=0
+          timeout 15 psytags || status=$?
+          test "$status" = 124
+      - run: sudo apt-get remove -y psytags && test ! -e /usr/bin/psytags
+
+  rpm:
+    name: rpm installiert sich (Fedora)
+    needs: linux
+    runs-on: ubuntu-24.04
+    container: fedora:latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: PsyTags-Linux-rpm
+      - run: dnf install -y ./psytags-*.x86_64.rpm
+      - name: Startet PsyTags?
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          status=0
+          timeout 15 psytags || status=$?
+          test "$status" = 124
+      - run: dnf remove -y psytags && test ! -e /usr/bin/psytags
+
+  release:
+    name: Release-Draft
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [windows, linux, deb, rpm]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: release-draft
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: PsyTags-*
+          path: assets
+          merge-multiple: true
+      - name: Draft anlegen oder aktualisieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' psytags/__init__.py)
+          tag="v$version"
+          python3 packaging/release_notes.py "$version" > notes.md
+          files=(assets/PsyTags-Setup-"$version".exe assets/PsyTags-x86_64.AppImage
+                 assets/psytags_"$version"_amd64.deb assets/psytags-"$version"-1.x86_64.rpm)
+          ls -l "${files[@]}"
+          state=$(gh release list --limit 100 --json tagName,isDraft \
+                  --jq ".[] | select(.tagName == \"$tag\") | if .isDraft then \"draft\" else \"published\" end")
+          case "$state" in
+            published)
+              echo "::notice::$tag is already published; nothing to do"
+              ;;
+            draft)
+              gh release edit "$tag" --title "PsyTags $version" --notes-file notes.md --target "$GITHUB_SHA"
+              gh release upload "$tag" "${files[@]}" --clobber
+              echo "::notice::Draft $tag updated"
+              ;;
+            *)
+              gh release create "$tag" --draft --title "PsyTags $version" --notes-file notes.md \
+                --target "$GITHUB_SHA" "${files[@]}"
+              echo "::notice::Draft $tag created"
+              ;;
+          esac

@@ -11,7 +11,6 @@ from PySide6.QtWidgets import QApplication
 
 from psytags import config
 from psytags.config import Options
-from psytags.track import Track
 from psytags.ui.mainwindow import MainWindow
 from psytags.websources import coverfetch, coverprovider as cp, http
 

@@ -1,0 +1,53 @@
+# nfpm: builds the .deb and .rpm from dist/PsyTags (PyInstaller, with ffmpeg).
+# Used by packaging/build_linux_packages.sh, which sets VERSION.
+name: psytags
+arch: amd64
+platform: linux
+version: ${VERSION}
+release: 1
+section: sound
+priority: optional
+maintainer: Psychotoxical
+description: |
+  Tag editor for large music collections.
+  Tags albums from MusicBrainz only when the match is certain,
+  analyzes moods from the audio and renames files by scheme.
+vendor: Psychotoxical
+homepage: https://github.com/Psychotoxical/PsyTags
+license: GPL-3.0-or-later
+
+contents:
+  # tree keeps the symlinks PyInstaller puts next to the executable
+  - src: dist/PsyTags
+    dst: /opt/psytags
+    type: tree
+  - src: /opt/psytags/PsyTags
+    dst: /usr/bin/psytags
+    type: symlink
+  - src: psytags.desktop
+    dst: /usr/share/applications/psytags.desktop
+  - src: packaging/psytags.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/psytags.svg
+
+# Fontconfig and FreeType come from the system (see psytags.spec), Qt needs the rest.
+overrides:
+  deb:
+    depends:
+      - libfontconfig1
+      - libfreetype6
+      - libegl1
+      - libgl1
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libdbus-1-3
+      - libxcb-cursor0
+  rpm:
+    depends:
+      - libfontconfig.so.1()(64bit)
+      - libfreetype.so.6()(64bit)
+      - libEGL.so.1()(64bit)
+      - libGL.so.1()(64bit)
+      - libxkbcommon.so.0()(64bit)
+      - libxkbcommon-x11.so.0()(64bit)
+      - libdbus-1.so.3()(64bit)
+      - libxcb-cursor.so.0()(64bit)

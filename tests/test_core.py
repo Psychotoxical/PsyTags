@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-from psytags import convert, tags
+from psytags import tags
 from psytags.track import Track
 
 
