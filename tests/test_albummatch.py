@@ -1018,18 +1018,55 @@ class ManualFromSummaryTests(unittest.TestCase):
             mw.MainWindow.show_batch_summary(win)
         return e, win, t
 
-    def test_saving_marks_the_album_done(self):
-        e, win, t = self._run(("", "kein Treffer"))
-        self.assertTrue(e.ok)
-        self.assertEqual((e.cover, e.genres), ("", "kein Treffer"))
-        self.assertEqual(e.detail, "Manuell getaggt · kein Treffer")
-        self.assertIn(id(t), win._auto_done)
+    def test_edit_opens_the_manual_search_with_the_reason(self):
+        _e, win, _t = self._run(None)
+        win.run_source.assert_called_once_with(quick=True, note="Titel passt nicht: X")
 
     def test_canceling_leaves_it_open(self):
         e, win, _t = self._run(None)
         self.assertFalse(e.ok)
         self.assertEqual(e.detail, "Titel passt nicht: X")
         self.assertEqual(win._auto_done, {})
+
+
+class SummaryNoteTests(unittest.TestCase):
+    """Any manual import of an album from the last run updates its row, wherever it was started."""
+
+    def _note(self, name, outcome, other=False):
+        from unittest import mock
+        from psytags.ui import mainwindow as mw
+        t, u = _track("a.mp3", "One"), _track("b.mp3", "Two")
+        e = albumauto.BatchEntry("A", [t], False, "Titel passt nicht: X")
+        win = mock.MagicMock(_last_batch=[e], _auto_done={})
+        mw.MainWindow._note_in_summary(win, name, [u] if other else [t], outcome)
+        return e, win, t
+
+    def test_saving_marks_the_album_done(self):
+        e, win, t = self._note("MusicBrainz", ("", "kein Treffer"))
+        self.assertTrue(e.ok)
+        self.assertEqual((e.cover, e.genres), ("", "kein Treffer"))
+        self.assertEqual(e.detail, "Manuell getaggt · kein Treffer")
+        self.assertIn(id(t), win._auto_done)
+
+    def test_another_source_is_named(self):
+        e, _win, _t = self._note("Discogs", ("", ""))
+        self.assertEqual(e.detail, "Manuell getaggt · Von Discogs")
+
+    def test_other_albums_stay_as_they_were(self):
+        e, win, _t = self._note("MusicBrainz", ("", ""), other=True)
+        self.assertFalse(e.ok)
+        self.assertEqual(win._auto_done, {})
+
+    def test_genres_that_came_later_count(self):
+        from psytags.ui import mainwindow as mw
+        from unittest import mock
+        t = _track("a.mp3", "One")
+        e = albumauto.BatchEntry("A", [t], True, "X (2020) · Last.fm: nichts", genres="Last.fm: nichts")
+        mw._remember_covers(e)
+        t.set("GENRE", "Rock")
+        win = mock.MagicMock(_last_batch=[e])
+        mw.MainWindow._notice_new_covers(win)
+        self.assertEqual((e.genres, e.detail), ("", "X (2020)"))
 
 
 class OpenAlbumCaseTests(unittest.TestCase):

@@ -31,8 +31,15 @@ class AlbumBand:
     status: list[tuple[str, bool]] = field(default_factory=list)
 
 
-def _status(tracks: list) -> list[tuple[str, bool]]:
-    return [("Album", all(t.get("MUSICBRAINZ_ALBUMID") for t in tracks)),
+DISCOGS = "discogs"         # status of an album tagged from Discogs: done, but not from MusicBrainz
+
+
+def _status(tracks: list) -> list[tuple[str, bool | str]]:
+    if not all(t.get("MUSICBRAINZ_ALBUMID") for t in tracks) and all(t.get("DISCOGS_RELEASE_ID") for t in tracks):
+        album = ("Discogs", DISCOGS)
+    else:
+        album = ("Album", all(t.get("MUSICBRAINZ_ALBUMID") for t in tracks))
+    return [album,
             ("Cover", all(getattr(t.data, "covers", None) for t in tracks)),
             ("Genres", all(t.get("GENRE") for t in tracks)),
             ("Moods", any(t.get("MOOD") for t in tracks))]
@@ -473,7 +480,10 @@ class FileListView(QTableView):
     def mousePressEvent(self, e):
         band = self._band_at(e.position().toPoint()) if e.button() == Qt.MouseButton.LeftButton else None
         if band is not None:                         # a click on the heading selects the album
-            self.select_tracks(band.tracks, band.tracks[0])
+            if e.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                self.toggle_tracks(band.tracks)      # Ctrl adds it to the selection or takes it out
+            else:
+                self.select_tracks(band.tracks, band.tracks[0])
             return
         super().mousePressEvent(e)
 
@@ -523,13 +533,19 @@ class FileListView(QTableView):
             text = tr(name)
             width = p.fontMetrics().horizontalAdvance(text) + 32
             chip = QRectF(x - width, rect.center().y() - 10, width, 20)
+            if ok == DISCOGS:
+                back, ink = theme.WARNING_BACKGROUND, theme.WARNING
+            else:
+                back, ink = (theme.OK_BACKGROUND, theme.OK_TEXT) if ok else (theme.BAD_BACKGROUND, theme.BAD_TEXT)
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(theme.OK_BACKGROUND if ok else theme.BAD_BACKGROUND))
+            p.setBrush(QColor(back))
             p.drawRoundedRect(chip, 10, 10)
-            ink = QColor(theme.OK_TEXT if ok else theme.BAD_TEXT)
+            ink = QColor(ink)
             p.setPen(QPen(ink, 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
             mx, my = chip.left() + 13, chip.center().y()
-            if ok:
+            if ok == DISCOGS:                   # a ring: tagged, but not from MusicBrainz
+                p.drawEllipse(QRectF(mx - 3.5, my - 3.5, 7, 7))
+            elif ok:
                 p.drawPolyline([QPoint(int(mx - 4), int(my)), QPoint(int(mx - 1), int(my + 3)), QPoint(int(mx + 4), int(my - 3))])
             else:
                 p.drawLine(QPoint(int(mx - 3), int(my - 3)), QPoint(int(mx + 3), int(my + 3)))
@@ -569,6 +585,15 @@ class FileListView(QTableView):
                                QItemSelectionModel.SelectionFlag.NoUpdate)
             if scroll:
                 self.scrollTo(m.index(cur, 1))
+
+    def toggle_tracks(self, tracks: list[Track]) -> None:
+        """Add ``tracks`` to the selection; if all of them are selected already, take them out."""
+        chosen = {id(t) for t in self.selected_tracks()}
+        if all(id(t) in chosen for t in tracks):
+            ids = {id(t) for t in tracks}
+            self.select_tracks([t for t in self.selected_tracks() if id(t) not in ids], scroll=False)
+        else:
+            self.select_tracks(self.selected_tracks() + list(tracks), tracks[0], scroll=False)
 
     # -- drag & drop ---------------------------------------------------------
     def dragEnterEvent(self, e):

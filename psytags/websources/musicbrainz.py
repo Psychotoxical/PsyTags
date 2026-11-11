@@ -140,6 +140,7 @@ def _parse_album(release: dict) -> Album:
             lengths.append(_text(recording.get("length")))
     album = Album(tracks=len(rows["TITLE"]), lengths=lengths)
     album.fields = {k: [v] for k, v in common.items() if v}
+    album.fields["DISCOGS_RELEASE_ID"] = [""]       # an earlier tagging from Discogs no longer applies
     for name, values in rows.items():
         if any(values):
             album.fields[name] = values

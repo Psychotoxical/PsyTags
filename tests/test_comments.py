@@ -110,6 +110,7 @@ class GuardedTests(unittest.TestCase):
 
     def _window(self):
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         return w
 
@@ -117,6 +118,7 @@ class GuardedTests(unittest.TestCase):
 class PanelTests(GuardedTests):
     def _loaded(self, *comments):
         w = self._window()
+        w.panel.blank_comments = True               # the option is on
         w.panel.load([track({"COMMENT": c}) for c in comments])
         return w.panel, w.panel.combos["COMMENT"]
 
@@ -205,19 +207,25 @@ class SaveTests(unittest.TestCase):
 
 
 class OptionTests(GuardedTests):
-    def test_deleting_comments_is_the_default(self):
-        self.assertTrue(Options().drop_comments)
+    def test_comments_stay_by_default(self):
+        # a new user must not lose comments without having chosen so
+        self.assertFalse(Options().drop_comments)
+        self.assertFalse(Options.load().drop_comments)
+        self.assertFalse(self._window().panel.blank_comments)
+
+    def test_a_stored_choice_to_delete_them_stays(self):
+        Options(drop_comments=True).save()
         self.assertTrue(Options.load().drop_comments)
         self.assertTrue(self._window().panel.blank_comments)
 
-    def test_the_options_dialog_can_switch_it_off(self):
+    def test_the_options_dialog_can_switch_it_on(self):
         from psytags.ui.dialogs.options import OptionsDialog
         d = OptionsDialog(Options())
         self.addCleanup(d.deleteLater)
-        self.assertTrue(d.drop_comments.isChecked())
-        d.drop_comments.setChecked(False)
+        self.assertFalse(d.drop_comments.isChecked())
+        d.drop_comments.setChecked(True)
         d.accept()
-        self.assertFalse(d.opts.drop_comments)
+        self.assertTrue(d.opts.drop_comments)
 
     def test_a_new_setting_reaches_the_panel(self):
         win = mock.MagicMock()

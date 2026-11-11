@@ -4,7 +4,7 @@
 
 Die Reihenfolge innerhalb eines Albums richtet sich nach Disc und Track.
 
-Unter **Optionen → Nummern** legen Sie das Format fest:
+Unter **Optionen → Automatik → Nummern** legen Sie das Format fest:
 
 | Einstellung | Beispiel |
 |---|---|

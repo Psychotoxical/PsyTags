@@ -33,19 +33,22 @@ def _score(row: dict) -> int:
     return int(m.group(1)) if m else 0
 
 
-def digital_first(rows: list[dict], n_files: int) -> list[dict]:
+def digital_first(rows: list[dict], n_files: int, prefer_digital: bool = True) -> list[dict]:
     """Search results by score; among equal scores, digital editions of the right size on top."""
+    if not prefer_digital:
+        return sorted(rows, key=lambda r: -_score(r))
     return sorted(rows, key=lambda r: (-_score(r), not (is_digital(r) and track_count(r) == n_files)))
 
 
-def candidate_rows(matches: list, n_files: int, mbid: str = "") -> list[dict]:
+def candidate_rows(matches: list, n_files: int, mbid: str = "", prefer_digital: bool = True) -> list[dict]:
     """Releases worth a lookup: a track count that can work, no leftover files first,
     digital editions first within that. One track more than files can work too: the search
     counts a hidden track before the first one (pregap). An ID from the tags is one more candidate."""
     lowest = n_files - min(albummatch.MAX_LEFTOVERS, n_files // 4)
     fit = [m.row for m in matches                   # a search may not tell the count: the lookup will
            if (c := track_count(m.row)) is None or lowest <= c <= n_files + 1]
-    fit.sort(key=lambda r: (track_count(r) != n_files, (track_count(r) or 0) > n_files, not is_digital(r)))
+    fit.sort(key=lambda r: (track_count(r) != n_files, (track_count(r) or 0) > n_files,
+                            prefer_digital and not is_digital(r)))
     if mbid and not any(mbid.lower() in r.get("_url", "").lower() for r in fit):
         fit.insert(0, {"_url": mbid})
     return fit[:MAX_CANDIDATES]
@@ -60,11 +63,11 @@ def file_infos(tracks: list) -> list[FileInfo]:
     return out
 
 
-def to_release(album: Album, row: dict, tight: bool = False) -> Release:
+def to_release(album: Album, row: dict, tight: bool = False, prefer_digital: bool = True) -> Release:
     n = album.tracks
     lengths = [albummatch.seconds(album.lengths[i]) if i < len(album.lengths) else None for i in range(n)]
     return Release(album, [album.value("TITLE", i) for i in range(n)], lengths,
-                   album.value("YEAR", 0)[:4], is_digital(row), tight)
+                   album.value("YEAR", 0)[:4], prefer_digital and is_digital(row), tight)
 
 
 @dataclass
@@ -100,19 +103,20 @@ def needs_second_search(rows: list[dict], tracks: list) -> bool:
     return not coverfetch.rank(rows, _first(tracks[0], "ALBUM"), artist, len(tracks))
 
 
-def find_album(src: TagSource, tracks: list, strict: bool = False) -> AutoResult:
+def find_album(src: TagSource, tracks: list, strict: bool = False, prefer_digital: bool = True) -> AutoResult:
     """Search and decide; if that fails or leaves files without a track, again without the
     notes behind the album title: the words of a note can hide the edition that fits.
     ``strict``: for a source besides MusicBrainz, every track must have a known length.
+    ``prefer_digital``: among equally good editions the digital one wins.
     Raises http.FetchError."""
     album = _first(tracks[0], "ALBUM")
     if not album:
         return AutoResult(None, tr("Kein Album-Tag"))
-    result = _search(src, tracks, album, src.prefill(tracks), album, strict)
+    result = _search(src, tracks, album, src.prefill(tracks), album, strict, prefer_digital)
     for title in _title_steps(album):
         if result.match is not None and not result.match.leftover_keys:
             break
-        step = _search(src, tracks, title, src.prefill(tracks, title), album, strict)
+        step = _search(src, tracks, title, src.prefill(tracks, title), album, strict, prefer_digital)
         if step.match is not None and (result.match is None or len(step.match.leftover_keys) < len(result.match.leftover_keys)):
             result = step
         elif result.match is None:
@@ -120,14 +124,15 @@ def find_album(src: TagSource, tracks: list, strict: bool = False) -> AutoResult
     return result
 
 
-def find_with_fallback(src: TagSource, second: TagSource | None, tracks: list) -> tuple[TagSource, AutoResult]:
+def find_with_fallback(src: TagSource, second: TagSource | None, tracks: list,
+                       prefer_digital: bool = True) -> tuple[TagSource, AutoResult]:
     """(source that decided, result): ``second`` only gets the albums ``src`` leaves open.
     Its failure must not end the run, the album stays open and the reason says why."""
-    result = find_album(src, tracks)
+    result = find_album(src, tracks, prefer_digital=prefer_digital)
     if result.match is not None or second is None:
         return src, result
     try:
-        found = find_album(second, tracks, strict=True)
+        found = find_album(second, tracks, strict=True, prefer_digital=prefer_digital)
     except http.FetchError as e:
         return src, AutoResult(None, f"{result.reason} · {str(e).splitlines()[0]}")
     return (second, found) if found.match is not None else (src, result)
@@ -162,17 +167,19 @@ def _all_lengths_known(found: Album) -> bool:
     return len(found.lengths) == found.tracks and all(albummatch.seconds(v) for v in found.lengths)
 
 
-def _search(src: TagSource, tracks: list, title: str, values: list[str], album: str, strict: bool = False) -> AutoResult:
+def _search(src: TagSource, tracks: list, title: str, values: list[str], album: str, strict: bool = False,
+            prefer_digital: bool = True) -> AutoResult:
     artist = _first(tracks[0], "ALBUMARTIST") or _first(tracks[0], "ARTIST")
     rows = src.search(values)
     matches = coverfetch.rank(rows, title, artist, len(tracks))
     releases = []
-    candidates = candidate_rows(matches, len(tracks), "" if strict else _first(tracks[0], "MUSICBRAINZ_ALBUMID"))
+    candidates = candidate_rows(matches, len(tracks), "" if strict else _first(tracks[0], "MUSICBRAINZ_ALBUMID"),
+                                prefer_digital)
     for number, row in enumerate(candidates, 1):
         with http.activity(tr("Ausgabe {1} von {2}", number, len(candidates))):
             found = src.album(row)
         if _fits_album(found, album, artist) and (not strict or _all_lengths_known(found)):
-            releases.append(to_release(found, row, _needs_tight_lengths(found, album)))
+            releases.append(to_release(found, row, _needs_tight_lengths(found, album), prefer_digital))
     d: Decision = albummatch.decide(file_infos(tracks), releases, _first(tracks[0], "YEAR")[:4])
     return AutoResult(d.match, d.reason)
 
@@ -255,3 +262,5 @@ class BatchEntry:
     cover: str | None = None           # cover source: None did not run, "" worked, else why not
     genres: str | None = None          # Last.fm: same meaning
     cover_seen: list | None = None     # the front covers when the cover step failed
+    genres_seen: list | None = None    # the genres when the genre step failed
+    source: str = ""                   # the tag source that tagged the album

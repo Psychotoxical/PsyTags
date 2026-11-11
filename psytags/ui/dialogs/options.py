@@ -7,13 +7,14 @@ from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                                QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-                               QPushButton, QScrollArea, QStyle, QStyledItemDelegate, QVBoxLayout, QWidget)
+                               QPushButton, QScrollArea, QSpinBox, QStackedWidget, QStyle, QStyledItemDelegate,
+                               QVBoxLayout, QWidget)
 
 from ... import config
 from ...config import Column, Options, PanelField
 from ...i18n import tr
 from .. import theme
-from ..controls import SWITCH_SIZE, NumberFormatEditor, Segmented, add_row, add_switch, paint_switch
+from ..controls import SWITCH_SIZE, NumberFormatEditor, Segmented, Switch, add_row, add_switch, paint_switch
 from ..persist import remember
 from ...websources import discogs, lastfm
 from .tagsources import run_async
@@ -151,6 +152,10 @@ class PanelDialog(_ListEditor):
         self.form.addRow(tr("Name:"), self.name)
         self.form.addRow(tr("Feld:"), self.value)
         self.form.addRow(tr("Größe:"), self.size)
+        from .. import statusbox
+        self.status_box = QCheckBox(tr("Statusmeldungen als Kasten im Tag-Panel zeigen"))
+        self.status_box.setChecked(statusbox.enabled(config.settings()))
+        self.form.addRow(self.status_box)
         self.name.textEdited.connect(self._store)
         self.value.editTextChanged.connect(self._store)
         self.size.currentIndexChanged.connect(self._store)
@@ -287,16 +292,14 @@ class _SourceDelegate(QStyledItemDelegate):
         return super().editorEvent(event, model, option, index)
 
 
+
 class OptionsDialog(QDialog):
-    """One page in the order of the work: the steps of the main window, then files and program."""
-    SECTIONS = (("moods", "1", "Moods", "Analyse aus dem Audio"),
-                ("musicbrainz", "2", "MusicBrainz", "Tags aus der Datenbank"),
-                ("discogs", "", "Discogs", "Wenn MusicBrainz ein Album offen lässt"),
-                ("numbers", "3", "Nummern", "Format von Track und Disc"),
-                ("cover", "4", "Cover", "Die erste Quelle, die ein Cover liefert, gewinnt."),
-                ("genres", "5", "Genres", "Von Last.fm"),
-                ("files", "", "Dateien", "Lesen und Schreiben"),
-                ("program", "", "Programm", "Sprache und Design"))
+    """Four pages behind cards: the steps of the automatic run, accounts and sources, files, program."""
+    PAGES = ("automatic", "sources", "files", "program")
+    STEPS = ("moods", "musicbrainz", "numbers", "cover", "genres")
+    # where every part lives; callers may open the dialog at any of them
+    SECTION_PAGE = {**{s: "automatic" for s in STEPS}, "discogs": "sources", "lastfm": "sources",
+                    "plugins": "sources", "files": "files", "program": "program"}
 
     def __init__(self, opts: Options, parent=None, section: str = ""):
         super().__init__(parent)
@@ -305,61 +308,76 @@ class OptionsDialog(QDialog):
         self.resize(860, 720)
         self.setMinimumSize(720, 480)
         self._blocks: dict[str, QWidget] = {}
-        self._links: dict[str, QPushButton] = {}
-        self._jumping = False
-        keys = self.section_keys()
-        self._wanted = section if section in keys else ""
-        self._current = self._wanted or keys[0]
+        self._tabs: dict[str, QPushButton] = {}
+        self._scrolls: dict[str, QScrollArea] = {}
+        self._wanted = section if section in self.SECTION_PAGE or section in self.PAGES else ""
+        self._current = self._wanted or self.PAGES[0]
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
         root.addWidget(self._header())
-        page = QWidget()
-        page.setObjectName("OptionsPage")
-        self._column = QVBoxLayout(page)
-        self._column.setContentsMargins(30, 6, 30, 6)
-        self._column.setSpacing(0)
-        fill = {"moods": self._moods, "musicbrainz": self._musicbrainz, "discogs": self._discogs, "numbers": self._numbers,
-                "cover": self._cover, "genres": self._genres, "files": self._files, "program": self._program}
-        for i, (key, number, title, what) in enumerate(self.SECTIONS):
-            if i:
-                rule = QFrame()
-                rule.setObjectName("SectionRule")
-                self._column.addWidget(rule)
-            self._column.addWidget(self._block(key, number, title, what, fill[key]))
-        self._column.addStretch(1)
-        self.scroll = QScrollArea()
-        self.scroll.setWidget(page)
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll.verticalScrollBar().valueChanged.connect(self._follow_scroll)
-        root.addWidget(self.scroll, 1)
+        self.stack = QStackedWidget()
+        fill = {"automatic": self._automatic, "sources": self._sources, "files": self._files_page,
+                "program": self._program_page}
+        for key in self.PAGES:
+            page = QWidget()
+            page.setObjectName("OptionsPage")
+            column = QVBoxLayout(page)
+            column.setContentsMargins(30, 16, 30, 16)
+            column.setSpacing(12)
+            fill[key](column)
+            column.addStretch(1)
+            scroll = QScrollArea()
+            scroll.setWidget(page)
+            scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            self._scrolls[key] = scroll
+            self.stack.addWidget(scroll)
+        root.addWidget(self.stack, 1)
         root.addWidget(self._footer())
-        self._mark_current()
-        remember(self, "options2")
+        self._show_page(self.page_of(self._current))
+        remember(self, "options3")
 
     # ------------------------------------------------------------------ frame
     def _header(self) -> QWidget:
         head = QWidget()
         head.setObjectName("OptionsHeader")
-        row = QHBoxLayout(head)
-        row.setContentsMargins(30, 18, 30, 12)
+        column = QVBoxLayout(head)
+        column.setContentsMargins(30, 18, 30, 14)
+        column.setSpacing(12)
         title = QLabel(tr("Optionen"))
         title.setObjectName("DialogTitle")
-        row.addWidget(title)
-        row.addStretch(1)
+        column.addWidget(title)
+        row = QHBoxLayout()
+        row.setSpacing(8)
         group = QButtonGroup(head)
-        for key, _number, text, _what in self.SECTIONS:
-            link = QPushButton(tr(text))
-            link.setObjectName("SectionLink")
-            link.setCheckable(True)
-            link.setAutoDefault(False)
-            link.setCursor(Qt.CursorShape.PointingHandCursor)
-            link.clicked.connect(lambda _=False, key=key: self.show_section(key))
-            group.addButton(link)
-            row.addWidget(link)
-            self._links[key] = link
+        texts = {"automatic": (tr("Automatik"), tr("Schritte des automatischen Laufs")),
+                 "sources": (tr("Konten und Quellen"), tr("Schlüssel, Token, Cover-Plugins")),
+                 "files": (tr("Dateien"), tr("Lesen und Schreiben")),
+                 "program": (tr("Programm"), tr("Sprache und Design"))}
+        for key in self.PAGES:
+            name, what = texts[key]
+            tab = QPushButton()
+            tab.setObjectName("PageCard")
+            tab.setCheckable(True)
+            tab.setAutoDefault(False)
+            tab.setCursor(Qt.CursorShape.PointingHandCursor)
+            tab.setAccessibleName(name)
+            inner = QVBoxLayout(tab)
+            inner.setContentsMargins(12, 9, 12, 9)
+            inner.setSpacing(2)
+            heading = QLabel(name)
+            heading.setObjectName("StepTitle")
+            inner.addWidget(heading)
+            note = QLabel(what)
+            note.setObjectName("StepKey")
+            inner.addWidget(note)
+            tab.clicked.connect(lambda _=False, key=key: self.show_section(key))
+            group.addButton(tab)
+            row.addWidget(tab, 1)
+            self._tabs[key] = tab
+        column.addLayout(row)
         return head
 
     def _footer(self) -> QWidget:
@@ -380,40 +398,47 @@ class OptionsDialog(QDialog):
         row.addWidget(save)
         return foot
 
-    def _block(self, key, number, title, what, fill) -> QWidget:
-        block = QWidget()
-        grid = QHBoxLayout(block)
-        grid.setContentsMargins(0, 18, 0, 18)
-        grid.setSpacing(24)
-        side = QWidget()
-        side.setFixedWidth(190)
-        info = QVBoxLayout(side)
-        info.setContentsMargins(0, 0, 0, 0)
-        info.setSpacing(5)
-        line = QHBoxLayout()
-        line.setSpacing(9)
+    def _card(self, column: QVBoxLayout, key: str, title: str, what: str = "", number: str = "",
+              switch: bool | None = None) -> tuple[QVBoxLayout, Switch | None]:
+        """A card with a heading; ``switch`` adds a switch to the heading that turns the
+        whole card on or off. Returns the layout for the content and the switch."""
+        card = QFrame()
+        card.setObjectName("OptionsCard")
+        box = QVBoxLayout(card)
+        box.setContentsMargins(16, 12, 16, 14)
+        box.setSpacing(10)
+        head = QHBoxLayout()
+        head.setSpacing(10)
         if number:
             badge = QLabel(number)
-            badge.setObjectName("StepBadge")
-            badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            line.addWidget(badge)
-        heading = QLabel(tr(title))
-        heading.setObjectName("SectionTitle")
-        line.addWidget(heading)
-        line.addStretch(1)
-        info.addLayout(line)
-        note = QLabel(tr(what))
-        note.setObjectName("DialogSubtitle")
-        note.setWordWrap(True)
-        info.addWidget(note)
-        info.addStretch(1)
-        grid.addWidget(side)
-        area = QVBoxLayout()
+            badge.setObjectName("StepNumber")
+            head.addWidget(badge)
+        heading = QLabel(title)
+        heading.setObjectName("StepTitle")
+        head.addWidget(heading)
+        if what:
+            note = QLabel(what)
+            note.setObjectName("StepKey")
+            head.addWidget(note)
+        head.addStretch(1)
+        on = None
+        if switch is not None:
+            on = Switch()
+            on.setChecked(switch)
+            on.setAccessibleName(title)
+            head.addWidget(on)
+        box.addLayout(head)
+        body = QWidget()
+        area = QVBoxLayout(body)
+        area.setContentsMargins(0, 0, 0, 0)
         area.setSpacing(12)
-        fill(area)
-        grid.addLayout(area, 1)
-        self._blocks[key] = block
-        return block
+        box.addWidget(body)
+        if on is not None:
+            on.toggled.connect(body.setEnabled)
+            body.setEnabled(on.isChecked())
+        column.addWidget(card)
+        self._blocks[key] = card
+        return area, on
 
     _row = staticmethod(add_row)
     _switch = staticmethod(add_switch)
@@ -435,26 +460,28 @@ class OptionsDialog(QDialog):
 
     # ------------------------------------------------------------------ navigation
     def section_keys(self) -> list[str]:
-        return [s[0] for s in self.SECTIONS]
+        return list(self.SECTION_PAGE)
+
+    def page_of(self, key: str) -> str:
+        return key if key in self.PAGES else self.SECTION_PAGE[key]
+
+    def current_page(self) -> str:
+        return self.PAGES[self.stack.currentIndex()]
 
     def current_section(self) -> str:
         return self._current
 
     def show_section(self, key: str) -> None:
+        """Show the page of ``key``; a part of a page is scrolled into view."""
         self._current = key
-        self._mark_current()
-        self._jumping = True
-        self.scroll.verticalScrollBar().setValue(self._blocks[key].y())
-        self._jumping = False
+        page = self.page_of(key)
+        self._show_page(page)
+        if key in self._blocks:
+            self._scrolls[page].verticalScrollBar().setValue(self._blocks[key].y() - 16)
 
-    def _mark_current(self) -> None:
-        self._links[self._current].setChecked(True)
-
-    def _follow_scroll(self, value: int) -> None:
-        if self._jumping:
-            return
-        self._current = [k for k in self.section_keys() if self._blocks[k].y() <= value + 24][-1]
-        self._mark_current()
+    def _show_page(self, page: str) -> None:
+        self.stack.setCurrentIndex(self.PAGES.index(page))
+        self._tabs[page].setChecked(True)
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -464,40 +491,57 @@ class OptionsDialog(QDialog):
             key, self._wanted = self._wanted, ""
             QTimer.singleShot(0, lambda: self.show_section(key))    # the page has its final layout then
 
-    # ------------------------------------------------------------------ sections
-    def _moods(self, area: QVBoxLayout) -> None:
+    # ------------------------------------------------------------------ pages
+    def _automatic(self, column: QVBoxLayout) -> None:
+        self._hint(column, tr("Diese Schritte laufen bei „Alle Alben automatisch“ in dieser Reihenfolge, Nummern "
+                              "und Cover auch nach einer manuellen Suche. Was Sie nicht brauchen, schalten Sie aus."))
+        o = self.opts
+        area, self.auto_moods = self._card(column, "moods", tr("Moods"), tr("Analyse aus dem Audio"), "1", o.auto_moods)
         self.mood_level = self._segmented(((tr("Wenige"), "few"), (tr("Normal"), "normal"), (tr("Viele"), "many")),
-                                          self.opts.mood_level, "normal")
+                                          o.mood_level, "normal")
         self._row(area, tr("Menge der Moods"), self.mood_level)
         self._hint(area, tr("Gilt für neue Analysen. Vorhandene Moods ändern sich erst, wenn die Songs neu analysiert werden."))
 
-    def _musicbrainz(self, area: QVBoxLayout) -> None:
-        self.drop_comments = self._switch(area, tr("Kommentare standardmäßig löschen"), self.opts.drop_comments)
+        area, _ = self._card(column, "musicbrainz", tr("MusicBrainz"), tr("Tags aus der Datenbank"), "2")
+        self.drop_comments = self._switch(area, tr("Kommentare standardmäßig löschen"), o.drop_comments)
         self.date_choice = self._segmented(((tr("Nur das Jahr"), "year"), (tr("Volles Datum"), "date")),
-                                           "year" if self.opts.year_only else "date", "year")
+                                           "year" if o.year_only else "date", "year")
         self._row(area, tr("Erscheinungsdatum"), self.date_choice)
         self._hint(area, tr("Gilt für MusicBrainz und Discogs. „Nur das Jahr“ schreibt 2026 statt 2026-10-11."))
+        self.prefer_digital = self._switch(area, tr("Digitale Ausgaben bevorzugen"), o.prefer_digital)
+        self._hint(area, tr("Passen mehrere Ausgaben gleich gut, nimmt PsyTags die digitale. Ausgeschaltet zählt nur, "
+                            "wie gut Titel und Längen passen. Bleibt ein Album offen, springt Discogs ein, "
+                            "wenn unter „Konten und Quellen“ ein Token steht."))
 
-    def _discogs(self, area: QVBoxLayout) -> None:
-        self._hint(area, tr("Bleibt ein Album bei MusicBrainz offen, sieht PsyTags mit diesem Token bei Discogs nach. "
-                            "Von dort kommen nur Texte, keine Cover."))
-        link = QLabel(tr("Discogs-Token (kostenlos unter <a href='https://www.discogs.com/settings/developers'>"
-                         "discogs.com/settings/developers</a>):"))
-        link.setOpenExternalLinks(True)
-        link.setWordWrap(True)
-        area.addWidget(link)
-        self.discogs_field = KeyField(config.settings().value("discogs/token", ""), lambda key: discogs.verify_token(key))
-        self.discogs_token = self.discogs_field.input
-        area.addWidget(self.discogs_field)
-
-    def _numbers(self, area: QVBoxLayout) -> None:
+        area, self.auto_numbers = self._card(column, "numbers", tr("Nummern"), tr("Format von Track und Disc"), "3",
+                                             o.auto_numbers)
+        self._hint(area, tr("Schreibt Track- und Discnummern, sobald jede Datei ihren Track gefunden hat."))
         self.numbers = NumberFormatEditor()
         self.number_boxes, self.number_sample = self.numbers.boxes, self.numbers.sample
         area.addWidget(self.numbers)
 
-    def _cover(self, area: QVBoxLayout) -> None:
+        area, self.auto_cover = self._card(column, "cover", tr("Cover"),
+                                           tr("Die erste Quelle, die ein Cover liefert, gewinnt."), "4", o.auto_cover)
+        self._cover_list(area)
+        self.replace_covers = self._switch(area, tr("Vorhandene Cover ersetzen"), o.replace_covers)
+        self._hint(area, tr("Ausgeschaltet behalten Alben, die schon ein Cover haben, ihr Cover. "
+                            "Holen Sie ein Cover von Hand, wird es immer ersetzt."))
+        self.cover_min = QSpinBox()
+        self.cover_min.setRange(0, 10000)
+        self.cover_min.setSingleStep(100)
+        self.cover_min.setSuffix(" px")
+        self.cover_min.setValue(_cover_min_size())
+        self._row(area, tr("Mindestgröße (0 = jede Größe)"), self.cover_min)
+
+        s = config.settings()
+        stored = s.value("lastfm/api_key", "")
+        area, self.lastfm_on = self._card(column, "genres", tr("Genres"), tr("Von Last.fm"), "5",
+                                          s.value("lastfm/enabled", "false") in (True, "true") or not stored)
+        self._hint(area, tr("Braucht den API-Key von Last.fm unter „Konten und Quellen“."))
+
+    def _cover_list(self, area: QVBoxLayout) -> None:
         from ...websources import coverprovider
-        providers, problems = coverprovider.discover()
+        providers, self._provider_problems = coverprovider.discover()
         self.cover_sources = QListWidget()
         self.cover_sources.setObjectName("CoverSources")
         self.cover_sources.setItemDelegate(_SourceDelegate(self.cover_sources))
@@ -516,6 +560,33 @@ class OptionsDialog(QDialog):
         area.addWidget(self.cover_sources)
         for key, step in (("Alt+Up", -1), ("Alt+Down", 1)):
             QShortcut(QKeySequence(key), self.cover_sources, lambda step=step: self.move_cover_source(step))
+
+    def _sources(self, column: QVBoxLayout) -> None:
+        area, _ = self._card(column, "discogs", tr("Discogs"), tr("Wenn MusicBrainz ein Album offen lässt"))
+        self._hint(area, tr("Bleibt ein Album bei MusicBrainz offen, sieht PsyTags mit diesem Token bei Discogs nach. "
+                            "Von dort kommen nur Texte, keine Cover."))
+        link = QLabel(tr("Discogs-Token (kostenlos unter <a href='https://www.discogs.com/settings/developers'>"
+                         "discogs.com/settings/developers</a>):"))
+        link.setOpenExternalLinks(True)
+        link.setWordWrap(True)
+        area.addWidget(link)
+        self.discogs_field = KeyField(config.settings().value("discogs/token", ""), lambda key: discogs.verify_token(key))
+        self.discogs_token = self.discogs_field.input
+        area.addWidget(self.discogs_field)
+
+        area, _ = self._card(column, "lastfm", tr("Last.fm"), tr("Genres"))
+        link = QLabel(tr("API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>"
+                         "last.fm/api/account/create</a>):"))
+        link.setOpenExternalLinks(True)
+        link.setWordWrap(True)
+        area.addWidget(link)
+        self.lastfm_field = KeyField(config.settings().value("lastfm/api_key", ""), lambda key: lastfm.verify_key(key))
+        self.lastfm_key = self.lastfm_field.input
+        area.addWidget(self.lastfm_field)
+
+        area, _ = self._card(column, "plugins", tr("Cover-Plugins"), tr("Weitere Cover-Quellen"))
+        self._hint(area, tr("Ein Plugin ist eine kleine Datei im Plugin-Ordner. Seine Quelle erscheint danach "
+                            "in der Liste der Cover-Quellen unter „Automatik“."))
         open_folder = QPushButton(tr("Plugin-Ordner öffnen"))
         open_folder.setAutoDefault(False)
         open_folder.clicked.connect(self._open_provider_folder)
@@ -528,11 +599,30 @@ class OptionsDialog(QDialog):
         buttons.addWidget(guide)
         buttons.addStretch(1)
         area.addLayout(buttons)
-        for problem in problems:
+        for problem in self._provider_problems:
             label = QLabel(problem)
             label.setWordWrap(True)
             label.setStyleSheet(f"color: {theme.ERROR};")
             area.addWidget(label)
+
+    def _files_page(self, column: QVBoxLayout) -> None:
+        o = self.opts
+        area, _ = self._card(column, "files", tr("Dateien"), tr("Lesen und Schreiben"))
+        self.id3 = self._segmented((("v2.3 UTF-16", 3), ("v2.4 UTF-8", 4)), o.id3_version, 3)
+        self._row(area, tr("ID3v2-Version für MP3"), self.id3)
+        self.v1 = self._switch(area, tr("Zusätzlich ID3v1 schreiben"), o.write_id3v1)
+        self.subfolders = self._switch(area, tr("Unterordner mit einlesen"), o.subfolders)
+        self.autosave = self._switch(area, tr("Tags beim Wechsel der Auswahl speichern"), o.save_on_selection_change)
+        self.keep_mtime = self._switch(area, tr("Änderungsdatum der Dateien nicht anfassen"), o.keep_mtime)
+
+    def _program_page(self, column: QVBoxLayout) -> None:
+        o = self.opts
+        area, _ = self._card(column, "program", tr("Programm"), tr("Sprache und Design"))
+        self.lang = self._segmented((("Deutsch", "de"), ("English", "en")), o.language, "de")
+        self._row(area, tr("Sprache"), self.lang)
+        self.theme = self._segmented((("Mocha, " + tr("dunkel"), "mocha"), ("Latte, " + tr("hell"), "latte")), o.theme, "mocha")
+        self.theme.as_swatches([theme.MOCHA, theme.LATTE])
+        area.addWidget(self.theme, 0, Qt.AlignmentFlag.AlignLeft)
 
     def move_cover_source(self, step: int) -> None:
         row = self.cover_sources.currentRow()
@@ -552,37 +642,6 @@ class OptionsDialog(QDialog):
         os.makedirs(coverprovider.folder(), exist_ok=True)
         QDesktopServices.openUrl(QUrl.fromLocalFile(coverprovider.folder()))
 
-    def _genres(self, area: QVBoxLayout) -> None:
-        s = config.settings()
-        stored = s.value("lastfm/api_key", "")
-        self.lastfm_on = self._switch(area, tr("Genres von Last.fm holen"),
-                                      s.value("lastfm/enabled", "false") in (True, "true") or not stored)
-        link = QLabel(tr("API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>"
-                         "last.fm/api/account/create</a>):"))
-        link.setOpenExternalLinks(True)
-        link.setWordWrap(True)
-        area.addWidget(link)
-        self.lastfm_field = KeyField(stored, lambda key: lastfm.verify_key(key))
-        self.lastfm_key = self.lastfm_field.input
-        area.addWidget(self.lastfm_field)
-
-    def _files(self, area: QVBoxLayout) -> None:
-        o = self.opts
-        self.id3 = self._segmented((("v2.3 UTF-16", 3), ("v2.4 UTF-8", 4)), o.id3_version, 3)
-        self._row(area, tr("ID3v2-Version für MP3"), self.id3)
-        self.v1 = self._switch(area, tr("Zusätzlich ID3v1 schreiben"), o.write_id3v1)
-        self.subfolders = self._switch(area, tr("Unterordner mit einlesen"), o.subfolders)
-        self.autosave = self._switch(area, tr("Tags beim Wechsel der Auswahl speichern"), o.save_on_selection_change)
-        self.keep_mtime = self._switch(area, tr("Änderungsdatum der Dateien nicht anfassen"), o.keep_mtime)
-
-    def _program(self, area: QVBoxLayout) -> None:
-        o = self.opts
-        self.lang = self._segmented((("Deutsch", "de"), ("English", "en")), o.language, "de")
-        self._row(area, tr("Sprache"), self.lang)
-        self.theme = self._segmented((("Mocha, " + tr("dunkel"), "mocha"), ("Latte, " + tr("hell"), "latte")), o.theme, "mocha")
-        self.theme.as_swatches([theme.MOCHA, theme.LATTE])
-        area.addWidget(self.theme, 0, Qt.AlignmentFlag.AlignLeft)
-
     # ------------------------------------------------------------------ values
     def accept(self):
         from ...websources import coverprovider
@@ -595,6 +654,7 @@ class OptionsDialog(QDialog):
         s.setValue("lastfm/api_key", key)
         s.setValue("lastfm/enabled", self.lastfm_on.isChecked() and bool(key))
         s.setValue("discogs/token", self.discogs_token.text().strip())
+        s.setValue("tagsources/cover_min_size", self.cover_min.value())
         o = self.opts
         o.language = self.lang.currentData()
         o.theme = self.theme.currentData()
@@ -606,4 +666,16 @@ class OptionsDialog(QDialog):
         o.drop_comments = self.drop_comments.isChecked()
         o.year_only = self.date_choice.currentData() == "year"
         o.mood_level = self.mood_level.currentData()
+        o.auto_moods = self.auto_moods.isChecked()
+        o.auto_numbers = self.auto_numbers.isChecked()
+        o.auto_cover = self.auto_cover.isChecked()
+        o.prefer_digital = self.prefer_digital.isChecked()
+        o.replace_covers = self.replace_covers.isChecked()
         super().accept()
+
+
+def _cover_min_size() -> int:
+    try:
+        return int(config.settings().value("tagsources/cover_min_size", 1000))
+    except (TypeError, ValueError):
+        return 1000

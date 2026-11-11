@@ -27,4 +27,4 @@ The window can stay in the background during a run. You can cancel a run, and wh
 
 Each step can also run alone for the selected files, from the bar at the top or with the [keyboard shortcuts](help:shortcuts).
 
-In the file list, the right side of each album row shows the state of album, cover, genres and moods.
+In the file list, the right side of each album row shows the state of album, cover, genres and moods. A yellow **Discogs** means: tagged, but from Discogs instead of MusicBrainz.

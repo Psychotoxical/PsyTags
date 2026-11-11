@@ -137,6 +137,10 @@ class AlbumTest(unittest.TestCase):
         self.assertNotIn("SETSUBTITLE", album.fields)
         self.assertNotIn("ISRC", album.fields)
 
+    def test_a_discogs_id_of_an_earlier_tagging_is_cleared(self):
+        self.assertEqual(self.album.fields["DISCOGS_RELEASE_ID"], [""])
+        self.assertNotIn("DISCOGS_RELEASE_ID", self.album.per_track)
+
     def test_empty_album_values_are_left_out(self):
         album, _ = album_from(dict(RELEASE, barcode="", asin=None))
         self.assertNotIn("BARCODE", album.fields)

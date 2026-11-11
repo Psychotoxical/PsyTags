@@ -12,7 +12,7 @@ Offene Alben stehen ganz oben.
 | Spalte | Bedeutung |
 |---|---|
 | Album | Künstler und Album |
-| Ergebnis | **Erledigt** oder **Offen** |
+| Ergebnis | **Erledigt** oder **Offen**; **Erledigt · Discogs**, gelb hinterlegt, wenn Discogs eingesprungen ist |
 | Cover, Genres | ☒ hat geklappt, ☐ hat nicht geklappt, – ist nicht gelaufen. Der Tooltip nennt den Grund. |
 | Details | Das gewählte Release und Hinweise, etwa „Von Discogs“ oder „Letzter Track fehlt“, bei offenen Alben der Grund |
 
@@ -20,7 +20,11 @@ Offene Alben stehen ganz oben.
 
 **Offene Alben:** Der Knopf **Bearbeiten** oder ein Doppelklick öffnet die Trefferliste von MusicBrainz, darüber steht, warum das Album offen blieb. Sie wählen selbst und passen die Zuordnung an. Danach steht dort „Manuell getaggt“.
 
-Findet MusicBrainz nichts, markieren Sie das Album in der Liste und suchen über **Tag-Quellen → Discogs** von Hand.
+Findet MusicBrainz nichts, lohnt es sich, im Suchformular mit dem Albumtitel zu spielen: das letzte Wort oder einen Zusatz wie „Remastered“ weglassen und prüfen, ob Titel und Interpret richtig geschrieben sind. Ein einziger Tippfehler im Album-Tag reicht, dass die Datenbank nichts findet.
+
+Hilft das nicht, markieren Sie das Album in der Liste und suchen über **Manuell suchen → Discogs …** im Rechtsklick-Menü von Hand.
+
+Hat Discogs ein Album getaggt, bietet die Zeile **MusicBrainz erneut versuchen** an. Das öffnet die Suche bei MusicBrainz; nach dem Speichern zeigt die Zeile das neue Ergebnis. Das gilt für jede manuelle Suche: Ein Album aus dem letzten Lauf, das Sie von Hand taggen, steht danach als erledigt in der Übersicht, egal wo Sie die Suche gestartet haben.
 
 **Cover oder Genres fehlen:** Der Knopf **Nachholen** fragt noch einmal nach. Beim Cover können Sie dabei aus der Trefferliste wählen, wenn kein Treffer sicher ist. Ein Cover, das Sie auf anderem Weg gesetzt haben, erkennt die Übersicht beim nächsten Öffnen.
 

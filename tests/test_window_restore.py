@@ -28,6 +28,7 @@ class WindowRestoreTests(unittest.TestCase):
         from psytags.ui.mainwindow import MainWindow
         with mock.patch.dict(os.environ, {"XDG_CURRENT_DESKTOP": desktop}):
             window = MainWindow()
+            window._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(window.deleteLater)
         return window
 

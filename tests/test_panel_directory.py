@@ -37,6 +37,7 @@ class PanelDirectoryTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         from psytags.ui.mainwindow import MainWindow
         self.window = MainWindow()
+        self.window._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(self.window.deleteLater)
         self.panel = self.window.panel
         self.panel.set_directories("/musik/geoeffnet", ["/musik/geoeffnet", "/musik/alt"])

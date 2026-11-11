@@ -4,7 +4,7 @@
 
 The order inside an album follows disc and track.
 
-Under **Options → Numbers** you set the format:
+Under **Options → Automatic → Numbers** you set the format:
 
 | Setting | Example |
 |---|---|

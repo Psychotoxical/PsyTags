@@ -149,6 +149,7 @@ def _parse_album(release: dict, first_year: str) -> Album:
         "PUBLISHER": ", ".join(_clean_name(l.get("name")) for l in labels),
         "CATALOGNUMBER": ", ".join(numbers),
         "BARCODE": barcode,
+        "DISCOGS_RELEASE_ID": _text(release.get("id")),     # marks the album as tagged from Discogs
     }
     discs, numbers_on_disc = _positions(tracks)
     several = len(set(discs)) > 1

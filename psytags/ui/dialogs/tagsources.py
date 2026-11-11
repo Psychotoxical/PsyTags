@@ -469,11 +469,18 @@ def outcome_mark(value: str | None) -> tuple[str, str | None]:
     return ("☒", theme.ICON_POSITIVE) if value == "" else ("☐", theme.ERROR)
 
 
+def from_second_source(entry) -> bool:
+    """Done, but by the source that steps in when MusicBrainz leaves an album open."""
+    return entry.ok and entry.source not in ("", "MusicBrainz")
+
+
 def summary_action(entry, column: int | None) -> str:
-    """What opening a summary row does: "manual", "cover", "genres" or "" for nothing.
-    A click on the cover or genre box only concerns that step."""
+    """What opening a summary row does: "manual", "cover", "genres", "musicbrainz" or "" for
+    nothing. A click on the cover or genre box only concerns that step."""
     if not entry.ok:
         return "manual"
+    if column == 4 and from_second_source(entry):
+        return "musicbrainz"
     if column == 2:
         return "cover" if entry.cover else ""
     if column == 3:
@@ -520,9 +527,14 @@ class BatchSummaryDialog(QDialog):
         for column in range(4):
             self.table.header().setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
         self.table.header().setStretchLastSection(True)
-        for e in sorted(entries, key=lambda x: x.ok):
-            it = QTreeWidgetItem([e.title, tr("Erledigt") if e.ok else tr("Offen"), "", "", e.detail])
+        for e in sorted(entries, key=lambda x: (x.ok, not from_second_source(x))):
+            result = tr("Erledigt · {1}", e.source) if from_second_source(e) else tr("Erledigt") if e.ok else tr("Offen")
+            it = QTreeWidgetItem([e.title, result, "", "", e.detail])
             it.setData(0, Qt.ItemDataRole.UserRole, e)
+            if from_second_source(e):          # stands out: done, but not from MusicBrainz
+                it.setForeground(1, QBrush(QColor(theme.WARNING)))
+                for column in range(5):
+                    it.setBackground(column, QBrush(QColor(theme.WARNING_BACKGROUND)))
             for column, value in ((2, e.cover), (3, e.genres)):
                 mark, color = outcome_mark(value)
                 it.setText(column, mark)
@@ -569,6 +581,9 @@ class BatchSummaryDialog(QDialog):
         for column, failed in ((2, entry.cover), (3, entry.genres)):
             if failed:
                 self._row_button(item, column, tr("Nachholen"), failed)
+        if from_second_source(entry):
+            self._row_button(item, 4, tr("MusicBrainz erneut versuchen"),
+                             tr("Dieses Album noch einmal bei MusicBrainz suchen"))
 
     def _row_button(self, item, column: int, text: str, tip: str) -> None:
         button = _RowButton(text)

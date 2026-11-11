@@ -257,9 +257,15 @@ class Options:
     id3_version: int = 3
     write_id3v1: bool = False
     keep_mtime: bool = False
-    drop_comments: bool = True
+    drop_comments: bool = False
     year_only: bool = True            # tag sources write 2026 instead of 2026-10-11
     mood_level: str = "normal"
+    # steps of "all albums automatically" and how a certain match is written
+    auto_moods: bool = True
+    auto_numbers: bool = True
+    auto_cover: bool = True
+    prefer_digital: bool = True
+    replace_covers: bool = True
     subfolders: bool = True
     save_on_selection_change: bool = True
     confirm_delete: bool = True

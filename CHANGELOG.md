@@ -2,6 +2,28 @@
 
 Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`, which becomes the next version's section when the version number is raised.
 
+## [0.1.4] - 2026-11-11
+
+### Added
+
+- **Options in four pages:** Automatic, Accounts and sources, Files, Program. Under Automatic, every step of “All albums automatically” has its own switch: moods, numbers, cover and genres can be left out.
+- **New choices:** prefer digital releases, replace existing covers, minimum cover size. All of them start as before.
+- **Ctrl+click on the row above an album** adds the whole album to the selection, or takes it out.
+- **Fetch cover** in the right-click menu of the file list: all cover sources in order, or a single one.
+- **Activity box at the foot of the Tag Panel:** what is running, with progress and the last three messages. It can be switched off under Customize Tag Panel.
+- **Statistics after “All albums automatically”:** how many albums and files in how much time, how many done and open.
+- **Albums tagged from Discogs are marked:** a yellow Discogs in the album row, a highlighted row in the summary with “Try MusicBrainz again”. PsyTags writes the Discogs release ID for this; a later MusicBrainz tagging removes it.
+
+### Changed
+
+- **“Tag Sources” is now “Search manually”**, with “MusicBrainz …” and “Discogs …”. In the ≡ menu it sits under Tagging.
+- **Comments are kept by default** for new users. A stored choice stays as it is.
+- **A manual search takes its cover from the cover sources** in their order, as the automatic run does.
+
+### Fixed
+
+- **The summary did not notice albums tagged by hand** from the main window, or genres fetched later. Their rows now show the result.
+
 ## [0.1.3] - 2026-11-11
 
 ### Changed

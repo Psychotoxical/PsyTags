@@ -216,6 +216,7 @@ class DialogTests(unittest.TestCase):
         from PySide6.QtWidgets import QPushButton
         from psytags.ui.mainwindow import MainWindow
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         choices = [b.text() for b in w.topbar.findChildren(QPushButton) if b.objectName() == "StepChoice"]
         self.assertEqual(choices, ["Auswahl", "Alle", "Auswahl", "Alle"])
@@ -227,6 +228,7 @@ class DialogTests(unittest.TestCase):
     def test_rename_step_offers_selection_and_all(self):
         from psytags.ui.mainwindow import MainWindow
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         w.model.rows = [object()]
         w._update_actions()
@@ -236,6 +238,7 @@ class DialogTests(unittest.TestCase):
     def test_renaming_all_takes_the_whole_list(self):
         from psytags.ui.mainwindow import MainWindow
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         rows = [Fake(path="/music/A/1.mp3"), Fake(path="/music/B/2.mp3")]
         w.model.rows = rows
@@ -253,6 +256,7 @@ class DialogTests(unittest.TestCase):
     def test_moods_step_needs_a_selection(self):
         from psytags.ui.mainwindow import MainWindow
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         w.model.rows = [object()]
         w._update_actions()
@@ -262,6 +266,7 @@ class DialogTests(unittest.TestCase):
     def _window(self):
         from psytags.ui.mainwindow import MainWindow
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         return w
 
@@ -381,6 +386,7 @@ class DialogTests(unittest.TestCase):
         self.addCleanup(folder.cleanup)
         config.settings().setValue("dirs/last", folder.name)
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         QApplication.processEvents()
         self.assertIsNone(w._loader_thread)
@@ -405,6 +411,7 @@ class DialogTests(unittest.TestCase):
     def test_tag_panel_always_shows_genres_and_moods(self):
         from psytags.ui.mainwindow import MainWindow
         w = MainWindow()
+        w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         self.assertFalse(w._lastfm_enabled())
         self.assertIn("MOOD", w.panel.combos)

@@ -5,7 +5,8 @@ _lang = "de"
 
 EN: dict[str, str] = {
     # menus
-    "Tag-&Quellen": "Tag &Sources", "&Hilfe": "&Help",
+    "&Taggen": "&Tagging", "&Manuell suchen": "Search &manually", "Cover &holen": "&Fetch cover",
+    "Alle Quellen der Reihe nach": "All sources in order", "&Hilfe": "&Help",
     "Tag &speichern": "&Save tag", "Tag ent&fernen": "&Remove tag",
     "&Optionen...": "&Options...",
     "&Beenden": "E&xit",

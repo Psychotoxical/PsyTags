@@ -23,6 +23,7 @@ class FoldingTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         from psytags.ui.mainwindow import MainWindow
         self.window = MainWindow()
+        self.window._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(self.window.deleteLater)
         self.bar = self.window.topbar
 

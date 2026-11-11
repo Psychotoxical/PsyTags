@@ -7,12 +7,12 @@ PsyTags loads covers from the Cover Art Archive. You can add more sources with a
 
 ## Installing a plugin
 
-1. Open **Options → Cover → Open plugin folder**.
+1. Open **Options → Accounts and sources → Open plugin folder**.
 2. Copy the `.json` file into that folder.
-3. Close and reopen **Options**. The new source now appears under **Cover**.
+3. Close and reopen **Options**. The new source now appears under **Automatic → Cover**.
 4. Drag the sources into the order you want. From top to bottom, the first source that delivers a cover wins.
 
-The folder is `%LOCALAPPDATA%\psytags\cover-provider` on Windows and `~/.config/psytags/cover-provider` on Linux. To remove a plugin, delete its file. To pause it, switch it off under **Options → Cover**.
+The folder is `%LOCALAPPDATA%\psytags\cover-provider` on Windows and `~/.config/psytags/cover-provider` on Linux. To remove a plugin, delete its file. To pause it, switch it off under **Options → Automatic → Cover**.
 
 PsyTags ships no plugin for a service with unclear terms of use. You are responsible for the plugins you add: check whether the service allows what you are doing.
 
@@ -136,7 +136,7 @@ The minimum cover size applies to every source.
 
 ## When it does not work
 
-A file with a mistake is refused and listed in red under **Options → Cover**. It does not disturb the other sources. These messages start with the file name:
+A file with a mistake is refused and listed in red under **Options → Accounts and sources → Cover plugins**. It does not disturb the other sources. These messages start with the file name:
 
 | Message | What to do |
 |---|---|
@@ -163,4 +163,4 @@ During use, the reason appears in the summary of the run:
 | HTTP 429 | Too many requests. Raise `min_interval`. |
 | Cover from … too small | The picture is below the minimum cover size. Look for a larger size with `image_replace`. |
 
-Is the plugin missing from **Options → Cover**? The file must end in `.json` and lie directly in the plugin folder, and **Options** must be opened again after copying it.
+Is the plugin missing from **Options → Automatic → Cover**? The file must end in `.json` and lie directly in the plugin folder, and **Options** must be opened again after copying it.

@@ -31,6 +31,7 @@ class DialogLifetimeTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         from psytags.ui.mainwindow import MainWindow
         self.window = MainWindow()
+        self.window._autosave.stop()       # the test's config folder goes away before 20 s
         _KEEP.append(self.window)
 
     def _garbage_after_closing(self, make) -> list:
