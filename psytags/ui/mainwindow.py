@@ -525,6 +525,20 @@ class MainWindow(QMainWindow):
         else:
             self.resizeDocks([self.panel_dock], [355], Qt.Orientation.Horizontal)
 
+    STATUS_TIP_MS = 4000
+
+    def event(self, e):
+        # The description of a hovered button or menu entry: Qt keeps it in the status bar until
+        # another one comes, so after a run the last one stood there for good. It goes by itself.
+        if e.type() == QEvent.Type.StatusTip:
+            tip = e.tip()
+            if tip:
+                self.statusBar().showMessage(tip, self.STATUS_TIP_MS)
+            else:
+                self.statusBar().clearMessage()
+            return True
+        return super().event(e)
+
     def closeEvent(self, e):
         if self.panel.dirty and self.panel.tracks and not self._save_or_drop(self.panel.tracks):
             e.ignore()

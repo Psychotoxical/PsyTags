@@ -2,6 +2,12 @@
 
 Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`, which becomes the next version's section when the version number is raised.
 
+## [Unreleased]
+
+### Fixed
+
+- **The description of the last hovered button stayed in the status bar**, for example after a run. It now goes away after a few seconds.
+
 ## [0.1.4] - 2026-11-11
 
 ### Added
