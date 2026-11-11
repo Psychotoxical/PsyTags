@@ -17,7 +17,13 @@ FIELDS = ["TITLE", "ARTIST", "ALBUM", "YEAR", "TRACK", "GENRE", "COMMENT", "ALBU
 
 
 def config_dir() -> str:
-    base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericConfigLocation)
+    if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+        # Tests and headless checks never touch the user's settings: a dialog saved there
+        # comes back at the size of the 800×600 test screen.
+        import tempfile
+        base = tempfile.gettempdir()
+    else:
+        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericConfigLocation)
     d = os.path.join(base, "psytags")
     os.makedirs(os.path.join(d, "data"), exist_ok=True)
     return d

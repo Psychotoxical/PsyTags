@@ -1512,6 +1512,10 @@ class MainWindow(QMainWindow):
         if len({(t.get("ALBUM") or [""])[0] for t in tracks}) != 1:
             self.run_source()
             return
+        filled = self._fill_gaps(tracks)
+        if filled is not None:
+            self.message(filled.detail, 10000)
+            return
         try:
             second = self._tag_fallback()
             used, res = self._background(tr("MusicBrainz durchsuchen: {1}", albumauto.album_title(tracks)),
@@ -1688,13 +1692,35 @@ class MainWindow(QMainWindow):
                     break
                 dlg.setLabelText(albumauto.album_title(tracks))
                 dlg.setValue(i)
-                entries.append(self._auto_one(src, tracks))
+                entries.append(self._fill_gaps(tracks) or self._auto_one(src, tracks))
         finally:
             dlg.finish()
             self._last_batch = entries
             self._update_actions()
         self.message(run_statistics(entries, time.monotonic() - started))      # stays until the next message
         self.show_batch_summary()
+
+    def _fill_gaps(self, tracks: list[Track]):
+        """Files added to an album that is already tagged (bonus tracks, say) take its values
+        from the other files; MusicBrainz is not asked. None when there is no such gap."""
+        from ..websources import albumauto
+        plan = albumauto.album_gaps(tracks)
+        if not plan:
+            return None
+        title = albumauto.album_title(tracks)
+        values = {id(t): v for t, v in plan}
+
+        def apply(t: Track):
+            for name, value in values[id(t)].items():
+                t.set(name, value)
+        files = [t for t, _values in plan]
+        with self._undo_group(title):
+            self._write(tr("Album-Werte übernehmen"), files, apply)
+        if self._group_errors:
+            return albumauto.BatchEntry(title, tracks, False, tr("Schreibfehler: {1}", " · ".join(self._group_errors[:3])))
+        self._auto_done.update({id(t): t for t in tracks})
+        return albumauto.BatchEntry(title, tracks, True,
+                                    tr("Werte des Albums für {1} Dateien ohne Release übernommen", len(files)))
 
     def _auto_one(self, src, tracks: list[Track]):
         from ..websources import albumauto
@@ -1803,6 +1829,12 @@ class MainWindow(QMainWindow):
             self.model.remove_tracks(tracks)
             if self.model.rows:
                 self.view.select_tracks([self.model.rows[min(row, len(self.model.rows) - 1)]])
+            else:
+                # The model reset clears the selection without a signal: the panel would keep
+                # showing the removed files.
+                self._panel_tracks = []
+                self.panel.load([])
+                self._update_actions()
             self._update_status()
 
     def play(self):
@@ -1822,8 +1854,11 @@ class MainWindow(QMainWindow):
     def _cover_command(self, cmd: str):
         cv = self.panel.cover
         if cmd in ("add", "replace"):
+            # A cover image usually lies next to the files: start in the folder of the selection
+            folders = {t.folder for t in self.panel.tracks}
+            start = folders.pop() if len(folders) == 1 else self.current_dir
             p, _ = QFileDialog.getOpenFileName(self, tr("Cover hinzu&fügen...").replace("&", ""),
-                                               self.current_dir,
+                                               start,
                                                tr("Bilder (*.jpg *.jpeg *.png *.bmp *.gif *.webp)"))
             if not p:
                 return

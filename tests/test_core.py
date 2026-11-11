@@ -68,6 +68,19 @@ class GenreMoodTests(unittest.TestCase):
         self.assertEqual(t.get("ARTIST"), ["A", "B"])
 
 
+class TestSettingsStayApartTests(unittest.TestCase):
+    def test_the_test_screen_never_uses_the_real_settings(self):
+        import tempfile as tf
+        from unittest import mock
+        from PySide6.QtCore import QStandardPaths
+        from psytags import config
+        real = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericConfigLocation)
+        with mock.patch.dict(os.environ, {"QT_QPA_PLATFORM": "offscreen"}):
+            d = config.config_dir()
+        self.assertFalse(d.startswith(os.path.join(real, "psytags")))
+        self.assertTrue(d.startswith(tf.gettempdir()))
+
+
 class SettingsTests(unittest.TestCase):
     def test_string_list_single_entry(self):
         from PySide6.QtCore import QSettings

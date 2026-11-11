@@ -246,6 +246,9 @@ EN_MORE: dict[str, str] = {
     "Titel nicht eindeutig: {1}": "Title is ambiguous: {1}", "Wird abgebrochen ...": "Canceling ...",
     "Cover von {1} zu klein": "Cover from {1} too small", "Schreibfehler: {1}": "Write errors: {1}",
     "Abgebrochen": "Canceled",
+    "Album-Werte übernehmen": "Take over album values",
+    "Werte des Albums für {1} Dateien ohne Release übernommen":
+        "Album values taken over for {1} files without a release",
     "{1} alte Ordner oder Dateien in den Papierkorb verschoben": "Moved {1} old folders or files to the recycle bin",
     "Diese Ordner konnten nicht entfernt werden:\n{1}": "These folders could not be removed:\n{1}",
     "Manuell getaggt": "Tagged manually",
