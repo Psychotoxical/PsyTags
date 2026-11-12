@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest]
+        os: [ubuntu-22.04, windows-latest, macos-15-intel, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -58,10 +58,15 @@ jobs:
         run: python -m unittest discover tests
 
   ffmpeg:
-    runs-on: ubuntu-22.04
+    name: ffmpeg (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        target: [linux, windows]
+        include:
+          - { target: linux, script: linux, runner: ubuntu-22.04 }
+          - { target: windows, script: windows, runner: ubuntu-22.04 }
+          - { target: macos-x86_64, script: macos, runner: macos-15-intel }
+          - { target: macos-arm64, script: macos, runner: macos-15 }
     steps:
       - uses: actions/checkout@v7
       - id: cache
@@ -70,10 +75,13 @@ jobs:
           path: ffmpeg-out
           key: ffmpeg-${{ matrix.target }}-${{ hashFiles('packaging/build_ffmpeg.sh') }}
       - name: Werkzeuge
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y nasm mingw-w64
+      - name: Werkzeuge (Mac mit Intel)
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'macOS' && runner.arch == 'X64'
+        run: brew install nasm
       - if: steps.cache.outputs.cache-hit != 'true'
-        run: packaging/build_ffmpeg.sh ${{ matrix.target }} ffmpeg-out
+        run: packaging/build_ffmpeg.sh ${{ matrix.script }} ffmpeg-out
       - uses: actions/upload-artifact@v7
         with:
           name: ffmpeg-${{ matrix.target }}
@@ -175,6 +183,56 @@ jobs:
         with:
           name: PsyTags-Linux-rpm
           path: dist/psytags-*.x86_64.rpm
+
+  macos:
+    name: macOS (${{ matrix.arch }})
+    needs: [lint, tests, ffmpeg]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x86_64, runner: macos-15-intel }
+          - { arch: arm64, runner: macos-15 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          name: ffmpeg-macos-${{ matrix.arch }}
+          path: ffmpeg
+      - run: chmod +x ffmpeg/bin/ffmpeg
+      - run: pip install . pyinstaller pillow
+      - name: Paket
+        env:
+          PSYTAGS_FFMPEG: ${{ github.workspace }}/ffmpeg/bin/ffmpeg
+        run: python -m PyInstaller --noconfirm --clean packaging/psytags.spec
+      - name: Startet PsyTags.app, läuft ffmpeg darin?
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          app=dist/PsyTags.app
+          test "$(lipo -archs "$app/Contents/MacOS/PsyTags")" = "${{ matrix.arch }}"
+          "$app/Contents/Frameworks/ffmpeg/ffmpeg" -hide_banner -version | head -1
+          "$app/Contents/MacOS/PsyTags" &
+          pid=$!
+          sleep 15
+          kill -0 "$pid"
+          kill "$pid"
+      - name: DMG
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' psytags/__init__.py)
+          mkdir dmg
+          cp -R dist/PsyTags.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname PsyTags -srcfolder dmg -fs HFS+ -format UDZO \
+            "dist/PsyTags-$version-macOS-${{ matrix.arch }}.dmg"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: PsyTags-macOS-${{ matrix.arch }}
+          path: dist/PsyTags-*-macOS-*.dmg
 
   deb:
     name: deb installiert sich (Ubuntu 24.04)
