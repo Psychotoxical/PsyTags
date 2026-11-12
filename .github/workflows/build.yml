@@ -209,6 +209,33 @@ jobs:
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}/ffmpeg/bin/ffmpeg
         run: python -m PyInstaller --noconfirm --clean packaging/psytags.spec
+      # Signing needs the Apple secrets; pull requests from forks have none and stay unsigned.
+      - name: Signieren
+        id: sign
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "::notice::No signing secrets: the app stays unsigned"
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(uuidgen)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain"
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain" > /dev/null
+          existing=$(security list-keychains -d user | tr -d '"' | xargs)
+          # shellcheck disable=SC2086 # one path per word
+          security list-keychains -d user -s "$keychain" $existing
+          packaging/sign_macos.sh dist/PsyTags.app "$APPLE_SIGNING_IDENTITY"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
       - name: Startet PsyTags.app, läuft ffmpeg darin?
         env:
           QT_QPA_PLATFORM: offscreen
@@ -229,6 +256,29 @@ jobs:
           ln -s /Applications dmg/Applications
           hdiutil create -volname PsyTags -srcfolder dmg -fs HFS+ -format UDZO \
             "dist/PsyTags-$version-macOS-${{ matrix.arch }}.dmg"
+      - name: Notarisieren
+        if: steps.sign.outputs.signed == 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY_B64 }}
+        run: |
+          dmgs=(dist/PsyTags-*-macOS-*.dmg)
+          dmg=${dmgs[0]}
+          codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$dmg"
+          key="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$APPLE_API_KEY_B64" | base64 --decode > "$key"
+          xcrun notarytool submit "$dmg" --key "$key" --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" --wait --timeout 30m --output-format json > notary.json
+          rm "$key"
+          cat notary.json
+          test "$(python3 -c 'import json; print(json.load(open("notary.json"))["status"])')" = Accepted
+          xcrun stapler staple "$dmg"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          hdiutil attach -nobrowse -mountpoint "$RUNNER_TEMP/mnt" "$dmg" > /dev/null
+          spctl --assess --type exec --verbose=2 "$RUNNER_TEMP/mnt/PsyTags.app"
+          hdiutil detach "$RUNNER_TEMP/mnt" > /dev/null
       - uses: actions/upload-artifact@v7
         with:
           name: PsyTags-macOS-${{ matrix.arch }}
