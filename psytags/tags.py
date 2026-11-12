@@ -7,6 +7,7 @@ names to its native keys.
 from __future__ import annotations
 
 import os
+import weakref
 from dataclasses import dataclass, field
 
 import mutagen
@@ -16,6 +17,8 @@ from mutagen.asf import ASF, ASFBoolAttribute, ASFByteArrayAttribute, ASFUnicode
 from mutagen.flac import FLAC, Picture
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
+
+from . import longpath
 
 SUPPORTED_EXTENSIONS = (
     "aac aif aifc aiff ape dsf flac m4a m4b mp2 mp3 mp4 mpc oga ogg opus "
@@ -168,6 +171,20 @@ class Cover:
     description: str = ""
 
 
+_known_covers: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
+
+
+def shared(cover: Cover) -> Cover:
+    """One object per distinct picture. The files of an album and every step of the undo
+    history then hold the same bytes, instead of a new copy from each reload after saving."""
+    key = (hash(cover.data), len(cover.data), cover.mime, cover.type, cover.description)
+    known = _known_covers.get(key)
+    if known is not None and known == cover:
+        return known
+    _known_covers[key] = cover
+    return cover
+
+
 @dataclass
 class AudioInfo:
     length: float = 0.0
@@ -198,6 +215,7 @@ def _add(fields: dict[str, list[str]], name: str, values) -> None:
 # Reading
 
 def read(path: str) -> TagData:
+    path = longpath.io(path)
     ext = os.path.splitext(path)[1].lower().lstrip(".")
     if ext in ("mp3", "mp2", "aac"):
         return _read_mp3(path)
@@ -428,6 +446,7 @@ def _read_mp4(f: MP4, td: TagData) -> None:
 def write(path: str, fields: dict[str, list[str]], covers: list[Cover] | None,
           id3_version: int = 3, write_id3v1: bool = False) -> None:
     """Replace the tag of ``path`` with ``fields`` (and ``covers`` if not None)."""
+    path = longpath.io(path)
     ext = os.path.splitext(path)[1].lower().lstrip(".")
     fields = {k.upper(): [v for v in vals if v != ""] for k, vals in fields.items()}
     fields = {k: v for k, v in fields.items() if v and not k.startswith("_")}
@@ -596,6 +615,7 @@ def _picture(c: Cover) -> Picture:
 
 def remove(path: str) -> None:
     """Remove all tags."""
+    path = longpath.io(path)
     ext = os.path.splitext(path)[1].lower().lstrip(".")
     if ext in ("mp3", "mp2", "aac"):
         _remove_mp3(path)

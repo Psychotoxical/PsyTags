@@ -21,6 +21,7 @@ from typing import Callable, NamedTuple, Sequence
 
 import numpy as np
 
+from . import longpath
 from .i18n import tr
 from .websources import http
 
@@ -252,11 +253,24 @@ def _ffmpeg() -> str:
 
 def decode(path: str) -> np.ndarray:
     """The first audio stream as 16 kHz mono float32."""
-    cmd = [_ffmpeg(), "-nostdin", "-v", "error", "-i", path, "-map", "0:a:0", "-ac", "1",
+    cmd = [_ffmpeg(), "-nostdin", "-v", "error", "-i", longpath.io(path), "-map", "0:a:0", "-ac", "1",
            "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"]
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     p = subprocess.run(cmd, capture_output=True, check=True, creationflags=flags)
     return np.frombuffer(p.stdout, dtype=np.float32)
+
+
+def song_threads(cpus: int | None = None) -> int:
+    """Songs analyzed at once. Each one holds about 600 MB while it runs, so a small
+    computer analyzes two at a time and a large one four."""
+    cpus = cpus or os.cpu_count() or 2
+    return 1 if cpus < 2 else min(4, max(2, cpus // 2))
+
+
+def model_threads(cpus: int | None = None) -> int:
+    """Threads of the model per song, so that all songs together fill the processor."""
+    cpus = cpus or os.cpu_count() or 2
+    return max(1, min(3, cpus // song_threads(cpus)))
 
 
 class Analyzer:
@@ -266,7 +280,7 @@ class Analyzer:
         _ffmpeg()
         import onnxruntime as ort
         so = ort.SessionOptions()
-        so.intra_op_num_threads = 3
+        so.intra_op_num_threads = model_threads()
         so.inter_op_num_threads = 1
         providers = ["CPUExecutionProvider"]
         self.effnet = ort.InferenceSession(os.path.join(folder, EFFNET), so, providers=providers)
@@ -297,9 +311,10 @@ class AnalysisResult:
 def analyze_files(paths: Sequence[str], moods_of: Callable[[str], list[str] | None],
                   on_progress: Callable[[int, int], None] | None = None,
                   should_stop: Callable[[], bool] | None = None,
-                  workers: int = 4) -> AnalysisResult:
+                  workers: int | None = None) -> AnalysisResult:
     """Run ``moods_of`` over all paths. A bad file is counted and the run continues;
     after ``should_stop`` the songs already finished are still returned."""
+    workers = workers or song_threads()
     result = AnalysisResult()
     lock = threading.Lock()
     done = [0]

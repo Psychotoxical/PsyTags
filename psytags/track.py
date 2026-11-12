@@ -5,7 +5,7 @@ import copy
 import datetime
 import os
 
-from . import genremood, tags
+from . import genremood, longpath, tags
 
 
 def fmt_length(seconds: float) -> str:
@@ -43,9 +43,10 @@ class Track:
     # -- I/O -----------------------------------------------------------------
     def load(self) -> "Track":
         try:
-            st = os.stat(self.path)
+            st = os.stat(longpath.io(self.path))
             self.size, self.mtime, self.ctime = st.st_size, st.st_mtime, st.st_ctime
             self.data = tags.read(self.path)
+            self.data.covers = [tags.shared(c) for c in self.data.covers]
             self.error = ""
         except Exception as e:      # unreadable/corrupt files still appear in the list
             self.data = tags.TagData()
@@ -56,11 +57,11 @@ class Track:
     def save(self, id3_version: int = 3, write_id3v1: bool = False,
              keep_mtime: bool = False) -> None:
         covers_changed = self.data.covers != self._saved.covers
-        st = os.stat(self.path)
+        st = os.stat(longpath.io(self.path))
         tags.write(self.path, self.data.fields, self.data.covers if covers_changed else None,
                    id3_version=id3_version, write_id3v1=write_id3v1)
         if keep_mtime:
-            os.utime(self.path, (st.st_atime, st.st_mtime))
+            os.utime(longpath.io(self.path), (st.st_atime, st.st_mtime))
         self.load()
 
     def remove_tags(self) -> None:

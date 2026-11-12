@@ -6,6 +6,7 @@ import pathlib
 import re
 import sys
 
+from . import longpath
 from .albumorder import album_root
 
 # What happens to characters in tag values that a file name cannot hold.
@@ -155,17 +156,18 @@ def rename(track, new_path: str) -> str:
     old = track.path
     if new_path == old:
         return old
+    src, dst = longpath.io(old), longpath.io(new_path)
     # On case-insensitive file systems (Windows) the target "exists" when only the
     # case changes; that is the same file and must still be renamed.
-    if os.path.exists(new_path) and not _same_file(new_path, old):
+    if os.path.exists(dst) and not _same_file(dst, src):
         raise FileExistsError(new_path)
-    os.makedirs(os.path.dirname(new_path), exist_ok=True)
+    os.makedirs(longpath.io(os.path.dirname(new_path)), exist_ok=True)
     try:
-        os.rename(old, new_path)
+        os.rename(src, dst)
     except OSError:
-        if os.path.exists(new_path):
+        if os.path.exists(dst):
             raise
-        shutil.move(old, new_path)                   # e.g. across drives
+        shutil.move(src, dst)                   # e.g. across drives
     track.path = new_path
     return old
 
