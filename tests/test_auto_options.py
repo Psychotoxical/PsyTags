@@ -18,6 +18,7 @@ def _window(**options):
     win._lastfm_enabled.return_value = False
     win._cover_big_enough.return_value = True
     win._fill_gaps.return_value = None          # no album with files added later
+    win._run_albums.side_effect = lambda *a: MainWindow._run_albums(win, *a)
     return win
 
 

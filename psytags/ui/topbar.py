@@ -241,12 +241,12 @@ class TopBar(QWidget):
                           [(tr("Auswahl"), w.act_moods), (tr("Alle"), w.act_moods_all)])
         row.addWidget(moods)
         self.step_widgets += [primary, moods]
-        steps = [("MusicBrainz", shortcut_text(w.act_auto_mb), w.act_auto_mb),
-                 (tr("Nummern"), shortcut_text(w.act_numbers), w.act_numbers),
-                 (tr("Cover"), "Cover Art Archive", w.act_cover_fetch),
-                 (tr("Genres"), shortcut_text(w.act_lastfm), w.act_lastfm)]
-        for number, (title, hint, action) in enumerate(steps, 2):
-            step = StepButton(number, title, hint, action)
+        steps = [("MusicBrainz", shortcut_text(w.act_auto_mb), w.act_auto_mb, w.act_auto_mb_all),
+                 (tr("Nummern"), shortcut_text(w.act_numbers), w.act_numbers, w.act_numbers_all),
+                 (tr("Cover"), "Cover Art Archive", w.act_cover_fetch, w.act_cover_fetch_all),
+                 (tr("Genres"), shortcut_text(w.act_lastfm), w.act_lastfm, w.act_lastfm_all)]
+        for number, (title, hint, selection, everything) in enumerate(steps, 2):
+            step = SplitStep(number, title, hint, [(tr("Auswahl"), selection), (tr("Alle"), everything)])
             self.step_widgets.append(step)
             row.addWidget(step)
         rename = SplitStep(6, tr("Umbenennen"), shortcut_text(w.act_ttf),

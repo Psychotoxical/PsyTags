@@ -7,6 +7,7 @@ Every version has its own section. The section of the version in `psytags/__init
 ### Added
 
 - **PsyTags for macOS 13 and newer**, as a disk image for Apple Silicon and one for Intel. The app is signed and notarized, so it opens without a Gatekeeper warning. It brings its own ffmpeg like the other packages.
+- **Every step of the bar has Selection and All**, like Moods and Rename before: MusicBrainz, numbers, cover and genres also run on every album of the list, for instance to catch up on missing covers. All under MusicBrainz skips albums that already have a MusicBrainz album ID and analyzes no moods.
 
 ### Changed
 

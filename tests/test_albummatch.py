@@ -656,6 +656,7 @@ class FollowUpTests(unittest.TestCase):
         from psytags.ui import mainwindow as mw
         win = mock.MagicMock(_auto_done={}, _mood_done={})
         win._fill_gaps.return_value = None          # no album with files added later
+        win._run_albums.side_effect = lambda *a: mw.MainWindow._run_albums(win, *a)
         t = _track("a.mp3", "One")
         win.model.rows = [t]
         win.analyze_moods.return_value = analysis_ok

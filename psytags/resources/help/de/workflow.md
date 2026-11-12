@@ -27,6 +27,8 @@ Während des Laufs kann das Fenster im Hintergrund bleiben. Ein Lauf lässt sich
 
 ## Einzelne Schritte
 
-Jeder Schritt lässt sich auch allein für die markierten Dateien ausführen, über die Leiste oben oder die [Tastaturkürzel](help:shortcuts).
+Jeder Schritt lässt sich auch allein ausführen, über die Leiste oben oder die [Tastaturkürzel](help:shortcuts). **Auswahl** nimmt die markierten Dateien, **Alle** jedes Album der Liste, etwa um nur fehlende Cover nachzuholen.
+
+**Alle** bei **MusicBrainz** überspringt Alben, die schon eine MusicBrainz-Album-ID haben, und analysiert keine Moods. Wie beim automatischen Lauf werden nur eindeutige Treffer getaggt, danach zeigt die Übersicht das Ergebnis.
 
 In der Dateiliste zeigt jede Album-Zeile rechts den Stand von Album, Cover, Genres und Moods. Ein gelbes **Discogs** heißt: getaggt, aber von Discogs statt MusicBrainz.
