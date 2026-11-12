@@ -123,6 +123,7 @@ QAbstractItemView#DialogList { background: $BACKGROUND; border: 1px solid $BORDE
 QTreeView#DialogList::item, QListView#DialogList::item { height: 28px; }
 QLabel#CoverBox { background: $FIELD; border: 1px solid $BORDER; border-radius: 8px; }
 QSplitter::handle { background: transparent; }
+QDialogButtonBox { button-layout: 0; }  /* the Windows order on every system: < Back, Next >, Cancel */
 QDialogButtonBox QPushButton { min-height: 26px; min-width: 84px; }
 QPushButton#DialogPrimary { background: $ACCENT; color: $ACCENT_TEXT; border: none; font-weight: 600; }
 QPushButton#DialogPrimary:hover { background: $ACCENT_HOVER; }

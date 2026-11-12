@@ -1,6 +1,8 @@
 """Header and step bar above the list: the whole workflow, left to right."""
 from __future__ import annotations
 
+import sys
+
 from PySide6.QtCore import Qt
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QAction, QIcon, QKeySequence
@@ -16,7 +18,10 @@ SEARCH_MIN_WIDTH = 120
 
 
 def shortcut_text(action: QAction) -> str:
-    """The action's first shortcut in the words of the keyboard: Strg+Umschalt+M."""
+    """The action's first shortcut in the words of the keyboard: Strg+Umschalt+M, on a Mac
+    with its symbols (⇧⌘M), where Qt puts Ctrl on the Command key."""
+    if sys.platform == "darwin":
+        return action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
     seq = action.shortcut().toString(QKeySequence.SequenceFormat.PortableText)
     return seq.replace("Ctrl", tr("Strg")).replace("Shift", tr("Umschalt"))
 

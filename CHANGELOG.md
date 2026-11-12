@@ -2,6 +2,13 @@
 
 Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`, which becomes the next version's section when the version number is raised.
 
+## [Unreleased]
+
+### Changed
+
+- **Dialog buttons keep one order on every system:** < Back, Next >, Cancel, as on Windows. Linux desktops and macOS had their own order.
+- **On a Mac the step bar shows the shortcuts with the Mac's symbols** (⇧⌘M), since the Command key takes the place of Ctrl there.
+
 ## [0.1.5] - 2026-11-12
 
 A long automatic run no longer fills the memory: PsyTags stays at about 180 MB where 0.1.4 ended at several GB.
