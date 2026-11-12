@@ -149,5 +149,25 @@ class AnalyzeFilesTests(unittest.TestCase):
         self.assertEqual(sorted(r.found), ["a", "b"])
 
 
+class ThreadTests(unittest.TestCase):
+    """Each song in progress holds about 600 MB: small computers analyze fewer at once."""
+
+    def test_a_dual_core_analyzes_two_songs(self):
+        self.assertEqual(ma.song_threads(2), 2)
+        self.assertEqual(ma.song_threads(4), 2)            # two cores with hyper-threading
+
+    def test_a_large_processor_stays_at_four(self):
+        self.assertEqual(ma.song_threads(12), 4)
+        self.assertEqual(ma.song_threads(32), 4)
+
+    def test_one_core_one_song(self):
+        self.assertEqual(ma.song_threads(1), 1)
+
+    def test_the_model_threads_fill_the_processor(self):
+        self.assertEqual(ma.model_threads(12), 3)          # as before: 4 songs x 3
+        self.assertEqual(ma.model_threads(4), 2)
+        self.assertEqual(ma.model_threads(2), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

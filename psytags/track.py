@@ -46,6 +46,7 @@ class Track:
             st = os.stat(longpath.io(self.path))
             self.size, self.mtime, self.ctime = st.st_size, st.st_mtime, st.st_ctime
             self.data = tags.read(self.path)
+            self.data.covers = [tags.shared(c) for c in self.data.covers]
             self.error = ""
         except Exception as e:      # unreadable/corrupt files still appear in the list
             self.data = tags.TagData()

@@ -7,6 +7,7 @@ names to its native keys.
 from __future__ import annotations
 
 import os
+import weakref
 from dataclasses import dataclass, field
 
 import mutagen
@@ -168,6 +169,20 @@ class Cover:
     mime: str = "image/jpeg"
     type: int = 3
     description: str = ""
+
+
+_known_covers: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
+
+
+def shared(cover: Cover) -> Cover:
+    """One object per distinct picture. The files of an album and every step of the undo
+    history then hold the same bytes, instead of a new copy from each reload after saving."""
+    key = (hash(cover.data), len(cover.data), cover.mime, cover.type, cover.description)
+    known = _known_covers.get(key)
+    if known is not None and known == cover:
+        return known
+    _known_covers[key] = cover
+    return cover
 
 
 @dataclass
