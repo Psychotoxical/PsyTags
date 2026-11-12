@@ -19,6 +19,8 @@ DOWNLOADS = """## Download
 | Debian, Ubuntu, Mint | `psytags_{version}_amd64.deb` |
 | Fedora, openSUSE | `psytags-{version}-1.x86_64.rpm` |
 | Other Linux | `PsyTags-x86_64.AppImage`: `chmod +x`, then start it |
+| macOS 13+, Apple Silicon | `PsyTags-{version}-macOS-arm64.dmg` |
+| macOS 13+, Intel | `PsyTags-{version}-macOS-x86_64.dmg` |
 """
 
 

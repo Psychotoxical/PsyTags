@@ -324,7 +324,7 @@ jobs:
   release:
     name: Release-Draft
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [windows, linux, deb, rpm]
+    needs: [windows, linux, deb, rpm, macos]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -345,7 +345,8 @@ jobs:
           tag="v$version"
           python3 packaging/release_notes.py "$version" > notes.md
           files=(assets/PsyTags-Setup-"$version".exe assets/PsyTags-x86_64.AppImage
-                 assets/psytags_"$version"_amd64.deb assets/psytags-"$version"-1.x86_64.rpm)
+                 assets/psytags_"$version"_amd64.deb assets/psytags-"$version"-1.x86_64.rpm
+                 assets/PsyTags-"$version"-macOS-arm64.dmg assets/PsyTags-"$version"-macOS-x86_64.dmg)
           ls -l "${files[@]}"
           state=$(gh release list --limit 100 --json tagName,isDraft \
                   --jq ".[] | select(.tagName == \"$tag\") | if .isDraft then \"draft\" else \"published\" end")

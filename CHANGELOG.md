@@ -4,6 +4,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Added
+
+- **PsyTags for macOS 13 and newer**, as a disk image for Apple Silicon and one for Intel. The app is signed and notarized, so it opens without a Gatekeeper warning. It brings its own ffmpeg like the other packages.
+
 ### Changed
 
 - **Dialog buttons keep one order on every system:** < Back, Next >, Cancel, as on Windows. Linux desktops and macOS had their own order.
