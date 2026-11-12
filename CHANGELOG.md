@@ -2,7 +2,9 @@
 
 Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`, which becomes the next version's section when the version number is raised.
 
-## [Unreleased]
+## [0.1.5] - 2026-11-12
+
+A long automatic run no longer fills the memory: PsyTags stays at about 180 MB where 0.1.4 ended at several GB.
 
 ### Added
 
@@ -14,11 +16,11 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ### Fixed
 
-- **The description of the last hovered button stayed in the status bar**, for example after a run. It now goes away after a few seconds.
-- **The Tag Panel kept the values of removed files** when every file was taken out of the list. It is now empty.
-- **Files with a path longer than 260 characters** could not be saved, renamed or analyzed on Windows ("The system cannot find the path specified"). They now work like every other file.
-- **The mood analysis analyzed four songs at once on every computer**, about 600 MB each. Computers with few cores now analyze two at a time; large ones stay at four.
 - **Memory grew with every saved album** and stayed high after a run: each save kept another copy of the album's covers for undo. Every picture is now held once, shared by the files of an album and the undo history.
+- **The mood analysis analyzed four songs at once on every computer**, about 600 MB each. Computers with few cores now analyze two at a time; large ones stay at four.
+- **Files with a path longer than 260 characters** could not be saved, renamed or analyzed on Windows ("The system cannot find the path specified"). They now work like every other file.
+- **The Tag Panel kept the values of removed files** when every file was taken out of the list. It is now empty.
+- **The description of the last hovered button stayed in the status bar**, for example after a run. It now goes away after a few seconds.
 - **Adding a cover from a file** opens in the folder of the selected album instead of the last opened folder.
 
 ## [0.1.4] - 2026-11-11
