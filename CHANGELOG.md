@@ -16,6 +16,7 @@ Every version has its own section. The section of the version in `psytags/__init
 
 - **The description of the last hovered button stayed in the status bar**, for example after a run. It now goes away after a few seconds.
 - **The Tag Panel kept the values of removed files** when every file was taken out of the list. It is now empty.
+- **Files with a path longer than 260 characters** could not be saved, renamed or analyzed on Windows ("The system cannot find the path specified"). They now work like every other file.
 - **Adding a cover from a file** opens in the folder of the selected album instead of the last opened folder.
 
 ## [0.1.4] - 2026-11-11

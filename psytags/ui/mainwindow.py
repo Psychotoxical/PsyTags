@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayo
                                QLabel, QMainWindow, QMenu, QMessageBox, QProgressBar, QSizePolicy,
                                QDialog, QPushButton, QStatusBar, QVBoxLayout, QWidget)
 
-from .. import albumorder, config, convert, namescheme, numbering, tags
+from .. import albumorder, config, convert, longpath, namescheme, numbering, tags
 from ..config import Options
 from ..i18n import tr
 from ..track import Track, fmt_size
@@ -1653,9 +1653,10 @@ class MainWindow(QMainWindow):
         from PySide6.QtCore import QFile
         for t in tracks:
             QFile.moveToTrash(t.path)
-        self.model.remove_tracks([t for t in tracks if not os.path.exists(t.path)])
+        kept = [t for t in tracks if os.path.exists(longpath.io(t.path))]
+        self.model.remove_tracks([t for t in tracks if not any(t is k for k in kept)])
         self._update_status()
-        return [t for t in tracks if os.path.exists(t.path)]
+        return kept
 
     def _offer_trash(self, tracks: list[Track]) -> None:
         names = "\n".join(t.filename for t in tracks)
