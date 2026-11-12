@@ -465,8 +465,10 @@ class MainWindow(QMainWindow):
         self.act_select_all = A("&Alle Dateien auswählen", self.view.selectAll, "Ctrl+A", "Markiert jede Datei in der Liste.")
         # Cover
         self.act_cover_add = A("Cover hinzu&fügen...", lambda: self._cover_command("add"), "Ctrl+Alt+A")
-        self.act_cover_fetch = A("Cover holen", self.fetch_covers, None,
+        self.act_cover_fetch = A("Cover holen", lambda: self.fetch_covers(), None,
                                  "Holt die Cover der ausgewählten Alben aus dem Cover Art Archive.")
+        self.act_cover_fetch_all = A("Cover aller Alben holen", lambda: self.fetch_covers(list(self.model.rows)),
+                                     None, "Holt die Cover aller Alben der Liste über die Cover-Quellen.")
         # View
         self.act_ext_tags = A("&Alle Felder...", self.extended_tags, "Alt+T", "Zeigt alle Felder der markierten Datei.", "extended")
         self.act_panel = self.panel_dock.toggleViewAction()
@@ -480,8 +482,10 @@ class MainWindow(QMainWindow):
                          "Benennt die ausgewählten Dateien nach dem eingestellten Schema um.", "tag-filename")
         self.act_ttf_all = A("Alle Dateien umbenennen...", self.rename_all_files, None,
                              "Benennt alle Dateien der Liste nach dem eingestellten Schema um.", "tag-filename")
-        self.act_numbers = A("Nummern schreiben", self.number_selected, "Ctrl+K",
+        self.act_numbers = A("Nummern schreiben", lambda: self.number_selected(), "Ctrl+K",
                              "Schreibt Track- und Discnummern der ausgewählten Alben.", "numbering")
+        self.act_numbers_all = A("Nummern aller Alben schreiben", lambda: self.number_selected(list(self.model.rows)),
+                                 None, "Schreibt Track- und Discnummern aller Alben der Liste.", "numbering")
         # Tag sources
         self.act_last_source = A("MusicBrainz durchsuchen", lambda: self.run_source(),
                                  "Ctrl+I", "Sucht bei MusicBrainz und zeigt die Trefferliste.", "web")
@@ -491,6 +495,9 @@ class MainWindow(QMainWindow):
                             lambda: self.fetch_lastfm(self.view.selected_tracks()), "Ctrl+Shift+L",
                             "Holt Genres für die ausgewählten Dateien, ohne Tag-Quelle.",
                             "genres")
+        self.act_lastfm_all = A("Genres aller Alben von Last.fm holen",
+                                lambda: self.fetch_lastfm(list(self.model.rows)), None,
+                                "Holt Genres für alle Dateien der Liste.", "genres")
         self.act_moods = A("Moods der Auswahl analysieren", self.analyze_selected_moods, "Ctrl+Shift+M",
                            "Ermittelt die Moods der ausgewählten Dateien aus dem Audio.", "moods")
         self.act_moods_all = A("Moods aller Dateien analysieren", self.analyze_all_moods, "Ctrl+Alt+M",
@@ -498,6 +505,9 @@ class MainWindow(QMainWindow):
         self.act_auto_mb = A("MusicBrainz automatisch", self.auto_musicbrainz, "Ctrl+Shift+B",
                              "Taggt das markierte Album, wenn es sicher erkannt wird, sonst öffnet sich die Trefferliste.",
                              "auto-album")
+        self.act_auto_mb_all = A("MusicBrainz für alle Alben", self.musicbrainz_all, None,
+                                 "Taggt alle Alben der Liste ohne MusicBrainz-Album-ID, wenn sie sicher erkannt "
+                                 "werden; Moods bleiben außen vor.", "auto-album")
         self.act_auto_all = A("Alle Alben automatisch", self.auto_all_albums, "Ctrl+Alt+B",
                               "Analysiert die Moods und taggt alle Alben der Liste; unsichere Alben bleiben unverändert.",
                               "auto-all")
@@ -615,7 +625,8 @@ class MainWindow(QMainWindow):
                   self.act_cover_add, self.act_cover_fetch, self.act_lastfm,
                   self.act_auto_mb):
             a.setEnabled(has_sel)
-        for a in (self.act_auto_all, self.act_moods_all, self.act_ttf_all):
+        for a in (self.act_auto_all, self.act_moods_all, self.act_ttf_all, self.act_auto_mb_all,
+                  self.act_numbers_all, self.act_cover_fetch_all, self.act_lastfm_all):
             a.setEnabled(bool(self.model.rows))
         self.act_batch_summary.setEnabled(bool(self._last_batch))
         self.act_save.setEnabled(has_sel)
@@ -954,10 +965,12 @@ class MainWindow(QMainWindow):
         self._add_source_entries(m.addMenu(tr("&Manuell suchen")))
         self._add_cover_entries(m.addMenu(tr("Cover &holen")))
         m.addSeparator()
-        for a in (self.act_moods, self.act_moods_all, self.act_auto_mb, self.act_auto_all, self.act_batch_summary):
+        for a in (self.act_moods, self.act_moods_all, self.act_auto_mb, self.act_auto_mb_all, self.act_auto_all,
+                  self.act_batch_summary):
             m.addAction(a)
         m.addSeparator()
         m.addAction(self.act_lastfm)
+        m.addAction(self.act_lastfm_all)
 
     def _cover_min_size(self) -> int:
         try:
@@ -1107,10 +1120,11 @@ class MainWindow(QMainWindow):
             raise box["e"]
         return box.get("v")
 
-    def fetch_covers(self) -> None:
-        """Cover step: every selected album on its own, several ones in a progress window."""
+    def fetch_covers(self, tracks=None) -> None:
+        """Cover step: every selected album (or each of ``tracks``) on its own, several ones in a
+        progress window."""
         from ..websources import albumauto
-        tracks = self.view.selected_tracks()
+        tracks = self.view.selected_tracks() if tracks is None else tracks
         if not tracks:
             return
         albums = albumauto.group_albums(tracks)
@@ -1223,7 +1237,7 @@ class MainWindow(QMainWindow):
 
     def _add_cover_entries(self, m: QMenu) -> None:
         """The cover sources: all in their order, or one of them."""
-        m.addAction(tr("Alle Quellen der Reihe nach"), self.fetch_covers).setEnabled(bool(self.view.selected_tracks()))
+        m.addAction(tr("Alle Quellen der Reihe nach"), lambda: self.fetch_covers()).setEnabled(bool(self.view.selected_tracks()))
         m.addSeparator()
         for cmd, text in self._cover_fetch_entries():
             m.addAction(text, lambda _=False, cmd=cmd: self._cover_command(cmd))
@@ -1616,12 +1630,12 @@ class MainWindow(QMainWindow):
         self._write(tr("Nummern schreiben"), ordered,
                     lambda t: [t.set(k, v) for k, v in plan.get(id(t), {}).items()])
 
-    def number_selected(self) -> None:
+    def number_selected(self, tracks=None) -> None:
         from ..websources import albumauto
-        tracks = self.view.selected_tracks()
+        selection = self.view.selected_tracks()
+        tracks = selection if tracks is None else tracks
         if not tracks:
             return
-        selection = list(tracks)
         with self._undo_group(tr("Nummern schreiben")):
             for album in albumauto.group_albums(tracks):
                 self._renumber(album)
@@ -1674,8 +1688,7 @@ class MainWindow(QMainWindow):
     def auto_all_albums(self) -> None:
         """Tag every album in the list that is certain; the others stay untouched and are
         listed at the end. No dialog interrupts the run."""
-        from ..websources import albumauto, musicbrainz
-        src = musicbrainz.Source()
+        from ..websources import albumauto
         todo = [g for g in albumauto.group_albums(list(self.model.rows)) if id(g[0]) not in self._auto_done]
         if not todo:
             self.message(tr("Alle Alben dieser Liste sind schon erledigt."), 6000)
@@ -1683,9 +1696,26 @@ class MainWindow(QMainWindow):
         started = time.monotonic()
         if self.opts.auto_moods and not self.analyze_moods([t for g in todo for t in g if id(t) not in self._mood_done]):
             return
+        self._run_albums(todo, tr("Alle Alben automatisch"), started)
+
+    def musicbrainz_all(self) -> None:
+        """The MusicBrainz step for every album of the list that has no release yet; added
+        files of a tagged album take its values. No moods, no dialog during the run."""
+        from ..websources import albumauto
+        todo = [g for g in albumauto.group_albums(list(self.model.rows))
+                if id(g[0]) not in self._auto_done and not all(t.get("MUSICBRAINZ_ALBUMID") for t in g)]
+        if not todo:
+            self.message(tr("Alle Alben dieser Liste haben schon eine MusicBrainz-Album-ID."), 6000)
+            return
+        self._run_albums(todo, tr("MusicBrainz für alle Alben"), time.monotonic())
+
+    def _run_albums(self, todo: list, title: str, started: float) -> None:
+        """Album by album with a progress window, then the statistics and the summary."""
+        from ..websources import albumauto, musicbrainz
+        src = musicbrainz.Source()
         dlg = _StayingProgress("", len(todo), self)
         dlg.follow_activity()
-        dlg.setWindowTitle(tr("Alle Alben automatisch"))
+        dlg.setWindowTitle(title)
         dlg.set_hint(tr("MusicBrainz lässt nur eine Anfrage pro Sekunde zu. Je nach Tageszeit kann der Abruf "
                         "deshalb länger dauern."))
         entries = []

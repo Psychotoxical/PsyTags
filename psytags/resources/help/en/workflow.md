@@ -27,6 +27,8 @@ The window can stay in the background during a run. You can cancel a run, and wh
 
 ## Single steps
 
-Each step can also run alone for the selected files, from the bar at the top or with the [keyboard shortcuts](help:shortcuts).
+Each step can also run alone, from the bar at the top or with the [keyboard shortcuts](help:shortcuts). **Selection** takes the selected files, **All** every album in the list, for instance to catch up on missing covers.
+
+**All** under **MusicBrainz** skips albums that already have a MusicBrainz album ID and analyzes no moods. As in the automatic run, only clear matches are tagged; the summary shows the result afterwards.
 
 In the file list, the right side of each album row shows the state of album, cover, genres and moods. A yellow **Discogs** means: tagged, but from Discogs instead of MusicBrainz.

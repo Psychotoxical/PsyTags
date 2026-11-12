@@ -219,11 +219,13 @@ class DialogTests(unittest.TestCase):
         w._autosave.stop()       # the test's config folder goes away before 20 s
         self.addCleanup(w.deleteLater)
         choices = [b.text() for b in w.topbar.findChildren(QPushButton) if b.objectName() == "StepChoice"]
-        self.assertEqual(choices, ["Auswahl", "Alle", "Auswahl", "Alle"])
+        self.assertEqual(choices, ["Auswahl", "Alle"] * 6)      # every step: moods to rename
         w.model.rows = [object()]
         w._update_actions()
         self.assertFalse(w.act_moods.isEnabled())
-        self.assertTrue(w.act_moods_all.isEnabled())
+        for action in (w.act_moods_all, w.act_auto_mb_all, w.act_numbers_all, w.act_cover_fetch_all,
+                       w.act_lastfm_all, w.act_ttf_all):
+            self.assertTrue(action.isEnabled())
 
     def test_rename_step_offers_selection_and_all(self):
         from psytags.ui.mainwindow import MainWindow
