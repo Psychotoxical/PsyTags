@@ -12,7 +12,7 @@ PsyTags lädt Cover aus dem Cover Art Archive. Weitere Quellen fügen Sie mit ei
 3. **Optionen** schließen und neu öffnen. Die neue Quelle steht jetzt unter **Automatik → Cover**.
 4. Die Quellen in die gewünschte Reihenfolge ziehen. Von oben nach unten gilt: Die erste Quelle, die ein Cover liefert, gewinnt.
 
-Der Ordner ist unter Windows `%LOCALAPPDATA%\psytags\cover-provider` und unter Linux `~/.config/psytags/cover-provider`. Um ein Plugin zu entfernen, löschen Sie seine Datei. Pausieren können Sie es unter **Optionen → Automatik → Cover**.
+Der Ordner ist unter Windows `%LOCALAPPDATA%\psytags\cover-provider` unter Linux `~/.config/psytags/cover-provider` und unter macOS `~/Library/Preferences/psytags/cover-provider`. Um ein Plugin zu entfernen, löschen Sie seine Datei. Pausieren können Sie es unter **Optionen → Automatik → Cover**.
 
 PsyTags liefert kein Plugin für einen Dienst mit unklaren Nutzungsbedingungen mit. Für die Plugins, die Sie hinzufügen, sind Sie selbst verantwortlich: Prüfen Sie, ob der Dienst das erlaubt.
 

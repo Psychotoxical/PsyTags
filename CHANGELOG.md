@@ -2,6 +2,17 @@
 
 Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`, which becomes the next version's section when the version number is raised.
 
+## [Unreleased]
+
+### Added
+
+- **PsyTags for macOS 13 and newer**, as a disk image for Apple Silicon and one for Intel. The app is signed and notarized, so it opens without a Gatekeeper warning. It brings its own ffmpeg like the other packages.
+
+### Changed
+
+- **Dialog buttons keep one order on every system:** < Back, Next >, Cancel, as on Windows. Linux desktops and macOS had their own order.
+- **On a Mac the step bar shows the shortcuts with the Mac's symbols** (⇧⌘M), since the Command key takes the place of Ctrl there. Showing the Tag Panel, adding a folder and switching between panel, search and list use ⌃Q, ⌃H and ⌃⇥ on a Mac, because ⌘Q quits, ⌘H hides and ⌘⇥ switches programs. ⌫ also removes files from the list, as a MacBook has no forward delete. The help shows every shortcut in Mac symbols.
+
 ## [0.1.5] - 2026-11-12
 
 A long automatic run no longer fills the memory: PsyTags stays at about 180 MB where 0.1.4 ended at several GB.

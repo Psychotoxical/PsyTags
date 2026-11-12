@@ -108,6 +108,16 @@ class CertificateTests(unittest.TestCase):
             self.assertIs(http.ssl_context(), ctx)
         ctx.load_verify_locations.assert_called_once_with(cafile="/etc/ssl/cert.pem")
 
+    def test_macos_loads_the_system_bundle(self):
+        ctx = mock.Mock()
+        http.ssl_context.cache_clear()
+        self.addCleanup(http.ssl_context.cache_clear)
+        with mock.patch.object(http.sys, "platform", "darwin"), \
+                mock.patch.object(http.ssl, "create_default_context", return_value=ctx), \
+                mock.patch.object(http, "system_ca_file", return_value="/etc/ssl/cert.pem"):
+            self.assertIs(http.ssl_context(), ctx)
+        ctx.load_verify_locations.assert_called_once_with(cafile="/etc/ssl/cert.pem")
+
     def test_requests_use_that_context(self):
         http._cache.clear()
         with mock.patch.object(http.urllib.request, "urlopen", return_value=_Reply(b"x")) as opened:

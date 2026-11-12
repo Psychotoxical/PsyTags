@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QDialog, QHBoxLayout, QListWidget, QListWidgetIte
 
 from .. import i18n
 from ..i18n import tr
-from . import theme
+from . import keys, theme
 from .persist import remember
 
 SHORTCUTS = [
@@ -59,10 +59,10 @@ def _shortcuts_page() -> str:
     lines = [f"# {tr('Tastaturkürzel')}", ""]
     for group, items in SHORTCUTS:
         lines += [f"## {tr(group)}", "", f"| {tr('Taste')} | {tr('Funktion')} |", "|---|---|"]
-        for keys, what in items:
+        for combo, what in items:
             if i18n.language() == "en":
-                keys = keys.replace("Strg", "Ctrl").replace("Entf", "Del")
-            lines.append(f"| {keys} | {tr(what)} |")
+                combo = combo.replace("Strg", "Ctrl").replace("Entf", "Del")
+            lines.append(f"| {combo} | {tr(what)} |")
         lines.append("")
     return "\n".join(lines)
 
@@ -70,10 +70,12 @@ def _shortcuts_page() -> str:
 def page(topic: str) -> str:
     """The text of a page as Markdown."""
     if topic == SHORTCUTS_TOPIC:
-        return _shortcuts_page()
-    folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources", "help")
-    with open(os.path.join(folder, "en" if i18n.language() == "en" else "de", f"{topic}.md"), encoding="utf-8") as fh:
-        return fh.read()
+        text = _shortcuts_page()
+    else:
+        folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources", "help")
+        with open(os.path.join(folder, "en" if i18n.language() == "en" else "de", f"{topic}.md"), encoding="utf-8") as fh:
+            text = fh.read()
+    return keys.mac_text(text) if keys.on_mac() else text
 
 
 def _style_heading(cursor: QTextCursor, block, level: int) -> None:

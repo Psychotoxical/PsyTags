@@ -1,10 +1,10 @@
 # PsyTags
 
-PsyTags is a tag editor for music collections. It runs on Windows and Linux, and its interface is available in English and German.
+PsyTags is a tag editor for music collections. It runs on Windows, Linux and macOS, and its interface is available in English and German.
 
 The main window has a file list and a tag panel. One command tags every loaded album, and each step can also be run on its own. Moods are determined locally from the audio.
 
-PsyTags is young. Downloads for Windows and Linux are on the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page.
+PsyTags is young. Downloads for Windows, Linux and macOS are on the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page.
 
 ![Main window of PsyTags with the file list on the left and the tag panel on the right](docs/screenshot.png)
 
@@ -18,7 +18,7 @@ PsyTags is an independent project and is not affiliated with or endorsed by Mp3t
 
 PsyTags writes to your music files and renames them. Try it on copies of a few albums first.
 
-Undo (Ctrl+Z) reverts tag changes and renames while the program is running. Deleted files always go to the recycle bin.
+Undo (Ctrl+Z, on a Mac ⌘Z) reverts tag changes and renames while the program is running. Deleted files always go to the recycle bin.
 
 ## Usage
 
@@ -28,6 +28,8 @@ Undo (Ctrl+Z) reverts tag changes and renames while the program is running. Dele
 4. Rename the files with **All** in the Rename step. **Selection** (Alt+1) renames only the selected files.
 
 F1 opens the help, which covers every feature.
+
+On a Mac, Ctrl is the Command key (⌘) and Alt the Option key (⌥); the step bar and the help show the Mac symbols. Showing the Tag Panel, adding a folder and switching between panel, search and list use the Control key there (⌃Q, ⌃H, ⌃⇥), since macOS keeps ⌘Q, ⌘H and ⌘⇥ for itself.
 
 ## The automatic run
 
@@ -70,6 +72,7 @@ Download from the [Releases](https://github.com/Psychotoxical/PsyTags/releases) 
 - **Debian, Ubuntu, Mint:** `psytags_<version>_amd64.deb`, installed with `sudo apt install ./psytags_<version>_amd64.deb`.
 - **Fedora, openSUSE:** `psytags-<version>-1.x86_64.rpm`, installed with `sudo dnf install ./psytags-<version>-1.x86_64.rpm` or `sudo zypper install`.
 - **Other Linux:** `PsyTags-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
+- **macOS 13 or newer:** `PsyTags-<version>-macOS-arm64.dmg` for Apple Silicon (M1 and later), `PsyTags-<version>-macOS-x86_64.dmg` for Intel. Open it and drag PsyTags into Applications. The app is signed and notarized by Apple.
 
 All of them come with ffmpeg for the mood analysis.
 
@@ -95,11 +98,11 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests
 ruff check .
 ```
 
-Changes go to `main` through pull requests only. Every pull request runs the tests on Linux and Windows, Ruff, ShellCheck and actionlint, and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora.
+Changes go to `main` through pull requests only. Every pull request runs the tests on Linux, Windows and macOS (Intel and Apple Silicon), Ruff, ShellCheck and actionlint, and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora, the Mac apps are signed, notarized and checked by Gatekeeper.
 
 ## Releases
 
-A release starts with a new version number in `psytags/__init__.py` and `pyproject.toml` and its section in `CHANGELOG.md`. Once that is on `main`, the workflow creates a release draft with the section as text and the installer, AppImage, deb and rpm attached. Publishing the draft creates the tag.
+A release starts with a new version number in `psytags/__init__.py` and `pyproject.toml` and its section in `CHANGELOG.md`. Once that is on `main`, the workflow creates a release draft with the section as text and the installer, AppImage, deb, rpm and both Mac disk images attached. Publishing the draft creates the tag.
 
 ## Acknowledgements
 

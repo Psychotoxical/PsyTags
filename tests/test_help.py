@@ -28,6 +28,12 @@ WRITTEN = [k for k in uihelp.topic_keys() if k != uihelp.SHORTCUTS_TOPIC]
 
 
 class TextTests(unittest.TestCase):
+    def setUp(self):
+        # These check the texts as written; a Mac shows them in its symbols (test_mac_keys).
+        patcher = mock.patch("psytags.ui.keys.on_mac", return_value=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_every_topic_exists_in_both_languages(self):
         for lang in ("de", "en"):
             for topic in WRITTEN:

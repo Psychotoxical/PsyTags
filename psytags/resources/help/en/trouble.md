@@ -24,7 +24,7 @@ Why single albums stay open is explained under [The summary](help:summary).
 
 | Problem | What helps |
 |---|---|
-| ffmpeg is not found | The Windows package and the AppImage bring it along, so download PsyTags again. If you run PsyTags on Linux any other way, install it with your package manager and restart PsyTags. |
+| ffmpeg is not found | The Windows and macOS packages and the AppImage bring it along, so download PsyTags again. If you run PsyTags on Linux any other way, install it with your package manager and restart PsyTags. |
 | The models do not load | Check your internet connection and open the **setup assistant** in the ≡ menu again. |
 | The moods seem wrong | Choose another amount under **Options → Automatic → Moods** and analyze again. |
 

@@ -21,6 +21,7 @@ from ..undo import Recorder, UndoStack
 from .filelist import FileListModel, FileListView
 from .topbar import TopBar
 from .icons import icon
+from .keys import extra_keys, mac_keys
 from .persist import geometry_key
 from .tagpanel import TagPanel, image_to_bytes
 
@@ -425,8 +426,9 @@ class MainWindow(QMainWindow):
             a.setIcon(icon(icon_name))
         keys = []
         if shortcut:
-            keys.append(QKeySequence(shortcut))
-        keys += [QKeySequence(k) for k in extra_shortcuts]
+            keys.append(QKeySequence(mac_keys(shortcut)))
+        keys += [QKeySequence(mac_keys(k)) for k in extra_shortcuts]
+        keys += [QKeySequence(k) for k in extra_keys(shortcut or "")]
         if keys:
             a.setShortcuts(keys)
             a.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
@@ -469,7 +471,7 @@ class MainWindow(QMainWindow):
         self.act_ext_tags = A("&Alle Felder...", self.extended_tags, "Alt+T", "Zeigt alle Felder der markierten Datei.", "extended")
         self.act_panel = self.panel_dock.toggleViewAction()
         self.act_panel.setText(tr("&Tag-Panel"))
-        self.act_panel.setShortcut(QKeySequence("Ctrl+Q"))
+        self.act_panel.setShortcut(QKeySequence(mac_keys("Ctrl+Q")))
         self.addAction(self.act_panel)
         self.act_customize_cols = A("Spalten anpassen...", self.customize_columns)
         self.act_customize_panel = A("Tag-Panel anpassen...", self.customize_panel)
@@ -507,8 +509,8 @@ class MainWindow(QMainWindow):
         self.act_help = A("&Hilfe", self.show_help, "F1", "", "help")
         self.act_about = A("Über PsyTags...", self.about)
         # Focus cycling between panes
-        QShortcut(QKeySequence("Ctrl+Tab"), self, lambda: self._cycle_focus(1))
-        QShortcut(QKeySequence("Ctrl+Shift+Tab"), self, lambda: self._cycle_focus(-1))
+        QShortcut(QKeySequence(mac_keys("Ctrl+Tab")), self, lambda: self._cycle_focus(1))
+        QShortcut(QKeySequence(mac_keys("Ctrl+Shift+Tab")), self, lambda: self._cycle_focus(-1))
 
     def _restore_state(self):
         g = self.settings.value(geometry_key("window/geometry"))

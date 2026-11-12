@@ -12,7 +12,7 @@ PsyTags loads covers from the Cover Art Archive. You can add more sources with a
 3. Close and reopen **Options**. The new source now appears under **Automatic → Cover**.
 4. Drag the sources into the order you want. From top to bottom, the first source that delivers a cover wins.
 
-The folder is `%LOCALAPPDATA%\psytags\cover-provider` on Windows and `~/.config/psytags/cover-provider` on Linux. To remove a plugin, delete its file. To pause it, switch it off under **Options → Automatic → Cover**.
+The folder is `%LOCALAPPDATA%\psytags\cover-provider` on Windows `~/.config/psytags/cover-provider` on Linux and `~/Library/Preferences/psytags/cover-provider` on macOS. To remove a plugin, delete its file. To pause it, switch it off under **Options → Automatic → Cover**.
 
 PsyTags ships no plugin for a service with unclear terms of use. You are responsible for the plugins you add: check whether the service allows what you are doing.
 

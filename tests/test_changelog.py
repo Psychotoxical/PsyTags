@@ -48,7 +48,8 @@ class ChangelogTests(unittest.TestCase):
         text = release_notes.notes(SAMPLE, "1.2.0")
         self.assertTrue(text.startswith("## Added\n\n- new"))
         for name in ("PsyTags-Setup-1.2.0.exe", "psytags_1.2.0_amd64.deb",
-                     "psytags-1.2.0-1.x86_64.rpm", "PsyTags-x86_64.AppImage"):
+                     "psytags-1.2.0-1.x86_64.rpm", "PsyTags-x86_64.AppImage",
+                     "PsyTags-1.2.0-macOS-arm64.dmg", "PsyTags-1.2.0-macOS-x86_64.dmg"):
             self.assertIn(name, text)
 
 

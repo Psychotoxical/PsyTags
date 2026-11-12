@@ -40,9 +40,11 @@ def system_ca_file(candidates: tuple[str, ...] = CA_BUNDLES) -> str | None:
 @functools.cache
 def ssl_context() -> ssl.SSLContext:
     """The AppImage brings an OpenSSL built on Ubuntu, which looks in /usr/lib/ssl; other
-    distributions have no certificates there, so every HTTPS request would fail."""
+    distributions have no certificates there, so every HTTPS request would fail. The Mac
+    package's OpenSSL looks in the build machine's folders; macOS keeps its list in
+    /etc/ssl/cert.pem."""
     ctx = ssl.create_default_context()
-    if sys.platform.startswith("linux"):
+    if sys.platform.startswith("linux") or sys.platform == "darwin":
         cafile = system_ca_file()
         if cafile:
             ctx.load_verify_locations(cafile=cafile)
