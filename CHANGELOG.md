@@ -7,7 +7,7 @@ Every version has its own section. The section of the version in `psytags/__init
 ### Changed
 
 - **Dialog buttons keep one order on every system:** < Back, Next >, Cancel, as on Windows. Linux desktops and macOS had their own order.
-- **On a Mac the step bar shows the shortcuts with the Mac's symbols** (⇧⌘M), since the Command key takes the place of Ctrl there.
+- **On a Mac the step bar shows the shortcuts with the Mac's symbols** (⇧⌘M), since the Command key takes the place of Ctrl there. Showing the Tag Panel and adding a folder use ⌃Q and ⌃H on a Mac, because ⌘Q quits and ⌘H hides every program.
 
 ## [0.1.5] - 2026-11-12
 

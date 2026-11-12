@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import os
+import sys
 import threading
 import time
 
@@ -26,6 +27,13 @@ from .tagpanel import TagPanel, image_to_bytes
 
 AUDIO_EXT = set(tags.SUPPORTED_EXTENSIONS)
 LAYOUT_VERSION = 2                          # a saved window layout from another version is ignored
+# On a Mac, Qt puts Ctrl on the Command key, where ⌘Q quits and ⌘H hides every program.
+# These two go to the Control key there: the same key the fingers use on Windows.
+MAC_SYSTEM_KEYS = {"Ctrl+Q": "Meta+Q", "Ctrl+H": "Meta+H"}
+
+
+def mac_keys(keys: str, platform: str | None = None) -> str:
+    return MAC_SYSTEM_KEYS.get(keys, keys) if (platform or sys.platform) == "darwin" else keys
 
 
 class _ScrollOnlyGuard(QObject):
@@ -425,8 +433,8 @@ class MainWindow(QMainWindow):
             a.setIcon(icon(icon_name))
         keys = []
         if shortcut:
-            keys.append(QKeySequence(shortcut))
-        keys += [QKeySequence(k) for k in extra_shortcuts]
+            keys.append(QKeySequence(mac_keys(shortcut)))
+        keys += [QKeySequence(mac_keys(k)) for k in extra_shortcuts]
         if keys:
             a.setShortcuts(keys)
             a.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
@@ -469,7 +477,7 @@ class MainWindow(QMainWindow):
         self.act_ext_tags = A("&Alle Felder...", self.extended_tags, "Alt+T", "Zeigt alle Felder der markierten Datei.", "extended")
         self.act_panel = self.panel_dock.toggleViewAction()
         self.act_panel.setText(tr("&Tag-Panel"))
-        self.act_panel.setShortcut(QKeySequence("Ctrl+Q"))
+        self.act_panel.setShortcut(QKeySequence(mac_keys("Ctrl+Q")))
         self.addAction(self.act_panel)
         self.act_customize_cols = A("Spalten anpassen...", self.customize_columns)
         self.act_customize_panel = A("Tag-Panel anpassen...", self.customize_panel)

@@ -106,6 +106,35 @@ class ShortcutTextTests(unittest.TestCase):
         self.assertEqual(topbar.shortcut_text(self._action("Ctrl+Shift+M")), "⇧⌘M")
 
 
+class MacSystemKeyTests(unittest.TestCase):
+    """⌘Q quits and ⌘H hides every Mac program; PsyTags puts its own on the Control key there."""
+
+    def test_on_a_mac_q_and_h_go_to_control(self):
+        from psytags.ui.mainwindow import mac_keys
+        self.assertEqual(mac_keys("Ctrl+Q", "darwin"), "Meta+Q")
+        self.assertEqual(mac_keys("Ctrl+H", "darwin"), "Meta+H")
+        self.assertEqual(mac_keys("Ctrl+S", "darwin"), "Ctrl+S")
+
+    def test_elsewhere_nothing_changes(self):
+        from psytags.ui.mainwindow import mac_keys
+        self.assertEqual(mac_keys("Ctrl+Q", "win32"), "Ctrl+Q")
+        self.assertEqual(mac_keys("Ctrl+H", "linux"), "Ctrl+H")
+
+    @unittest.skipUnless(os.sys.platform == "darwin", "only a Mac has the Command key")
+    def test_the_window_uses_them(self):
+        from PySide6.QtGui import QKeySequence
+        from psytags.ui.mainwindow import MainWindow
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        with mock.patch.object(config, "config_dir", lambda: folder.name):
+            w = MainWindow()
+            w._autosave.stop()
+            self.addCleanup(w.deleteLater)
+            self.assertEqual(w.act_panel.shortcut(), QKeySequence("Meta+Q"))
+            self.assertEqual(w.act_add_dir.shortcut(), QKeySequence("Meta+H"))
+
+
 class ButtonOrderTests(unittest.TestCase):
     """macOS puts the default button on the right; PsyTags keeps the Windows order everywhere."""
 
