@@ -4,7 +4,6 @@ from __future__ import annotations
 import contextlib
 import copy
 import os
-import sys
 import threading
 import time
 
@@ -22,18 +21,12 @@ from ..undo import Recorder, UndoStack
 from .filelist import FileListModel, FileListView
 from .topbar import TopBar
 from .icons import icon
+from .keys import extra_keys, mac_keys
 from .persist import geometry_key
 from .tagpanel import TagPanel, image_to_bytes
 
 AUDIO_EXT = set(tags.SUPPORTED_EXTENSIONS)
 LAYOUT_VERSION = 2                          # a saved window layout from another version is ignored
-# On a Mac, Qt puts Ctrl on the Command key, where ⌘Q quits and ⌘H hides every program.
-# These two go to the Control key there: the same key the fingers use on Windows.
-MAC_SYSTEM_KEYS = {"Ctrl+Q": "Meta+Q", "Ctrl+H": "Meta+H"}
-
-
-def mac_keys(keys: str, platform: str | None = None) -> str:
-    return MAC_SYSTEM_KEYS.get(keys, keys) if (platform or sys.platform) == "darwin" else keys
 
 
 class _ScrollOnlyGuard(QObject):
@@ -435,6 +428,7 @@ class MainWindow(QMainWindow):
         if shortcut:
             keys.append(QKeySequence(mac_keys(shortcut)))
         keys += [QKeySequence(mac_keys(k)) for k in extra_shortcuts]
+        keys += [QKeySequence(k) for k in extra_keys(shortcut or "")]
         if keys:
             a.setShortcuts(keys)
             a.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
@@ -515,8 +509,8 @@ class MainWindow(QMainWindow):
         self.act_help = A("&Hilfe", self.show_help, "F1", "", "help")
         self.act_about = A("Über PsyTags...", self.about)
         # Focus cycling between panes
-        QShortcut(QKeySequence("Ctrl+Tab"), self, lambda: self._cycle_focus(1))
-        QShortcut(QKeySequence("Ctrl+Shift+Tab"), self, lambda: self._cycle_focus(-1))
+        QShortcut(QKeySequence(mac_keys("Ctrl+Tab")), self, lambda: self._cycle_focus(1))
+        QShortcut(QKeySequence(mac_keys("Ctrl+Shift+Tab")), self, lambda: self._cycle_focus(-1))
 
     def _restore_state(self):
         g = self.settings.value(geometry_key("window/geometry"))
