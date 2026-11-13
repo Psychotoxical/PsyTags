@@ -1,0 +1,19 @@
+name: main → next (RC)
+
+# Started by hand: next takes over main (needs a green ci-ok) and becomes a draft
+# prerelease vX.Y.Z-rc.N. Publishing the draft is done by hand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  channel:
+    uses: ./.github/workflows/channel.yml
+    with:
+      channel: next
+    secrets: inherit
+    permissions:
+      contents: write
+      checks: read

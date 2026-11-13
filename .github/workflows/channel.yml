@@ -1,0 +1,148 @@
+name: Kanal
+
+# Moves a channel branch forward and builds a draft from it, nothing is published:
+#   next:    next fast-forwards to main (main must have a green ci-ok); draft prerelease vX.Y.Z-rc.N
+#   release: release fast-forwards to next; draft vX.Y.Z
+# X.Y.Z is the version in psytags/__init__.py; CHANGELOG.md needs a section for it.
+on:
+  workflow_call:
+    inputs:
+      channel:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: channel-${{ inputs.channel }}
+
+jobs:
+  promote:
+    name: Branch vorspulen
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      checks: read
+    outputs:
+      sha: ${{ steps.move.outputs.sha }}
+      version: ${{ steps.tag.outputs.version }}
+      tag: ${{ steps.tag.outputs.tag }}
+      title: ${{ steps.tag.outputs.title }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CHANNEL: ${{ inputs.channel }}
+    steps:
+      - name: Kanal prüfen
+        run: |
+          case "$CHANNEL" in
+            next) echo "SOURCE=main" >> "$GITHUB_ENV" ;;
+            release) echo "SOURCE=next" >> "$GITHUB_ENV" ;;
+            *) echo "::error::Unknown channel $CHANNEL"; exit 1 ;;
+          esac
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: main ist grün?
+        if: inputs.channel == 'next'
+        run: |
+          sha=$(git rev-parse origin/main)
+          ok=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?check_name=ci-ok" \
+               --jq '[.check_runs[] | select(.conclusion == "success")] | length')
+          if [ "$ok" = 0 ]; then
+            echo "::error::main ($sha) has no green ci-ok"
+            exit 1
+          fi
+      - id: move
+        name: Vorspulen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "$CHANNEL" > /dev/null; then
+            git checkout -B "$CHANNEL" "origin/$CHANNEL"
+            git merge --ff-only "origin/$SOURCE"
+          else
+            git checkout -B "$CHANNEL" "origin/$SOURCE"
+          fi
+          git push origin "HEAD:refs/heads/$CHANNEL"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - id: tag
+        name: Tag bestimmen
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' psytags/__init__.py)
+          python3 packaging/release_notes.py "$version" > /dev/null
+          releases=$(gh release list --limit 200 --json tagName,isDraft)
+          published=$(jq -r --arg t "v$version" '.[] | select(.tagName == $t and (.isDraft | not)) | .tagName' <<< "$releases")
+          if [ -n "$published" ]; then
+            echo "::error::v$version is already published; raise the version first"
+            exit 1
+          fi
+          if [ "$CHANNEL" = next ]; then
+            last=$( { git tag -l "v$version-rc.*"; jq -r '.[].tagName' <<< "$releases"; } \
+                    | sed -n "s/^v${version//./\\.}-rc\.\([0-9][0-9]*\)$/\1/p" | sort -n | tail -1)
+            n=$(( ${last:-0} + 1 ))
+            {
+              echo "tag=v$version-rc.$n"
+              echo "title=PsyTags $version RC $n"
+              echo "prerelease=true"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "tag=v$version"
+              echo "title=PsyTags $version"
+              echo "prerelease=false"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  packages:
+    name: Pakete
+    needs: promote
+    uses: ./.github/workflows/packages.yml
+    with:
+      ref: ${{ needs.promote.outputs.sha }}
+    secrets: inherit
+
+  draft:
+    name: Draft
+    needs: [promote, packages]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ needs.promote.outputs.sha }}
+      VERSION: ${{ needs.promote.outputs.version }}
+      TAG: ${{ needs.promote.outputs.tag }}
+      TITLE: ${{ needs.promote.outputs.title }}
+      PRERELEASE: ${{ needs.promote.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.promote.outputs.sha }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: PsyTags-*
+          path: assets
+          merge-multiple: true
+      - name: Draft anlegen oder aktualisieren
+        run: |
+          python3 packaging/release_notes.py "$VERSION" > notes.md
+          files=(assets/PsyTags-Setup-"$VERSION".exe assets/PsyTags-x86_64.AppImage
+                 assets/psytags_"$VERSION"_amd64.deb assets/psytags-"$VERSION"-1.x86_64.rpm
+                 assets/PsyTags-"$VERSION"-macOS-arm64.dmg assets/PsyTags-"$VERSION"-macOS-x86_64.dmg)
+          ls -l "${files[@]}"
+          pre=()
+          if [ "$PRERELEASE" = true ]; then
+            pre=(--prerelease)
+          fi
+          if gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null | grep -q true; then
+            gh release edit "$TAG" --title "$TITLE" --notes-file notes.md --target "$SHA" "${pre[@]}"
+            gh release upload "$TAG" "${files[@]}" --clobber
+            echo "::notice::Draft $TAG updated"
+          else
+            gh release create "$TAG" --draft "${pre[@]}" --title "$TITLE" --notes-file notes.md \
+              --target "$SHA" "${files[@]}"
+            echo "::notice::Draft $TAG created"
+          fi
