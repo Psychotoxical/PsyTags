@@ -17,7 +17,7 @@ Vorgegeben ist `Albuminterpret - (Jahr) - Album / Track-Disc - Interpret - Titel
 
 ## Alte Ordner
 
-Ist **Alte Ordner und Reste wie Bilder in den Papierkorb verschieben** eingeschaltet, legt PsyTags die neuen Alben neben die alten Ordner und räumt die alten danach in den Papierkorb, sobald keine Audiodatei mehr darin liegt. Lassen Sie das bei den ersten Versuchen aus.
+Ist **Alte Ordner und Reste wie Bilder in den Papierkorb verschieben** eingeschaltet, legt PsyTags die neuen Alben neben die alten Ordner und räumt die alten danach in den Papierkorb, sobald keine Audiodatei mehr darin liegt. Liegt ein Album in einem gleichnamigen Ordner, der sonst nichts enthält (so entpacken viele Programme ein Archiv), gilt dieser äußere Ordner als der alte Ordner. Lassen Sie das bei den ersten Versuchen aus.
 
 ## Gut zu wissen
 

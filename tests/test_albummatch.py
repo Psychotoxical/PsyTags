@@ -1002,6 +1002,77 @@ class OldFolderTests(unittest.TestCase):
         self.assertEqual(emptied_album_folders([(os.path.join(os.sep, "x.mp3"), os.path.join(os.sep, "n", "x.mp3"))]), [])
 
 
+class WrapperFolderTests(unittest.TestCase):
+    """An unpacked archive often sits in a folder of the same name: Temp/X/X/<files>.
+    The outer folder only wraps the album; the new album goes next to it, and it goes too."""
+
+    def setUp(self):
+        import tempfile
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        self.temp = os.path.join(d.name, "a", "b", "Temp")
+
+    def _file(self, *parts):
+        p = os.path.join(self.temp, *parts)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        open(p, "wb").close()
+        return p
+
+    def _track(self, path):
+        from types import SimpleNamespace
+        return SimpleNamespace(path=path, folder=os.path.dirname(path))
+
+    def _place(self, path, *parts):
+        from psytags import convert
+        return os.path.relpath(convert.place(self._track(path), list(parts)), self.temp)
+
+    def _emptied(self, moves):
+        from psytags.convert import emptied_album_folders
+        return [os.path.relpath(f, self.temp) for f in emptied_album_folders(moves)]
+
+    def test_the_new_album_goes_next_to_the_wrapper(self):
+        src = self._file("X 320", "X 320", "01.mp3")
+        self.assertEqual(self._place(src, "Band - X", "01 Song"), os.path.join("Band - X", "01 Song.mp3"))
+
+    def test_the_wrapper_goes_with_the_old_album(self):
+        src = self._file("X 320", "X 320", "01.mp3")
+        self._file("X 320", "X 320", "cover.jpg")
+        new = self._file("Band - X", "01 Song.mp3")
+        os.remove(src)                                  # the file has moved
+        self.assertEqual(self._emptied([(src, new)]), ["X 320"])
+
+    def test_disc_folders_inside_a_wrapper(self):
+        src = self._file("X", "X", "CD1", "01.mp3")
+        self._file("X", "X", "CD2", "01.mp3")
+        self.assertEqual(self._place(src, "Band - X", "01 Song"), os.path.join("Band - X", "01 Song.mp3"))
+
+    def test_a_folder_with_more_inside_is_no_wrapper(self):
+        src = self._file("X", "X", "01.mp3")
+        self._file("X", "info.nfo")
+        self.assertEqual(self._place(src, "Band - X", "01 Song"), os.path.join("X", "Band - X", "01 Song.mp3"))
+
+    def test_an_artist_folder_with_one_album_is_no_wrapper(self):
+        src = self._file("Band", "Album", "01.mp3")
+        self.assertEqual(self._place(src, "Band - Album", "01 Song"),
+                         os.path.join("Band", "Band - Album", "01 Song.mp3"))
+
+    def test_names_compare_without_case(self):
+        src = self._file("X Live", "x live", "01.mp3")
+        self.assertEqual(self._place(src, "Band - X", "01 Song"), os.path.join("Band - X", "01 Song.mp3"))
+
+    def test_an_album_without_wrapper_goes_next_to_its_folder(self):
+        src = self._file("X 320", "01.mp3")
+        self._file("Other", "01.mp3")
+        self.assertEqual(self._place(src, "Band - X", "01 Song"), os.path.join("Band - X", "01 Song.mp3"))
+        new = self._file("Band - X", "01 Song.mp3")
+        os.remove(src)
+        self.assertEqual(self._emptied([(src, new)]), ["X 320"])
+
+    def test_a_file_name_alone_stays_in_its_folder(self):
+        src = self._file("X", "X", "01.mp3")
+        self.assertEqual(self._place(src, "01 Song"), os.path.join("X", "X", "01 Song.mp3"))
+
+
 class ManualFromSummaryTests(unittest.TestCase):
     def _run(self, outcome):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

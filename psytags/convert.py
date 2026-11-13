@@ -23,6 +23,24 @@ LINUX_NAME_LIMIT = 255                    # bytes of one file or folder name
 _GUESTS = re.compile(r"\s+(feat\.?|ft\.?|featuring)\s.*?(?=\s+-\s|$)", re.IGNORECASE)
 
 
+def album_home(folder: str) -> str:
+    """The folder that stands for the album: its album folder, or the folder around it when
+    that only wraps the album, as an unpacked archive does (Temp/X/X/<files>): a folder of the
+    same name with nothing else in it. A folder named like the artist is no wrapper."""
+    home = album_root(folder)
+    while len(pathlib.PurePath(home).parts) > 3:
+        parent = os.path.dirname(home)
+        try:
+            names = os.listdir(parent)
+        except OSError:
+            break
+        if names != [os.path.basename(home)] or \
+                os.path.basename(parent).casefold() != os.path.basename(home).casefold():
+            break
+        home = parent
+    return home
+
+
 def place(track, parts: list[str]) -> str:
     """Absolute target for name parts (folders, then the file name); the extension is kept.
     With folders the new album goes next to the old one, which then goes away."""
@@ -30,7 +48,7 @@ def place(track, parts: list[str]) -> str:
     if not parts:
         return track.path
     rel = os.path.join(*parts) + os.path.splitext(track.path)[1]
-    target = os.path.normpath(os.path.join(os.path.dirname(album_root(track.folder)) if len(parts) > 1 else track.folder, rel))
+    target = os.path.normpath(os.path.join(os.path.dirname(album_home(track.folder)) if len(parts) > 1 else track.folder, rel))
     return fit_path(target) if sys.platform == "win32" else fit_names(target)
 
 
@@ -81,7 +99,7 @@ def emptied_album_folders(moves: list[tuple[str, str]]) -> list[str]:
     targets: dict[str, list[str]] = {}
     for old, new in moves:
         if os.path.normcase(old) != os.path.normcase(new):
-            targets.setdefault(album_root(os.path.dirname(old)), []).append(new)
+            targets.setdefault(album_home(os.path.dirname(old)), []).append(new)
     return [root for root, news in targets.items()
             if len(pathlib.PurePath(root).parts) > 2                       # never a drive or a top folder
             and not any(_is_inside(new, root) for new in news) and not _has_audio(root)]
@@ -140,7 +158,7 @@ def fix_folder_case(moves: list[tuple[str, str]]) -> None:
 
 def display_path(new: str, track) -> str:
     """Target path for previews: relative to the working directory or the file's folder."""
-    for base in (working_dir, os.path.dirname(album_root(track.folder)), track.folder):
+    for base in (working_dir, os.path.dirname(album_home(track.folder)), track.folder):
         try:
             rel = os.path.relpath(new, base) if base else ""
         except ValueError:                               # other drive

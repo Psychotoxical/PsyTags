@@ -17,7 +17,7 @@ The default is `Album artist - (Year) - Album / Track-Disc - Artist - Title`.
 
 ## Old folders
 
-With **Move old folders and leftovers such as images to the recycle bin** on, PsyTags puts the new albums next to the old folders and moves the old ones to the recycle bin once no audio file is left in them. Leave this off for your first attempts.
+With **Move old folders and leftovers such as images to the recycle bin** on, PsyTags puts the new albums next to the old folders and moves the old ones to the recycle bin once no audio file is left in them. If an album sits in a folder of the same name that holds nothing else (many programs unpack archives this way), that outer folder counts as the old folder. Leave this off for your first attempts.
 
 ## Good to know
 
