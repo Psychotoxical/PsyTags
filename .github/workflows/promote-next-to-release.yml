@@ -1,0 +1,19 @@
+name: next → release
+
+# Started by hand: release takes over next and becomes the draft vX.Y.Z.
+# Publishing the draft is done by hand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  channel:
+    uses: ./.github/workflows/channel.yml
+    with:
+      channel: release
+    secrets: inherit
+    permissions:
+      contents: write
+      checks: read
