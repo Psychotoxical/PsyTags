@@ -37,17 +37,32 @@ def system_ca_file(candidates: tuple[str, ...] = CA_BUNDLES) -> str | None:
     return next((p for p in candidates if os.path.isfile(p)), None)
 
 
+def bundled_ca_file() -> str | None:
+    """Mozilla's root list as shipped with certifi; None if certifi is missing."""
+    try:
+        import certifi
+    except ImportError:
+        return None
+    path = certifi.where()
+    return path if os.path.isfile(path) else None
+
+
 @functools.cache
 def ssl_context() -> ssl.SSLContext:
     """The AppImage brings an OpenSSL built on Ubuntu, which looks in /usr/lib/ssl; other
     distributions have no certificates there, so every HTTPS request would fail. The Mac
     package's OpenSSL looks in the build machine's folders; macOS keeps its list in
-    /etc/ssl/cert.pem."""
+    /etc/ssl/cert.pem. On Windows Python sees only the roots already in the local store,
+    and Windows adds most roots there only when a site first needs them. So Mozilla's list
+    is loaded everywhere on top of the system's."""
     ctx = ssl.create_default_context()
     if sys.platform.startswith("linux") or sys.platform == "darwin":
         cafile = system_ca_file()
         if cafile:
             ctx.load_verify_locations(cafile=cafile)
+    bundled = bundled_ca_file()
+    if bundled:
+        ctx.load_verify_locations(cafile=bundled)
     return ctx
 
 

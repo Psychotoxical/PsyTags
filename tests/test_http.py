@@ -104,9 +104,11 @@ class CertificateTests(unittest.TestCase):
         self.addCleanup(http.ssl_context.cache_clear)
         with mock.patch.object(http.sys, "platform", "linux"), \
                 mock.patch.object(http.ssl, "create_default_context", return_value=ctx), \
-                mock.patch.object(http, "system_ca_file", return_value="/etc/ssl/cert.pem"):
+                mock.patch.object(http, "system_ca_file", return_value="/etc/ssl/cert.pem"), \
+                mock.patch.object(http, "bundled_ca_file", return_value="/b/cacert.pem"):
             self.assertIs(http.ssl_context(), ctx)
-        ctx.load_verify_locations.assert_called_once_with(cafile="/etc/ssl/cert.pem")
+        self.assertEqual(ctx.load_verify_locations.call_args_list,
+                         [mock.call(cafile="/etc/ssl/cert.pem"), mock.call(cafile="/b/cacert.pem")])
 
     def test_macos_loads_the_system_bundle(self):
         ctx = mock.Mock()
@@ -114,9 +116,35 @@ class CertificateTests(unittest.TestCase):
         self.addCleanup(http.ssl_context.cache_clear)
         with mock.patch.object(http.sys, "platform", "darwin"), \
                 mock.patch.object(http.ssl, "create_default_context", return_value=ctx), \
-                mock.patch.object(http, "system_ca_file", return_value="/etc/ssl/cert.pem"):
+                mock.patch.object(http, "system_ca_file", return_value="/etc/ssl/cert.pem"), \
+                mock.patch.object(http, "bundled_ca_file", return_value="/b/cacert.pem"):
             self.assertIs(http.ssl_context(), ctx)
-        ctx.load_verify_locations.assert_called_once_with(cafile="/etc/ssl/cert.pem")
+        self.assertEqual(ctx.load_verify_locations.call_args_list,
+                         [mock.call(cafile="/etc/ssl/cert.pem"), mock.call(cafile="/b/cacert.pem")])
+
+    def test_windows_adds_mozillas_roots(self):
+        """Windows fills its root store lazily; a root no site has needed yet is missing."""
+        ctx = mock.Mock()
+        http.ssl_context.cache_clear()
+        self.addCleanup(http.ssl_context.cache_clear)
+        with mock.patch.object(http.sys, "platform", "win32"), \
+                mock.patch.object(http.ssl, "create_default_context", return_value=ctx), \
+                mock.patch.object(http, "bundled_ca_file", return_value="C:/b/cacert.pem"):
+            self.assertIs(http.ssl_context(), ctx)
+        ctx.load_verify_locations.assert_called_once_with(cafile="C:/b/cacert.pem")
+
+    def test_without_certifi_the_system_list_stays(self):
+        ctx = mock.Mock()
+        http.ssl_context.cache_clear()
+        self.addCleanup(http.ssl_context.cache_clear)
+        with mock.patch.object(http.sys, "platform", "win32"), \
+                mock.patch.object(http.ssl, "create_default_context", return_value=ctx), \
+                mock.patch.object(http, "bundled_ca_file", return_value=None):
+            self.assertIs(http.ssl_context(), ctx)
+        ctx.load_verify_locations.assert_not_called()
+
+    def test_mozillas_list_is_installed(self):
+        self.assertIsNotNone(http.bundled_ca_file())
 
     def test_requests_use_that_context(self):
         http._cache.clear()
