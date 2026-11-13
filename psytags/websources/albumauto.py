@@ -245,6 +245,12 @@ def group_albums(tracks: list) -> list[list]:
     return list(groups.values())
 
 
+def album_folder(tracks: list) -> str:
+    """The folder of an album from ``group_albums``; disc folders count as their parent."""
+    folder = tracks[0].folder
+    return os.path.dirname(folder) if is_disc_folder(folder) else folder
+
+
 # What one release gives every file alike; a file added to a tagged album may take it over
 ALBUM_FIELDS = ("MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_RELEASEGROUPID", "MUSICBRAINZ_ALBUMARTISTID",
                 "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "ALBUMARTIST",

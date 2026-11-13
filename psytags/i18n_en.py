@@ -393,6 +393,7 @@ EN_MORE: dict[str, str] = {
     "Genres aller Alben von Last.fm holen": "Fetch genres of all albums from Last.fm",
     "Holt Genres für alle Dateien der Liste.": "Fetches genres for all files in the list.",
     "MusicBrainz für alle Alben": "MusicBrainz for all albums",
+    "MusicBrainz für die Auswahl": "MusicBrainz for the selection",
     "Taggt alle Alben der Liste ohne MusicBrainz-Album-ID, wenn sie sicher erkannt werden; Moods bleiben außen vor.":
         "Tags every album in the list without a MusicBrainz album ID when it is certain; moods are left out.",
     "Alle Alben dieser Liste haben schon eine MusicBrainz-Album-ID.": "Every album in this list already has a MusicBrainz album ID.",
