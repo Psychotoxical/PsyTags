@@ -7,6 +7,7 @@ Every version has its own section. The section of the version in `psytags/__init
 ### Fixed
 
 - Renaming into new folders left the new album inside the old one when the album sat in a folder of the same name with nothing else in it, as unpacked archives often do. The new album now goes next to that outer folder, and the outer folder goes to the recycle bin with the old album.
+- MusicBrainz → Selection with several albums selected searched for one album with all their tracks together and found nothing. Each selected album is now looked up on its own, one after the other, with the summary at the end.
 
 ## [0.1.7] - 2026-11-13
 

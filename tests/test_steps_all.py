@@ -32,6 +32,35 @@ def _run(win, method):
         method(win)
 
 
+class MusicBrainzSelectionTests(unittest.TestCase):
+    """Two selected albums are asked one after the other, never as one album."""
+
+    def _selected(self, tracks):
+        win = _window(tracks)
+        win.view.selected_tracks.return_value = tracks
+        _run(win, MainWindow.auto_musicbrainz)
+        return win
+
+    def test_two_albums_run_one_after_the_other(self):
+        first = [_track("Album 1"), _track("Album 1")]
+        second = [_track("Album 2")]
+        win = self._selected(first + second)
+        self.assertEqual([c.args[1] for c in win._auto_one.call_args_list], [first, second])
+        win.run_source.assert_not_called()
+
+    def test_albums_with_a_release_are_tagged_again(self):
+        first, second = [_track("Album 1", "release-1")], [_track("Album 2", "release-2")]
+        win = self._selected(first + second)
+        self.assertEqual(len(win._auto_one.call_args_list), 2)
+
+    def test_one_folder_with_mixed_names_opens_the_search(self):
+        a, b = _track("Album 1"), _track("Album 2")
+        b.folder = a.folder
+        win = self._selected([a, b])
+        win._auto_one.assert_not_called()
+        win.run_source.assert_called_once()
+
+
 class MusicBrainzAllTests(unittest.TestCase):
     def test_albums_with_a_release_are_skipped(self):
         tagged = [_track("Album 1", "release-1"), _track("Album 1", "release-1")]

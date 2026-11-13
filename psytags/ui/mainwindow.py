@@ -1524,6 +1524,11 @@ class MainWindow(QMainWindow):
         tracks = self.view.selected_tracks()
         if not tracks:
             return
+        groups = albumauto.group_albums(tracks)
+        if len(groups) > 1 and len({albumauto.album_folder(g) for g in groups}) == len(groups):
+            # several albums selected: one after the other, like the run over all albums
+            self._run_albums(groups, tr("MusicBrainz für die Auswahl"), time.monotonic())
+            return
         src = musicbrainz.Source()
         if len({(t.get("ALBUM") or [""])[0] for t in tracks}) != 1:
             self.run_source()
