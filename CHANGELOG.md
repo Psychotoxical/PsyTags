@@ -4,6 +4,12 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-13
+
+### Fixed
+
+- Downloading the mood models could fail on Windows with `CERTIFICATE_VERIFY_FAILED`. The model server switched to a certificate whose root Windows only adds to its store when a site first needs it. PsyTags now also trusts Mozilla's root list (certifi) on every system.
+
 ## [0.1.6] - 2026-11-12
 
 PsyTags now runs on macOS, signed and notarized for Apple Silicon and Intel.
