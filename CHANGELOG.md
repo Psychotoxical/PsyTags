@@ -4,6 +4,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Fixed
+
+- Renaming into new folders left the new album inside the old one when the album sat in a folder of the same name with nothing else in it, as unpacked archives often do. The new album now goes next to that outer folder, and the outer folder goes to the recycle bin with the old album.
+
 ## [0.1.7] - 2026-11-13
 
 ### Fixed
