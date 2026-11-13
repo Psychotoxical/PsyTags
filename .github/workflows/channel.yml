@@ -3,7 +3,8 @@ name: Kanal
 # Moves a channel branch forward and builds a draft from it, nothing is published:
 #   next:    next fast-forwards to main (main must have a green ci-ok); draft prerelease vX.Y.Z-rc.N
 #   release: release fast-forwards to next; draft vX.Y.Z
-# X.Y.Z is the version in psytags/__init__.py; CHANGELOG.md needs a section for it.
+# X.Y.Z is the version in psytags/__init__.py; CHANGELOG.md needs a section for it. Both are
+# checked on the source branch before the channel branch moves.
 on:
   workflow_call:
     inputs:
@@ -54,22 +55,10 @@ jobs:
             echo "::error::main ($sha) has no green ci-ok"
             exit 1
           fi
-      - id: move
-        name: Vorspulen
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git ls-remote --exit-code --heads origin "$CHANNEL" > /dev/null; then
-            git checkout -B "$CHANNEL" "origin/$CHANNEL"
-            git merge --ff-only "origin/$SOURCE"
-          else
-            git checkout -B "$CHANNEL" "origin/$SOURCE"
-          fi
-          git push origin "HEAD:refs/heads/$CHANNEL"
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - id: tag
         name: Tag bestimmen
         run: |
+          git checkout -q --detach "origin/$SOURCE"
           version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' psytags/__init__.py)
           python3 packaging/release_notes.py "$version" > /dev/null
           releases=$(gh release list --limit 200 --json tagName,isDraft)
@@ -95,6 +84,19 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      - id: move
+        name: Vorspulen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "$CHANNEL" > /dev/null; then
+            git checkout -B "$CHANNEL" "origin/$CHANNEL"
+            git merge --ff-only "origin/$SOURCE"
+          else
+            git checkout -B "$CHANNEL" "origin/$SOURCE"
+          fi
+          git push origin "HEAD:refs/heads/$CHANNEL"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   packages:
     name: Pakete

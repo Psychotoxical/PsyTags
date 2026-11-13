@@ -1,7 +1,8 @@
 name: CI
 
 # Pull requests and pushes to main run only what the change needs: Lint always, the tests on
-# all systems when code changes, the packages when a pull request changes the packaging.
+# all systems when code changes, the packages when a pull request changes packaging/ or
+# packages.yml.
 # `ci-ok` sums up the run; it is the one check main requires. Releases are built by the
 # channel workflows (main → next, next → release), started by hand.
 on:
@@ -55,7 +56,7 @@ jobs:
             code=true
           fi
           # packages only for pull requests: main gets its packages through the channels
-          if [ "$EVENT" = pull_request ] && grep -qE '^(packaging/|\.github/workflows/)' <<< "$files"; then
+          if [ "$EVENT" = pull_request ] && grep -qE '^(packaging/|\.github/workflows/packages\.yml$)' <<< "$files"; then
             packaging=true
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
