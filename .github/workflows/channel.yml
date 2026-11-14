@@ -1,10 +1,14 @@
 name: Kanal
 
 # Moves a channel branch forward and builds a draft from it, nothing is published:
-#   next:    next fast-forwards to main (main must have a green ci-ok); draft prerelease vX.Y.Z-rc.N
+#   next:    next takes over main (main must have a green ci-ok); draft prerelease vX.Y.Z-rc.N.
+#            If the version on main is already released, next gets the next patch number in
+#            psytags/__init__.py and pyproject.toml, and [Unreleased] in CHANGELOG.md becomes its
+#            section (packaging/bump_version.py). main itself catches up after the release
+#            (release-published.yml).
 #   release: release fast-forwards to next; draft vX.Y.Z
 # X.Y.Z is the version in psytags/__init__.py; CHANGELOG.md needs a section for it. Both are
-# checked on the source branch before the channel branch moves.
+# checked before the channel branch moves.
 on:
   workflow_call:
     inputs:
@@ -55,10 +59,44 @@ jobs:
             echo "::error::main ($sha) has no green ci-ok"
             exit 1
           fi
+      - name: Stand zusammenstellen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          exists=false
+          if git ls-remote --exit-code --heads origin "$CHANNEL" > /dev/null; then
+            exists=true
+          fi
+          if [ "$CHANNEL" = release ]; then
+            if [ "$exists" = true ]; then
+              git checkout -q -B release origin/release
+              git merge --ff-only origin/next
+            else
+              git checkout -q -B release origin/next
+            fi
+            exit 0
+          fi
+          # next: the tree of main, as a merge on top of the old next so the push only moves forward
+          if [ "$exists" = true ]; then
+            git checkout -q -B next origin/next
+            git merge -q --no-ff --no-commit -s ours origin/main || true
+            git read-tree -u --reset origin/main
+          else
+            git checkout -q -B next origin/main
+          fi
+          # a version that is already released gets the next patch number, in the app and the packages
+          published=$(gh release list --limit 200 --json tagName,isDraft \
+                      --jq '.[] | select(.isDraft | not) | .tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")) | ltrimstr("v")')
+          # shellcheck disable=SC2086
+          version=$(python3 packaging/bump_version.py next $published)
+          git add psytags/__init__.py pyproject.toml CHANGELOG.md
+          if git rev-parse -q --verify MERGE_HEAD > /dev/null || ! git diff --cached --quiet; then
+            git commit -q -m "Version $version for the next channel"
+          fi
+          git log --oneline -3
       - id: tag
         name: Tag bestimmen
         run: |
-          git checkout -q --detach "origin/$SOURCE"
           version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' psytags/__init__.py)
           python3 packaging/release_notes.py "$version" > /dev/null
           releases=$(gh release list --limit 200 --json tagName,isDraft)
@@ -87,14 +125,6 @@ jobs:
       - id: move
         name: Vorspulen
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git ls-remote --exit-code --heads origin "$CHANNEL" > /dev/null; then
-            git checkout -B "$CHANNEL" "origin/$CHANNEL"
-            git merge --ff-only "origin/$SOURCE"
-          else
-            git checkout -B "$CHANNEL" "origin/$SOURCE"
-          fi
           git push origin "HEAD:refs/heads/$CHANNEL"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 

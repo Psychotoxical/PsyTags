@@ -1,6 +1,6 @@
 # Changelog
 
-Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`, which becomes the next version's section when the version number is raised.
+Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`. The main → next workflow raises the version number and turns `[Unreleased]` into the next version's section; after the release, main gets that section through a pull request.
 
 ## [Unreleased]
 

@@ -1,0 +1,53 @@
+name: Nach dem Release
+
+# Runs when a release (not a release candidate) is published by hand: main gets its version
+# number and its CHANGELOG.md section through a pull request, so the next RC starts from there.
+# Needs "Allow GitHub Actions to create and approve pull requests" in the repository settings;
+# without it the run ends with a link to open the pull request by hand.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: main nachziehen
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Version und CHANGELOG übernehmen
+        run: |
+          version=${TAG#v}
+          git show "refs/tags/$TAG:CHANGELOG.md" > "$RUNNER_TEMP/released.md"
+          python3 packaging/bump_version.py sync "$version" "$RUNNER_TEMP/released.md"
+          if git diff --quiet; then
+            echo "::notice::main already has $version"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="release-sync/$version"
+          git checkout -q -b "$branch"
+          git add psytags/__init__.py pyproject.toml CHANGELOG.md
+          git commit -q -m "Main: version $version after the release"
+          git push --force origin "$branch"
+          title="Main: version $version after the release"
+          body="Version $version is released. This brings its number and its CHANGELOG.md section to main; entries that went into the release leave [Unreleased]."
+          if ! gh pr create --base main --head "$branch" --title "$title" --body "$body"; then
+            echo "::warning::Could not open the pull request; open it by hand: https://github.com/$GITHUB_REPOSITORY/compare/main...$branch"
+          fi
+          # pull requests opened with the workflow token start no CI by themselves
+          gh workflow run ci.yml --ref "$branch"
