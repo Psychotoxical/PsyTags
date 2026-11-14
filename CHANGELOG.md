@@ -1,6 +1,6 @@
 # Changelog
 
-Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`. The main → next workflow raises the version number and turns `[Unreleased]` into the next version's section; after the release, main gets that section through a pull request.
+Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`; every pull request adds an entry there, the CI checks it. The main → next workflow raises the version number and turns `[Unreleased]` into the next version's section; after the release, main gets that section through a pull request.
 
 ## [Unreleased]
 
@@ -8,6 +8,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 - Renaming into new folders left the new album inside the old one when the album sat in a folder of the same name with nothing else in it, as unpacked archives often do. The new album now goes next to that outer folder, and the outer folder goes to the recycle bin with the old album.
 - MusicBrainz → Selection with several albums selected searched for one album with all their tracks together and found nothing. Each selected album is now looked up on its own, one after the other, with the summary at the end.
+
+### Changed
+
+- Release candidates raise the version number on their own, and every change to PsyTags now comes with an entry in this changelog.
 
 ## [0.1.7] - 2026-11-13
 
