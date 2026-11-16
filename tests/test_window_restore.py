@@ -5,6 +5,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QDialog, QMainWindow
 
 from psytags import config
@@ -81,3 +82,56 @@ class WindowRestoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def _owner(self, x, y):
+        owner = QMainWindow()
+        self.addCleanup(owner.deleteLater)
+        owner.setGeometry(x, y, 300, 200)
+        owner.show()
+        self.app.processEvents()
+        return owner
+
+    def _child(self, owner, show=True):
+        dialog = QDialog(owner)
+        dialog.resize(200, 100)
+        persist.remember(dialog, "child")
+        if show:
+            dialog.show()
+            self.app.processEvents()
+        return dialog
+
+    def test_a_moved_dialog_keeps_its_place_relative_to_its_window(self):
+        owner = self._owner(100, 100)
+        dialog = self._child(owner)
+        dialog.move(owner.pos().x() + 40, owner.pos().y() + 60)
+        dialog.done(0)
+        owner.move(300, 250)
+        self.app.processEvents()
+        again = self._child(owner, show=False)
+        self.assertEqual((again.pos() - owner.pos()).toTuple(), (40, 60))
+
+    def test_a_dialog_nobody_moved_stays_centred(self):
+        owner = self._owner(100, 100)
+        self._child(owner).done(0)
+        again = self._child(owner, show=False)
+        self.assertFalse(again.testAttribute(Qt.WidgetAttribute.WA_Moved))
+
+    def test_a_place_outside_every_screen_is_not_used(self):
+        owner = self._owner(100, 100)
+        dialog = self._child(owner)
+        dialog.move(owner.pos().x() + 40, owner.pos().y() + 60)
+        dialog.done(0)
+        owner.move(5000, 5000)                  # the window went to a screen that is gone now
+        self.app.processEvents()
+        again = self._child(owner, show=False)
+        self.assertFalse(again.testAttribute(Qt.WidgetAttribute.WA_Moved))
+
+    def test_a_geometry_of_an_older_version_gives_the_size_but_not_the_place(self):
+        old = QDialog()
+        self.addCleanup(old.deleteLater)
+        old.setGeometry(500, 400, 410, 310)
+        s = config.settings()
+        s.setValue(persist.geometry_key("dialogs/child/geometry"), old.saveGeometry())
+        again = self._child(self._owner(100, 100), show=False)
+        self.assertEqual(again.size().toTuple(), (410, 310))
+        self.assertFalse(again.testAttribute(Qt.WidgetAttribute.WA_Moved))

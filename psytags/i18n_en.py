@@ -348,7 +348,13 @@ EN_MORE: dict[str, str] = {
     'MusicBrainz: Album-Daten': 'MusicBrainz: album data',
     'Cover Art Archive: Cover': 'Cover Art Archive: cover',
     'Last.fm: Genres': 'Last.fm: genres',
-    'MusicBrainz ist ausgelastet, neuer Versuch gleich': 'MusicBrainz is busy, trying again shortly',
+    'MusicBrainz ist ausgelastet, Versuch {1} von {2} in {3} s': 'MusicBrainz is busy, try {1} of {2} in {3} s',
+    'Neue Versuche bei ausgelastetem Server': 'Further tries when the server is busy',
+    'Pause vor dem ersten neuen Versuch': 'Pause before the first further try',
+    'Ist MusicBrainz überlastet (HTTP 503), fragt PsyTags erneut. Die Pause wächst mit jedem Versuch um ihren '
+    'Wert, bei 5 s also 5, 10, 15 s, höchstens 60 s. 0 Versuche: Das Album bleibt sofort offen.':
+        'When MusicBrainz is overloaded (HTTP 503), PsyTags asks again. The pause grows by its value with every '
+        'try, so 5, 10, 15 s for 5 s, at most 60 s. 0 tries: the album stays open right away.',
     'Ausgabe {1} von {2}': 'Edition {1} of {2}',
     'Automatik': 'Automatic',
     'Schritte des automatischen Laufs': 'Steps of the automatic run',

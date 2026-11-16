@@ -1,7 +1,7 @@
 """Tag source dialogs: search, result list, adjust tag information."""
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, QUrl, Qt, Signal
+from PySide6.QtCore import QItemSelectionModel, QObject, QRunnable, QThreadPool, QUrl, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QDesktopServices, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog,
                                QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel,
@@ -306,7 +306,7 @@ class AdjustDialog(QDialog):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.table.setDefaultDropAction(Qt.DropAction.MoveAction)
-        self.table.reordered.connect(self._reordered)
+        self.table.dropped.connect(self._place)
         pair.addWidget(self.source_table)
         pair.addWidget(self.table)
         pair.setSizes([500, 500])
@@ -334,8 +334,9 @@ class AdjustDialog(QDialog):
         self._fill()
         remember(self, "ts_adjust")
 
-    def _fill(self, sel=-1):
+    def _fill(self, selected=()):
         warn = QBrush(QColor(theme.WARNING_BACKGROUND))
+        scrolled = self.table.verticalScrollBar().value()
         self.source_table.clear()
         self.table.clear()
         n_src = max(1, self.album.tracks)
@@ -372,8 +373,15 @@ class AdjustDialog(QDialog):
         if mismatches:
             hints.append(tr("{1} Längen passen nicht", mismatches))
         self.hint.setText(" · ".join(hints))
-        if 0 <= sel < len(self.files):
-            self.table.setCurrentItem(self.table.topLevelItem(sel))
+        self.table.verticalScrollBar().setValue(scrolled)
+        rows = [r for r in selected if 0 <= r < len(self.files)]
+        for n, r in enumerate(rows):               # the whole block stays marked
+            item = self.table.topLevelItem(r)
+            if n == 0:
+                self.table.setCurrentItem(item, 0, QItemSelectionModel.SelectionFlag.NoUpdate)
+            item.setSelected(True)
+        if rows:
+            self.table.scrollToItem(self.table.topLevelItem(rows[0]))
 
     def _sync_current(self, src, dst, cur):
         r = src.indexOfTopLevelItem(cur) if cur is not None else -1
@@ -382,18 +390,27 @@ class AdjustDialog(QDialog):
             dst.setCurrentItem(dst.topLevelItem(r))
             dst.blockSignals(False)
 
-    def _reordered(self):
-        order = [self.table.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
-                 for i in range(self.table.topLevelItemCount())]
-        cur = self.table.indexOfTopLevelItem(self.table.currentItem())
-        self.files = [self.files[i] for i in order]
-        self._fill(cur)
+    def _place(self, rows: list, target: int) -> None:
+        """Put the files of ``rows`` together in front of row ``target``, in their order."""
+        rows = [r for r in rows if 0 <= r < len(self.files)]
+        moving = [self.files[r] for r in rows]
+        staying = [f for i, f in enumerate(self.files) if i not in set(rows)]
+        at = max(0, min(target, len(self.files)) - sum(1 for r in rows if r < target))
+        self.files = staying[:at] + moving + staying[at:]
+        self._fill(range(at, at + len(moving)))
 
     def _move(self, d):
-        r = self.table.indexOfTopLevelItem(self.table.currentItem())
-        if 0 <= r < len(self.files) and 0 <= r + d < len(self.files):
-            self.files[r], self.files[r + d] = self.files[r + d], self.files[r]
-            self._fill(r + d)
+        """All marked files one row up or down; a file at the edge holds the ones behind it."""
+        rows = self.table.selected_rows()
+        marked = set(rows)
+        for r in (rows if d < 0 else reversed(rows)):
+            n = r + d
+            if 0 <= n < len(self.files) and n not in marked:
+                self.files[r], self.files[n] = self.files[n], self.files[r]
+                marked.remove(r)
+                marked.add(n)
+        if rows:
+            self._fill(sorted(marked))
 
     def enabled_fields(self) -> list[str]:
         out, off = [], []
@@ -432,8 +449,9 @@ class AdjustDialog(QDialog):
 
 
 class _TrackTable(QTreeWidget):
-    """Flat track list for the adjust dialog; ``reordered`` fires after a drag & drop."""
-    reordered = Signal()
+    """Flat track list for the adjust dialog; ``dropped`` names the marked rows and the row
+    they were dropped in front of. The list itself moves nothing: its owner rebuilds it."""
+    dropped = Signal(list, int)
 
     def __init__(self, headers: list[str], stretch: int):
         super().__init__()
@@ -445,9 +463,23 @@ class _TrackTable(QTreeWidget):
         self.invisibleRootItem().setFlags(self.invisibleRootItem().flags()
                                           | Qt.ItemFlag.ItemIsDropEnabled)
 
+    def selected_rows(self) -> list[int]:
+        rows = sorted(self.indexOfTopLevelItem(item) for item in self.selectedItems())
+        current = self.indexOfTopLevelItem(self.currentItem())
+        return rows or ([current] if current >= 0 else [])
+
     def dropEvent(self, e):
-        super().dropEvent(e)
-        self.reordered.emit()
+        if e.source() is not self:
+            e.ignore()
+            return
+        over = self.itemAt(e.position().toPoint())
+        target = self.topLevelItemCount() if over is None else self.indexOfTopLevelItem(over)
+        if over is not None and self.dropIndicatorPosition() == QAbstractItemView.DropIndicatorPosition.BelowItem:
+            target += 1
+        rows = self.selected_rows()
+        e.setDropAction(Qt.DropAction.IgnoreAction)     # Qt must not remove the rows itself
+        e.accept()
+        self.dropped.emit(rows, target)
 
 
 def _fmt_secs(secs: float) -> str:
