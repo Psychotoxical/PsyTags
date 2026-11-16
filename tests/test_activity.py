@@ -84,7 +84,7 @@ class AlbumSearchTests(unittest.TestCase):
 
         def album(row):
             seen.append(http.running())
-            return mock.MagicMock()
+            return mock.MagicMock(audio_only=None)
         src = NS(search=lambda values: [], album=album)
         with mock.patch.object(albumauto.coverfetch, "rank", return_value=[]), \
                 mock.patch.object(albumauto, "candidate_rows", return_value=[{}, {}]), \

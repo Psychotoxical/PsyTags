@@ -644,11 +644,11 @@ class FollowUpTests(unittest.TestCase):
 
     def test_a_complete_album_gets_numbered(self):
         win, t = self._finish(True)
-        win._renumber.assert_called_once_with([t])
+        win._renumber.assert_called_once_with([t], counted=True)
 
-    def test_a_partial_import_is_not_numbered(self):
-        win, _t = self._finish(False)
-        win._renumber.assert_not_called()
+    def test_a_partial_import_keeps_the_numbers_of_the_source(self):
+        win, t = self._finish(False)
+        win._renumber.assert_called_once_with([t], counted=False)
 
     def _auto_all(self, analysis_ok):
         self._app()

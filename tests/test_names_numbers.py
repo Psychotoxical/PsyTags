@@ -158,6 +158,24 @@ class NumberingTests(unittest.TestCase):
         tracks = [Fake() for _ in range(100)]
         self.assertEqual(plan(tracks)[0]["TRACK"], "001/100")
 
+
+    def test_missing_tracks_keep_their_numbers_in_the_format(self):
+        tracks = [Fake(track="1/12"), Fake(track="3/12"), Fake(track="12/12")]
+        got = numbering.reformat(tracks, numbering.NumberFormat())
+        self.assertEqual([got[id(t)] for t in tracks], [{"TRACK": "01/12", "DISCNUMBER": "01/01"},
+                                                        {"TRACK": "03/12", "DISCNUMBER": "01/01"},
+                                                        {"TRACK": "12/12", "DISCNUMBER": "01/01"}])
+
+    def test_missing_tracks_keep_their_discs(self):
+        tracks = [Fake(track="2/9", discnumber="1/2"), Fake(track="4/8", discnumber="2/2")]
+        got = numbering.reformat(tracks, numbering.NumberFormat(track_total=False, disc_on=False))
+        self.assertEqual([got[id(t)] for t in tracks], [{"TRACK": "02", "DISCNUMBER": "01/02"},
+                                                        {"TRACK": "04", "DISCNUMBER": "02/02"}])
+
+    def test_a_file_without_a_number_gets_none(self):
+        t = Fake()
+        self.assertEqual(numbering.reformat([t], numbering.NumberFormat(disc_on=False))[id(t)], {})
+
     def test_example_shows_the_format(self):
         self.assertEqual(numbering.example(numbering.NumberFormat()), ("03/12", "01/02"))
         self.assertEqual(numbering.example(numbering.NumberFormat(track_total=False, track_zeros=False, disc_on=False)),

@@ -207,5 +207,62 @@ class UserAgentTest(unittest.TestCase):
         self.assertRegex(http.USER_AGENT, r"^PsyTags/\S+ \( https://github\.com/Psychotoxical/PsyTags \)$")
 
 
+def _medium(position, fmt, titles):
+    return {"position": position, "track-count": len(titles), "title": "", "format": fmt, "tracks": [
+        {"position": n, "recording": {"id": f"{fmt}-{n}", "length": 60000, "title": title, "isrcs": [],
+                                      "artist-credit": []}} for n, title in enumerate(titles, 1)]}
+
+
+def _with_media(*media):
+    return {**RELEASE, "media": list(media)}
+
+
+class VideoMediaTest(unittest.TestCase):
+    """A DVD beside the CDs: the files of a rip are the CDs."""
+
+    def test_the_audio_discs_are_kept_apart(self):
+        album, _ = album_from(_with_media(_medium(1, "DVD-Video", ["Film A", "Film B", "Film C"]),
+                                          _medium(2, "CD", ["One", "Two"])))
+        self.assertEqual(album.tracks, 5)
+        slim = album.audio_only
+        self.assertEqual(slim.fields["TITLE"], ["One", "Two"])
+        self.assertEqual(slim.fields["TRACK"], ["1/2", "2/2"])
+        self.assertNotIn("DISCNUMBER", slim.fields)          # one disc is left
+        self.assertEqual(slim.cover_url, album.cover_url)
+        self.assertIsNone(slim.audio_only)
+
+    def test_the_discs_count_without_the_dvd(self):
+        album, _ = album_from(_with_media(_medium(1, "CD", ["One"]), _medium(2, "DVD", ["Film"]),
+                                          _medium(3, "CD", ["Two"])))
+        self.assertEqual(album.audio_only.fields["DISCNUMBER"], ["1/2", "2/2"])
+        self.assertEqual(album.fields["DISCNUMBER"], ["1/3", "2/3", "3/3"])
+
+    def test_a_release_of_only_audio_or_only_video_stays_whole(self):
+        for media in ((_medium(1, "CD", ["One"]), _medium(2, "DVD-Audio", ["Two"])),
+                      (_medium(1, "DVD-Video", ["Film"]), _medium(2, "Blu-ray", ["Film"]))):
+            album, _ = album_from(_with_media(*media))
+            self.assertIsNone(album.audio_only)
+
+    def test_the_files_decide_which_one_is_used(self):
+        from psytags.websources import albumauto
+        album, _ = album_from(_with_media(_medium(1, "DVD-Video", ["Film A", "Film B", "Film C"]),
+                                          _medium(2, "CD", ["One", "Two"])))
+        self.assertIs(albumauto.for_files(album, 2), album.audio_only)
+        self.assertIs(albumauto.for_files(album, 5), album)          # ripped everything
+        plain, _ = album_from(RELEASE)
+        self.assertIs(albumauto.for_files(plain, 1), plain)
+
+    def test_a_search_row_tells_its_audio_tracks(self):
+        from psytags.websources import albumauto
+        row = musicbrainz._row({"id": "x", "track-count": 23,
+                                "media": [{"format": "CD", "track-count": 11},
+                                          {"format": "DVD-Video", "track-count": 12}]})
+        self.assertEqual(albumauto.track_count(row), 23)
+        self.assertEqual(albumauto.track_count(row, 11), 11)
+        self.assertEqual(albumauto.track_count(row, 23), 23)
+        self.assertNotIn("_audio_tracks", musicbrainz._row({"id": "x", "track-count": 11,
+                                           "media": [{"format": "CD", "track-count": 11}]}))
+
+
 if __name__ == "__main__":
     unittest.main()

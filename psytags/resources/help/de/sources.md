@@ -26,8 +26,12 @@ Bei Discogs gelten dieselben Regeln, zusätzlich müssen alle Tracklängen bekan
 
 **MusicBrainz durchsuchen** (Strg+I) oder **Manuell suchen → Discogs …** im Rechtsklick-Menü öffnen das Suchformular. Danach wählen Sie aus der Trefferliste.
 
-Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts Ihre Dateien. Dateien lassen sich per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben. Gelb markierte Zeilen weichen um mehr als 3 Sekunden ab. Links wählen Sie, welche Felder geschrieben werden.
+Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts Ihre Dateien. Dateien lassen sich per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben; mehrere markierte Dateien wandern zusammen und bleiben markiert. Gelb markierte Zeilen weichen um mehr als 3 Sekunden ab. Links wählen Sie, welche Felder geschrieben werden.
 
 **MusicBrainz durchsuchen (Schnell)** (Strg+Shift+I) überspringt das Suchformular.
+
+## Ausgaben mit DVD
+
+Hat eine Ausgabe neben den CDs eine DVD oder Blu-ray, zählen nur die Tracks der CDs, automatisch wie von Hand: Die Dateien eines Rips sind die CDs. Die Discnummern zählen dann ohne die DVD. Gibt es für jeden Track der Ausgabe eine Datei, bleibt die ganze Ausgabe stehen.
 
 Kommentare werden beim Import gelöscht, wenn **Optionen → Automatik → MusicBrainz → Kommentare standardmäßig löschen** eingeschaltet ist (Standard: aus). Beim Jahr und Original-Jahr wird nur die Jahreszahl geschrieben (2026 statt 2026-10-11). Wer das volle Datum will, stellt **Optionen → Automatik → MusicBrainz → Erscheinungsdatum** auf **Volles Datum**; das gilt auch für Discogs.

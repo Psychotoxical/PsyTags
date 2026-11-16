@@ -236,3 +236,81 @@ class TagSourceButtonTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BlockMoveTests(unittest.TestCase):
+    """Several marked files move together in the adjust dialog and stay marked."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        cls.dir = tempfile.mkdtemp()
+        cls.orig_config_dir = config.config_dir
+        config.config_dir = lambda: cls.dir
+
+    @classmethod
+    def tearDownClass(cls):
+        config.config_dir = cls.orig_config_dir
+        shutil.rmtree(cls.dir, ignore_errors=True)
+
+    def _dialog(self, n=6):
+        from psytags.track import Track
+        from psytags.ui.dialogs.tagsources import AdjustDialog
+        from psytags.websources.base import Album
+        folder = os.path.join(tempfile.gettempdir(), "album")
+        self.files = [Track(os.path.join(folder, f"file{i}.mp3")) for i in range(n)]
+        album = Album(fields={"TITLE": [f"Song {i}" for i in range(n)]}, per_track={"TITLE"}, tracks=n)
+        d = AdjustDialog(album, list(self.files))
+        self.addCleanup(d.deleteLater)
+        return d
+
+    def _mark(self, d, *rows):
+        d.table.clearSelection()
+        for r in rows:
+            d.table.topLevelItem(r).setSelected(True)
+
+    def _order(self, d):
+        return [self.files.index(f) for f in d.files]
+
+    def test_a_block_moves_up_and_stays_marked(self):
+        d = self._dialog()
+        self._mark(d, 2, 3, 4)
+        d._move(-1)
+        self.assertEqual(self._order(d), [0, 2, 3, 4, 1, 5])
+        self.assertEqual(d.table.selected_rows(), [1, 2, 3])
+        d._move(-1)
+        self.assertEqual(self._order(d), [2, 3, 4, 0, 1, 5])
+
+    def test_a_block_at_the_edge_stays_together(self):
+        d = self._dialog()
+        self._mark(d, 0, 1)
+        d._move(-1)
+        self.assertEqual(self._order(d), [0, 1, 2, 3, 4, 5])
+        self._mark(d, 4, 5)
+        d._move(1)
+        self.assertEqual(self._order(d), [0, 1, 2, 3, 4, 5])
+        self.assertEqual(d.table.selected_rows(), [4, 5])
+
+    def test_a_block_moves_down(self):
+        d = self._dialog()
+        self._mark(d, 0, 1)
+        d._move(1)
+        self.assertEqual(self._order(d), [2, 0, 1, 3, 4, 5])
+        self.assertEqual(d.table.selected_rows(), [1, 2])
+
+    def test_dropped_files_land_together_in_front_of_the_target(self):
+        d = self._dialog()
+        d.table.dropped.emit([1, 4], 3)                    # two files that were apart
+        self.assertEqual(self._order(d), [0, 2, 1, 4, 3, 5])
+        self.assertEqual(d.table.selected_rows(), [2, 3])
+        d.table.dropped.emit([2, 3], 6)                    # behind the last row
+        self.assertEqual(self._order(d), [0, 2, 3, 5, 1, 4])
+        d.table.dropped.emit([4, 5], 0)
+        self.assertEqual(self._order(d), [1, 4, 0, 2, 3, 5])
+
+    def test_one_file_still_moves_by_the_current_row(self):
+        d = self._dialog()
+        d.table.clearSelection()
+        d.table.setCurrentItem(d.table.topLevelItem(3))
+        d._move(-1)
+        self.assertEqual(self._order(d), [0, 1, 3, 2, 4, 5])

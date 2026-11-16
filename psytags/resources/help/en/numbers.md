@@ -1,6 +1,6 @@
 # Numbers
 
-**Write numbers** (Ctrl+K) writes track and disc numbers of the selected albums. This also happens in the automatic run.
+**Write numbers** (Ctrl+K) writes track and disc numbers of the selected albums. This also happens in the automatic run and after a search by hand. When files of an album are missing there, nothing is counted: the numbers of the source stay and only get the format.
 
 The order inside an album follows disc and track.
 

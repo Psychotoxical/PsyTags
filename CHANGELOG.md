@@ -4,6 +4,16 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Added
+
+- In the window "Check the assignment", several selected files move together, with the buttons, Alt+↑/↓ and drag and drop, and stay selected.
+
+### Fixed
+
+- Dialogs open centred on the main window, also when it stands on another screen. A dialog that was moved keeps its place relative to the main window.
+- A release with a DVD or Blu-ray beside its CDs: only the tracks of the CDs are matched against the files, in the automatic and in the search by hand, unless there is a file for every track.
+- After a search by hand, an album with missing files keeps the track numbers of the source in the format set in the options instead of staying unformatted.
+
 ### Changed
 
 - Release candidates raise the version number on their own, and every change to PsyTags now comes with an entry in this changelog.

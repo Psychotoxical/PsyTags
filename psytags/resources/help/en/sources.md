@@ -26,8 +26,12 @@ The same rules apply to Discogs, and all track lengths must be known as well. On
 
 **Search MusicBrainz** (Ctrl+I) or **Search manually → Discogs …** in the right-click menu open the search form. Then you choose from the results.
 
-In the window **Check the assignment**, the tracks of the source are on the left and your files on the right. Move files into the right row by drag and drop or with Alt+↑/↓. Rows marked in yellow differ by more than 3 seconds. On the left you choose which fields are written.
+In the window **Check the assignment**, the tracks of the source are on the left and your files on the right. Move files into the right row by drag and drop or with Alt+↑/↓; several selected files move together and stay selected. Rows marked in yellow differ by more than 3 seconds. On the left you choose which fields are written.
 
 **Search MusicBrainz (Quick)** (Ctrl+Shift+I) skips the search form.
+
+## Releases with a DVD
+
+When a release has a DVD or Blu-ray beside its CDs, only the tracks of the CDs count, in the automatic and by hand: the files of a rip are the CDs. The disc numbers then count without the DVD. When there is a file for every track of the release, the whole release stays.
 
 Comments are deleted on import when **Options → Automatic → MusicBrainz → Delete comments by default** is on (default: off). Year and original year get only the year (2026 instead of 2026-10-11). For the full date, set **Options → Automatic → MusicBrainz → Release date** to **Full date**; this applies to Discogs as well.

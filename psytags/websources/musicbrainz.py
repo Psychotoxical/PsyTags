@@ -17,6 +17,9 @@ API = "https://musicbrainz.org/ws/2/release/"
 _INC = "?inc=artists+artist-credits+labels+recordings+release-groups+isrcs&fmt=json"
 _INTERVAL = 1.1                         # MusicBrainz allows one request per second
 _QUERY_SYNTAX = re.compile(r'[+!(){}\[\]^"~*?:\\]')
+# Media that carry a film: their tracks are no audio files
+_VIDEO_FORMATS = {"dvd", "dvd-video", "blu-ray", "blu-ray-r", "hd-dvd", "vhs", "betamax", "vcd", "svcd",
+                  "laserdisc", "ced", "vhd", "umd"}
 _lock = threading.Lock()
 _last_call = [0.0]
 
@@ -69,10 +72,21 @@ def _credits(entries: list | None) -> tuple[str, str, str]:
     return names, sorts, ids
 
 
+def _is_video(medium: dict) -> bool:
+    return _text(medium.get("format")).casefold() in _VIDEO_FORMATS
+
+
+def _audio_media(media: list) -> list | None:
+    """The audio media of a release that also has video media, None if it is not such a mix."""
+    audio = [m for m in media if not _is_video(m)]
+    return audio if audio and len(audio) < len(media) else None
+
+
 def _row(release: dict) -> dict[str, str]:
     rid = _text(release.get("id"))
     first_label = (release.get("label-info") or [{}])[0] or {}
-    return {
+    audio = _audio_media(release.get("media") or [])
+    row = {
         "_preview": f"https://musicbrainz.org/release/{rid}",
         "_coverurl": f"{coverart.BASE}/release/{rid}/front-250",
         "_url": rid,
@@ -87,6 +101,9 @@ def _row(release: dict) -> dict[str, str]:
         "Publisher": _text((first_label.get("label") or {}).get("name")),
         "CatNo": _text(first_label.get("catalog-number")),
     }
+    if audio:                           # a DVD beside the CDs: what a rip of the CDs has
+        row["_audio_tracks"] = _text(sum(m.get("track-count") or 0 for m in audio))
+    return row
 
 
 def _joined(values: list[str]) -> str:
@@ -96,7 +113,8 @@ def _joined(values: list[str]) -> str:
     return out
 
 
-def _parse_album(release: dict) -> Album:
+def _parse_album(release: dict, audio_only: bool = False) -> Album:
+    """``audio_only`` leaves out the video media and counts the discs without them."""
     rid = _text(release.get("id"))
     group = release.get("release-group") or {}
     secondary = ", ".join(_text(s) for s in group.get("secondary-types") or [])
@@ -119,17 +137,20 @@ def _parse_album(release: dict) -> Album:
         "MUSICBRAINZ_ALBUMRELEASECOUNTRY": _text(release.get("country")),
         "BARCODE": _text(release.get("barcode")),
     }
-    media = release.get("media") or []
+    every = release.get("media") or []
+    audio = _audio_media(every)
+    media = audio if audio_only and audio else every
     rows: dict[str, list[str]] = {k: [] for k in (
         "SETSUBTITLE", "DISCNUMBER", "TRACK", "MUSICBRAINZ_TRACKID", "ISRC", "TITLE",
         "ARTIST", "ARTISTSORT", "MUSICBRAINZ_ARTISTID")}
     lengths: list[str] = []
-    for medium in media:
+    for disc, medium in enumerate(media, 1):
+        position = disc if audio_only else _text(medium.get("position"))
         for track in medium.get("tracks") or []:
             recording = track.get("recording") or {}
             artist, sort, ids = _credits(recording.get("artist-credit"))
             rows["SETSUBTITLE"].append(_text(medium.get("title")))
-            rows["DISCNUMBER"].append(f"{_text(medium.get('position'))}/{len(media)}" if len(media) > 1 else "")
+            rows["DISCNUMBER"].append(f"{position}/{len(media)}" if len(media) > 1 else "")
             rows["TRACK"].append(f"{_text(track.get('position'))}/{_text(medium.get('track-count'))}")
             rows["MUSICBRAINZ_TRACKID"].append(_text(recording.get("id")))
             rows["ISRC"].append(", ".join(_text(i) for i in recording.get("isrcs") or []))
@@ -147,6 +168,8 @@ def _parse_album(release: dict) -> Album:
             album.per_track.add(name)
     if (release.get("cover-art-archive") or {}).get("front"):
         album.cover_url = f"{coverart.BASE}/release/{rid}/front"
+    if audio and not audio_only:
+        album.audio_only = _parse_album(release, True)
     return album
 
 

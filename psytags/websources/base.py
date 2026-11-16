@@ -12,6 +12,7 @@ class Album:
     tracks: int = 0
     lengths: list[str] = field(default_factory=list)
     cover_url: str = ""
+    audio_only: "Album | None" = None      # the same release without its video media (DVD beside CD)
 
     def value(self, name: str, i: int) -> str:
         vals = self.fields.get(name, [])
