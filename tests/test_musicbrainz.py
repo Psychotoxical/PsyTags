@@ -191,6 +191,41 @@ class PoliteTest(unittest.TestCase):
         with mock.patch.object(musicbrainz.time, "sleep"):
             self.assertEqual(musicbrainz._polite(call), "ok")
 
+    def _busy(self, retries, wait):
+        """The pauses and the number of requests against a server that is always busy."""
+        calls, waits = [], []
+
+        def call():
+            calls.append(1)
+            raise http.ServerError("HTTP 503")
+        with mock.patch.object(musicbrainz, "_patience", return_value=(retries, wait)), \
+                mock.patch.object(musicbrainz.time, "monotonic", return_value=0.0), \
+                mock.patch.object(musicbrainz.time, "sleep", waits.append), \
+                self.assertRaises(http.ServerError):
+            musicbrainz._last_call[0] = -100.0
+            musicbrainz._polite(call)
+        return len(calls), [w for w in waits if w != musicbrainz._INTERVAL]     # without the second between requests
+
+    def test_the_pause_grows_with_every_try(self):
+        self.assertEqual(self._busy(3, 5), (4, [5, 10, 15]))
+
+    def test_no_pause_is_longer_than_a_minute(self):
+        self.assertEqual(self._busy(4, 25)[1], [25, 50, 60, 60])
+
+    def test_without_further_tries_the_first_busy_answer_ends_it(self):
+        self.assertEqual(self._busy(0, 5), (1, []))
+
+    def test_the_patience_comes_from_the_options(self):
+        s = musicbrainz.config.settings()
+        old = s.value("options/mb_retries"), s.value("options/mb_wait")
+        self.addCleanup(lambda: [s.setValue(k, v) if v is not None else s.remove(k)
+                                 for k, v in zip(("options/mb_retries", "options/mb_wait"), old)])
+        s.setValue("options/mb_retries", 9)
+        s.setValue("options/mb_wait", 7)
+        self.assertEqual(musicbrainz._patience(), (9, 7))
+        s.setValue("options/mb_wait", "nonsense")
+        self.assertEqual(musicbrainz._patience(), (6, 5))
+
     def test_other_errors_are_not_repeated(self):
         calls = []
 

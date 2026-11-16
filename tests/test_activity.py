@@ -76,7 +76,7 @@ class AlbumSearchTests(unittest.TestCase):
             return reply
         with mock.patch.object(musicbrainz.time, "sleep", side_effect=lambda s: seen.append(http.running())):
             self.assertEqual(musicbrainz._polite(call), "ok")
-        self.assertIn(["MusicBrainz ist ausgelastet, neuer Versuch gleich"], seen)
+        self.assertIn(["MusicBrainz ist ausgelastet, Versuch 1 von 6 in 5 s"], seen)
 
     def test_the_editions_are_counted(self):
         seen = []

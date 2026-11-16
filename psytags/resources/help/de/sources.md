@@ -30,8 +30,12 @@ Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts I
 
 **MusicBrainz durchsuchen (Schnell)** (Strg+Shift+I) überspringt das Suchformular.
 
+Kommentare werden beim Import gelöscht, wenn **Optionen → Automatik → MusicBrainz → Kommentare standardmäßig löschen** eingeschaltet ist (Standard: aus). Beim Jahr und Original-Jahr wird nur die Jahreszahl geschrieben (2026 statt 2026-10-11). Wer das volle Datum will, stellt **Optionen → Automatik → MusicBrainz → Erscheinungsdatum** auf **Volles Datum**; das gilt auch für Discogs.
+
 ## Ausgaben mit DVD
 
 Hat eine Ausgabe neben den CDs eine DVD oder Blu-ray, zählen nur die Tracks der CDs, automatisch wie von Hand: Die Dateien eines Rips sind die CDs. Die Discnummern zählen dann ohne die DVD. Gibt es für jeden Track der Ausgabe eine Datei, bleibt die ganze Ausgabe stehen.
 
-Kommentare werden beim Import gelöscht, wenn **Optionen → Automatik → MusicBrainz → Kommentare standardmäßig löschen** eingeschaltet ist (Standard: aus). Beim Jahr und Original-Jahr wird nur die Jahreszahl geschrieben (2026 statt 2026-10-11). Wer das volle Datum will, stellt **Optionen → Automatik → MusicBrainz → Erscheinungsdatum** auf **Volles Datum**; das gilt auch für Discogs.
+## Wenn MusicBrainz überlastet ist
+
+Antwortet MusicBrainz mit „HTTP 503“, fragt PsyTags erneut. Wie oft und mit welcher Pause, steht unter **Optionen → Automatik → MusicBrainz**: **Neue Versuche bei ausgelastetem Server** (Standard 6) und **Pause vor dem ersten neuen Versuch** (Standard 5 s). Die Pause wächst mit jedem Versuch um ihren Wert und wird nie länger als 60 s. Das Fortschrittsfenster zeigt den laufenden Versuch.

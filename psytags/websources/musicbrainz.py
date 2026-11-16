@@ -9,6 +9,7 @@ import unicodedata
 import urllib.parse
 from typing import Callable
 
+from .. import config
 from ..i18n import tr
 from . import coverart, http
 from .base import Album
@@ -16,6 +17,7 @@ from .base import Album
 API = "https://musicbrainz.org/ws/2/release/"
 _INC = "?inc=artists+artist-credits+labels+recordings+release-groups+isrcs&fmt=json"
 _INTERVAL = 1.1                         # MusicBrainz allows one request per second
+_LONGEST_WAIT = 60                      # seconds: no pause before a new try is longer
 _QUERY_SYNTAX = re.compile(r'[+!(){}\[\]^"~*?:\\]')
 # Media that carry a film: their tracks are no audio files
 _VIDEO_FORMATS = {"dvd", "dvd-video", "blu-ray", "blu-ray-r", "hd-dvd", "vhs", "betamax", "vcd", "svcd",
@@ -24,9 +26,28 @@ _lock = threading.Lock()
 _last_call = [0.0]
 
 
-def _polite(call: Callable, retries: int = 4):
-    """One request per second; a busy server (HTTP 503) gets a few more tries."""
-    for attempt in range(retries + 1):
+def _patience() -> tuple[int, int]:
+    """(further tries, seconds before the first one) for a busy server, from the options."""
+    defaults = config.Options()
+    s = config.settings()
+    try:
+        return (max(0, int(s.value("options/mb_retries", defaults.mb_retries))),
+                max(1, int(s.value("options/mb_wait", defaults.mb_wait))))
+    except (TypeError, ValueError):
+        return defaults.mb_retries, defaults.mb_wait
+
+
+def busy_waits(retries: int, first: int) -> list[int]:
+    """Seconds before each further try: the pause grows by ``first`` every time."""
+    return [min(first * n, _LONGEST_WAIT) for n in range(1, retries + 1)]
+
+
+def _polite(call: Callable):
+    """One request per second; a busy server (HTTP 503) gets more tries with growing pauses,
+    as many and as far apart as the options say."""
+    waits: list[int] | None = None          # read on the first busy answer only
+    attempt = 0
+    while True:
         with _lock:
             wait = _last_call[0] + _INTERVAL - time.monotonic()
             if wait > 0:
@@ -35,10 +56,17 @@ def _polite(call: Callable, retries: int = 4):
         try:
             return call()
         except http.FetchError as e:
-            if "503" not in str(e) or attempt == retries:
+            if "503" not in str(e):
                 raise
-            with http.activity(tr("MusicBrainz ist ausgelastet, neuer Versuch gleich")):
-                time.sleep(4)
+            if waits is None:
+                waits = busy_waits(*_patience())
+            if attempt == len(waits):
+                raise
+            pause = waits[attempt]
+            attempt += 1
+            with http.activity(tr("MusicBrainz ist ausgelastet, Versuch {1} von {2} in {3} s",
+                                  attempt, len(waits), pause)):
+                time.sleep(pause)
 
 
 def _get(url: str) -> dict:

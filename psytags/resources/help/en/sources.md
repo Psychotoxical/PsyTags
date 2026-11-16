@@ -30,8 +30,12 @@ In the window **Check the assignment**, the tracks of the source are on the left
 
 **Search MusicBrainz (Quick)** (Ctrl+Shift+I) skips the search form.
 
+Comments are deleted on import when **Options → Automatic → MusicBrainz → Delete comments by default** is on (default: off). Year and original year get only the year (2026 instead of 2026-10-11). For the full date, set **Options → Automatic → MusicBrainz → Release date** to **Full date**; this applies to Discogs as well.
+
 ## Releases with a DVD
 
 When a release has a DVD or Blu-ray beside its CDs, only the tracks of the CDs count, in the automatic and by hand: the files of a rip are the CDs. The disc numbers then count without the DVD. When there is a file for every track of the release, the whole release stays.
 
-Comments are deleted on import when **Options → Automatic → MusicBrainz → Delete comments by default** is on (default: off). Year and original year get only the year (2026 instead of 2026-10-11). For the full date, set **Options → Automatic → MusicBrainz → Release date** to **Full date**; this applies to Discogs as well.
+## When MusicBrainz is overloaded
+
+When MusicBrainz answers “HTTP 503”, PsyTags asks again. How often and how far apart is set under **Options → Automatic → MusicBrainz**: **Further tries when the server is busy** (default 6) and **Pause before the first further try** (default 5 s). The pause grows by its value with every try and never exceeds 60 s. The progress window shows the current try.
