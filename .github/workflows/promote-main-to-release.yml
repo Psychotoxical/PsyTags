@@ -1,0 +1,20 @@
+name: main → release
+
+# Started by hand, for a release without a release candidate: next takes over main (needs a
+# green ci-ok), release follows in the same step, and the result becomes the draft vX.Y.Z.
+# Publishing the draft is done by hand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  channel:
+    uses: ./.github/workflows/channel.yml
+    with:
+      channel: direct
+    secrets: inherit
+    permissions:
+      contents: write
+      checks: read

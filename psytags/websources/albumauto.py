@@ -19,9 +19,22 @@ def _first(track, name: str) -> str:
     return values[0] if values else ""
 
 
-def track_count(row: dict) -> int | None:
+def track_count(row: dict, n_files: int | None = None) -> int | None:
+    """Tracks of a search result. With ``n_files``: of a release with video media only the
+    audio tracks, unless there are files for every track (see ``for_files``)."""
     m = re.match(r"\s*(\d+)", row.get("Tracks", ""))
-    return int(m.group(1)) if m else None
+    count = int(m.group(1)) if m else None
+    audio = row.get("_audio_tracks", "")
+    if audio.isdigit() and n_files is not None and (count is None or n_files < count):
+        return int(audio)
+    return count
+
+
+def for_files(album: Album, n_files: int) -> Album:
+    """A release with a DVD beside its CDs: the files of a rip are the CDs, so only the audio
+    media count. The whole release stays when there are files for every track."""
+    slim = album.audio_only
+    return slim if slim is not None and n_files < album.tracks else album
 
 
 def is_digital(row: dict) -> bool:
@@ -37,7 +50,7 @@ def digital_first(rows: list[dict], n_files: int, prefer_digital: bool = True) -
     """Search results by score; among equal scores, digital editions of the right size on top."""
     if not prefer_digital:
         return sorted(rows, key=lambda r: -_score(r))
-    return sorted(rows, key=lambda r: (-_score(r), not (is_digital(r) and track_count(r) == n_files)))
+    return sorted(rows, key=lambda r: (-_score(r), not (is_digital(r) and track_count(r, n_files) == n_files)))
 
 
 def candidate_rows(matches: list, n_files: int, mbid: str = "", prefer_digital: bool = True) -> list[dict]:
@@ -46,8 +59,8 @@ def candidate_rows(matches: list, n_files: int, mbid: str = "", prefer_digital: 
     counts a hidden track before the first one (pregap). An ID from the tags is one more candidate."""
     lowest = n_files - min(albummatch.MAX_LEFTOVERS, n_files // 4)
     fit = [m.row for m in matches                   # a search may not tell the count: the lookup will
-           if (c := track_count(m.row)) is None or lowest <= c <= n_files + 1]
-    fit.sort(key=lambda r: (track_count(r) != n_files, (track_count(r) or 0) > n_files,
+           if (c := track_count(m.row, n_files)) is None or lowest <= c <= n_files + 1]
+    fit.sort(key=lambda r: (track_count(r, n_files) != n_files, (track_count(r, n_files) or 0) > n_files,
                             prefer_digital and not is_digital(r)))
     if mbid and not any(mbid.lower() in r.get("_url", "").lower() for r in fit):
         fit.insert(0, {"_url": mbid})
@@ -177,7 +190,7 @@ def _search(src: TagSource, tracks: list, title: str, values: list[str], album: 
                                 prefer_digital)
     for number, row in enumerate(candidates, 1):
         with http.activity(tr("Ausgabe {1} von {2}", number, len(candidates))):
-            found = src.album(row)
+            found = for_files(src.album(row), len(tracks))
         if _fits_album(found, album, artist) and (not strict or _all_lengths_known(found)):
             releases.append(to_release(found, row, _needs_tight_lengths(found, album), prefer_digital))
     d: Decision = albummatch.decide(file_infos(tracks), releases, _first(tracks[0], "YEAR")[:4])

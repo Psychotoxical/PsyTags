@@ -191,6 +191,49 @@ class PoliteTest(unittest.TestCase):
         with mock.patch.object(musicbrainz.time, "sleep"):
             self.assertEqual(musicbrainz._polite(call), "ok")
 
+    def _busy(self, retries, wait):
+        """The pauses and the number of requests against a server that is always busy."""
+        calls, pauses = [], []
+
+        def call():
+            calls.append(1)
+            raise http.ServerError("HTTP 503")
+        with mock.patch.object(musicbrainz, "_patience", return_value=(retries, wait)), \
+                mock.patch.object(musicbrainz.time, "monotonic", return_value=0.0), \
+                mock.patch.object(musicbrainz.time, "sleep"), \
+                mock.patch.object(musicbrainz, "_count_down", lambda attempt, total, pause: pauses.append(pause)), \
+                self.assertRaises(http.ServerError):
+            musicbrainz._last_call[0] = -100.0
+            musicbrainz._polite(call)
+        return len(calls), pauses
+
+    def test_the_pause_counts_down_second_by_second(self):
+        seen = []
+        with mock.patch.object(musicbrainz.time, "sleep", side_effect=lambda s: seen.append((s, http.running()))):
+            musicbrainz._count_down(2, 8, 3)
+        self.assertEqual(seen, [(1, [f"MusicBrainz ist ausgelastet, Versuch 2 von 8 in {left} s"]) for left in (3, 2, 1)])
+        self.assertEqual(http.running(), [])
+
+    def test_the_pause_grows_with_every_try(self):
+        self.assertEqual(self._busy(3, 5), (4, [5, 10, 15]))
+
+    def test_no_pause_is_longer_than_a_minute(self):
+        self.assertEqual(self._busy(4, 25)[1], [25, 50, 60, 60])
+
+    def test_without_further_tries_the_first_busy_answer_ends_it(self):
+        self.assertEqual(self._busy(0, 5), (1, []))
+
+    def test_the_patience_comes_from_the_options(self):
+        s = musicbrainz.config.settings()
+        old = s.value("options/mb_retries"), s.value("options/mb_wait")
+        self.addCleanup(lambda: [s.setValue(k, v) if v is not None else s.remove(k)
+                                 for k, v in zip(("options/mb_retries", "options/mb_wait"), old)])
+        s.setValue("options/mb_retries", 9)
+        s.setValue("options/mb_wait", 7)
+        self.assertEqual(musicbrainz._patience(), (9, 7))
+        s.setValue("options/mb_wait", "nonsense")
+        self.assertEqual(musicbrainz._patience(), (6, 5))
+
     def test_other_errors_are_not_repeated(self):
         calls = []
 
@@ -205,6 +248,63 @@ class PoliteTest(unittest.TestCase):
 class UserAgentTest(unittest.TestCase):
     def test_names_program_and_repository(self):
         self.assertRegex(http.USER_AGENT, r"^PsyTags/\S+ \( https://github\.com/Psychotoxical/PsyTags \)$")
+
+
+def _medium(position, fmt, titles):
+    return {"position": position, "track-count": len(titles), "title": "", "format": fmt, "tracks": [
+        {"position": n, "recording": {"id": f"{fmt}-{n}", "length": 60000, "title": title, "isrcs": [],
+                                      "artist-credit": []}} for n, title in enumerate(titles, 1)]}
+
+
+def _with_media(*media):
+    return {**RELEASE, "media": list(media)}
+
+
+class VideoMediaTest(unittest.TestCase):
+    """A DVD beside the CDs: the files of a rip are the CDs."""
+
+    def test_the_audio_discs_are_kept_apart(self):
+        album, _ = album_from(_with_media(_medium(1, "DVD-Video", ["Film A", "Film B", "Film C"]),
+                                          _medium(2, "CD", ["One", "Two"])))
+        self.assertEqual(album.tracks, 5)
+        slim = album.audio_only
+        self.assertEqual(slim.fields["TITLE"], ["One", "Two"])
+        self.assertEqual(slim.fields["TRACK"], ["1/2", "2/2"])
+        self.assertNotIn("DISCNUMBER", slim.fields)          # one disc is left
+        self.assertEqual(slim.cover_url, album.cover_url)
+        self.assertIsNone(slim.audio_only)
+
+    def test_the_discs_count_without_the_dvd(self):
+        album, _ = album_from(_with_media(_medium(1, "CD", ["One"]), _medium(2, "DVD", ["Film"]),
+                                          _medium(3, "CD", ["Two"])))
+        self.assertEqual(album.audio_only.fields["DISCNUMBER"], ["1/2", "2/2"])
+        self.assertEqual(album.fields["DISCNUMBER"], ["1/3", "2/3", "3/3"])
+
+    def test_a_release_of_only_audio_or_only_video_stays_whole(self):
+        for media in ((_medium(1, "CD", ["One"]), _medium(2, "DVD-Audio", ["Two"])),
+                      (_medium(1, "DVD-Video", ["Film"]), _medium(2, "Blu-ray", ["Film"]))):
+            album, _ = album_from(_with_media(*media))
+            self.assertIsNone(album.audio_only)
+
+    def test_the_files_decide_which_one_is_used(self):
+        from psytags.websources import albumauto
+        album, _ = album_from(_with_media(_medium(1, "DVD-Video", ["Film A", "Film B", "Film C"]),
+                                          _medium(2, "CD", ["One", "Two"])))
+        self.assertIs(albumauto.for_files(album, 2), album.audio_only)
+        self.assertIs(albumauto.for_files(album, 5), album)          # ripped everything
+        plain, _ = album_from(RELEASE)
+        self.assertIs(albumauto.for_files(plain, 1), plain)
+
+    def test_a_search_row_tells_its_audio_tracks(self):
+        from psytags.websources import albumauto
+        row = musicbrainz._row({"id": "x", "track-count": 23,
+                                "media": [{"format": "CD", "track-count": 11},
+                                          {"format": "DVD-Video", "track-count": 12}]})
+        self.assertEqual(albumauto.track_count(row), 23)
+        self.assertEqual(albumauto.track_count(row, 11), 11)
+        self.assertEqual(albumauto.track_count(row, 23), 23)
+        self.assertNotIn("_audio_tracks", musicbrainz._row({"id": "x", "track-count": 11,
+                                           "media": [{"format": "CD", "track-count": 11}]}))
 
 
 if __name__ == "__main__":

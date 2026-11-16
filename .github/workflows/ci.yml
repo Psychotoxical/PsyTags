@@ -1,5 +1,6 @@
 name: CI
 
+# Every pull request needs an entry under [Unreleased] in CHANGELOG.md.
 # Pull requests and pushes to main run only what the change needs: Lint always, the tests on
 # all systems when code changes, the packages when a pull request changes packaging/ or
 # packages.yml.
@@ -63,6 +64,22 @@ jobs:
           echo "packaging=$packaging" >> "$GITHUB_OUTPUT"
           echo "::notice::Tests: $code, Pakete: $packaging"
 
+  changelog:
+    name: Changelog-Eintrag
+    # every pull request needs an entry under [Unreleased]; it becomes the next version's
+    # section. Bots (Dependabot, the release sync) are exempt.
+    if: github.event_name == 'pull_request' && !endsWith(github.event.pull_request.user.login, '[bot]')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git show "$BASE:CHANGELOG.md" > "$RUNNER_TEMP/base.md" 2>/dev/null || : > "$RUNNER_TEMP/base.md"
+          python3 packaging/check_changelog.py "$RUNNER_TEMP/base.md" CHANGELOG.md
+
   lint:
     name: Lint
     runs-on: ubuntu-24.04
@@ -115,7 +132,7 @@ jobs:
 
   ci-ok:
     name: ci-ok
-    needs: [changes, lint, tests, packages]
+    needs: [changes, changelog, lint, tests, packages]
     if: always()
     runs-on: ubuntu-24.04
     steps:

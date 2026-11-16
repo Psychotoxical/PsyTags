@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QByteArray
+from PySide6.QtCore import QByteArray, QEvent, QObject, QPoint, QRect, QSize, Qt
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog, QHeaderView, QSplitter, QTableView, QTreeView
 
 from .. import config
@@ -15,12 +16,56 @@ def geometry_key(key: str) -> str:
     return f"{key}_{desktop}" if desktop else key
 
 
+class _Placement(QObject):
+    """Where a dialog stood when it appeared, to tell whether the user moved it."""
+
+    def __init__(self, dialog: QDialog):
+        super().__init__(dialog)
+        self.shown_at: QPoint | None = None
+        dialog.installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:
+        if event.type() == QEvent.Type.Show and self.shown_at is None:
+            self.shown_at = watched.pos()
+        return False
+
+
+def _owner(dialog: QDialog):
+    parent = dialog.parentWidget()
+    return parent.window() if parent is not None else None
+
+
+def _on_a_screen(top_left: QPoint, size: QSize) -> bool:
+    """True if the title bar of a window there can be grabbed on one of the screens."""
+    grip = QRect(top_left, QSize(size.width(), 30))
+    for screen in QGuiApplication.screens():
+        seen = screen.availableGeometry().intersected(grip)
+        if seen.width() >= 80 and seen.height() >= 20:
+            return True
+    return False
+
+
 def remember(dialog: QDialog, key: str) -> None:
-    """Restore now and save whenever the dialog closes (OK, Cancel, Esc, X)."""
+    """Restore now and save whenever the dialog closes (OK, Cancel, Esc, X).
+
+    A dialog opens centred on its window. Once the user has moved it, it keeps that place
+    relative to the window, so it follows the window to another screen and still may stand
+    beside it or on a different screen."""
     s = config.settings()
-    g = s.value(geometry_key(f"dialogs/{key}/geometry"))
-    if isinstance(g, (QByteArray, bytes)):
-        dialog.restoreGeometry(g)
+    size = s.value(geometry_key(f"dialogs/{key}/size"))
+    if isinstance(size, QSize) and size.isValid():
+        dialog.resize(size)
+    else:
+        g = s.value(geometry_key(f"dialogs/{key}/geometry"))      # saved by an older version
+        if isinstance(g, (QByteArray, bytes)):
+            dialog.restoreGeometry(g)
+            dialog.setAttribute(Qt.WidgetAttribute.WA_Moved, False)    # its place was absolute: centre again
+    offset, owner = s.value(geometry_key(f"dialogs/{key}/offset")), _owner(dialog)
+    if isinstance(offset, QPoint) and owner is not None:
+        place = owner.pos() + offset
+        if _on_a_screen(place, dialog.size()):
+            dialog.move(place)
+    dialog._placement = _Placement(dialog)
     for i, sp in enumerate(dialog.findChildren(QSplitter)):
         st = s.value(f"dialogs/{key}/splitter{i}")
         if isinstance(st, (QByteArray, bytes)):
@@ -42,7 +87,11 @@ def _headers(dialog) -> list[QHeaderView]:
 
 def _save(dialog: QDialog, key: str) -> None:
     s = config.settings()
-    s.setValue(geometry_key(f"dialogs/{key}/geometry"), dialog.saveGeometry())
+    if not (dialog.isMaximized() or dialog.isFullScreen()):
+        s.setValue(geometry_key(f"dialogs/{key}/size"), dialog.size())
+        shown_at, owner = dialog._placement.shown_at, _owner(dialog)
+        if owner is not None and shown_at is not None and dialog.pos() != shown_at:
+            s.setValue(geometry_key(f"dialogs/{key}/offset"), dialog.pos() - owner.pos())
     for i, sp in enumerate(dialog.findChildren(QSplitter)):
         s.setValue(f"dialogs/{key}/splitter{i}", sp.saveState())
     for i, h in enumerate(_headers(dialog)):

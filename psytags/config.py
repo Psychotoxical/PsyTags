@@ -271,6 +271,8 @@ class Options:
     auto_numbers: bool = True
     auto_cover: bool = True
     prefer_digital: bool = True
+    mb_retries: int = 6               # further tries when MusicBrainz is busy (HTTP 503)
+    mb_wait: int = 5                  # seconds before the first of them; grows with every try
     replace_covers: bool = True
     subfolders: bool = True
     save_on_selection_change: bool = True

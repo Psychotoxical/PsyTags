@@ -76,7 +76,7 @@ class AlbumSearchTests(unittest.TestCase):
             return reply
         with mock.patch.object(musicbrainz.time, "sleep", side_effect=lambda s: seen.append(http.running())):
             self.assertEqual(musicbrainz._polite(call), "ok")
-        self.assertIn(["MusicBrainz ist ausgelastet, neuer Versuch gleich"], seen)
+        self.assertIn(["MusicBrainz ist ausgelastet, Versuch 1 von 6 in 5 s"], seen)
 
     def test_the_editions_are_counted(self):
         seen = []
@@ -84,7 +84,7 @@ class AlbumSearchTests(unittest.TestCase):
 
         def album(row):
             seen.append(http.running())
-            return mock.MagicMock()
+            return mock.MagicMock(audio_only=None)
         src = NS(search=lambda values: [], album=album)
         with mock.patch.object(albumauto.coverfetch, "rank", return_value=[]), \
                 mock.patch.object(albumauto, "candidate_rows", return_value=[{}, {}]), \

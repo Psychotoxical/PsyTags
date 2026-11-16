@@ -1335,6 +1335,7 @@ class MainWindow(QMainWindow):
             if stage == "album":
                 try:
                     album = self._background(tr("Album von {1} laden", name), lambda: src.album(row))
+                    album = albumauto.for_files(album, len(tracks))
                     cover = None
                     if album.cover_url:
                         try:
@@ -1570,8 +1571,9 @@ class MainWindow(QMainWindow):
                               leftovers: list, interactive: bool = True,
                               complete: bool = False,
                               archive: tuple[str, str] | None = None) -> tuple[str | None, str | None]:
-        """Shared end of every tag source import: write, order the album, number it (only when
-        ``complete``, i.e. every track has its file), ask about files without a track, then
+        """Shared end of every tag source import: write, order the album, number it (counted
+        when ``complete``, i.e. every track has its file, else the source's numbers in the
+        chosen format), ask about files without a track, then
         cover source and genres. Returns (cover, genres): None did not run, "" worked, else why not."""
         from ..websources import albummatch
         written = [t for t, _ in plan]
@@ -1598,8 +1600,8 @@ class MainWindow(QMainWindow):
         self.panel.clear_dirty()                # the import replaces what was typed into the panel
         selection = self.view.selected_tracks()
         self.model.sort_album(written, last=leftovers)
-        if complete and self.opts.auto_numbers:
-            self._renumber(written)
+        if self.opts.auto_numbers:
+            self._renumber(written, counted=complete)
         self.view.select_tracks(selection, scroll=interactive)     # a batch must not move the user's view
         self.panel.load(selection)
         if interactive and leftovers:
@@ -1628,10 +1630,12 @@ class MainWindow(QMainWindow):
             _remember_covers(entry)
             self._auto_done.update({id(t): t for t in entry.tracks})
 
-    def _renumber(self, tracks: list[Track]) -> None:
-        """Write track and disc numbers of one album in the format set in the options."""
+    def _renumber(self, tracks: list[Track], counted: bool = True) -> None:
+        """Write track and disc numbers of one album in the format set in the options. Not
+        ``counted``: tracks are missing, the numbers the files have stay and only get the format."""
         ordered = sorted(tracks, key=albumorder.sort_key)
-        plan = numbering.plan(ordered, numbering.NumberFormat.load())
+        fmt = numbering.NumberFormat.load()
+        plan = numbering.plan(ordered, fmt) if counted else numbering.reformat(ordered, fmt)
         self._write(tr("Nummern schreiben"), ordered,
                     lambda t: [t.set(k, v) for k, v in plan.get(id(t), {}).items()])
 

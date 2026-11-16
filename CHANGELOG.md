@@ -1,8 +1,27 @@
 # Changelog
 
-Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`. The main → next workflow raises the version number and turns `[Unreleased]` into the next version's section; after the release, main gets that section through a pull request.
+Every version has its own section. The section of the version in `psytags/__init__.py` becomes the text of the release draft; the download table is added automatically. Changes that are not released yet collect under `## [Unreleased]`; every pull request adds an entry there, the CI checks it. The main → next workflow raises the version number and turns `[Unreleased]` into the next version's section; after the release, main gets that section through a pull request.
 
 ## [Unreleased]
+
+## [0.1.9] - 2026-11-16
+
+### Added
+
+- In the window "Check the assignment", several selected files move together, with the buttons, Alt+↑/↓ and drag and drop, and stay selected.
+
+- How often and how far apart PsyTags asks again when MusicBrainz is busy (HTTP 503) can be set under Options → Automatic → MusicBrainz. The pause grows with every try; the default is six tries starting at 5 seconds.
+
+### Fixed
+
+- Dialogs open centred on the main window, also when it stands on another screen. A dialog that was moved keeps its place relative to the main window.
+- A release with a DVD or Blu-ray beside its CDs: only the tracks of the CDs are matched against the files, in the automatic and in the search by hand, unless there is a file for every track.
+- After a search by hand, an album with missing files keeps the track numbers of the source in the format set in the options instead of staying unformatted.
+
+### Changed
+
+- Release candidates raise the version number on their own, and every change to PsyTags now comes with an entry in this changelog.
+- A release can be built straight from main, without a release candidate before it.
 
 ## [0.1.8] - 2026-11-14
 

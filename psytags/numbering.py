@@ -58,6 +58,34 @@ def plan(tracks: list, fmt: NumberFormat) -> dict[int, dict[str, str]]:
     return out
 
 
+def _split(value: str) -> tuple[int, int] | None:
+    """ "3/12" -> (3, 12), "3" -> (3, 0); None if there is no number."""
+    number, _, total = value.partition("/")
+    if not number.strip().isdigit():
+        return None
+    return int(number), int(total) if total.strip().isdigit() else 0
+
+
+def reformat(tracks: list, fmt: NumberFormat) -> dict[int, dict[str, str]]:
+    """Track id -> TRACK and DISCNUMBER as the files have them, in the chosen format. For an
+    album with missing files: counting would give the wrong numbers, the ones from the tag
+    source are right."""
+    several = len({_disc_of(t) for t in tracks if _disc_of(t)}) > 1
+    out: dict[int, dict[str, str]] = {}
+    for t in tracks:
+        values = {}
+        track = _split((t.get("TRACK") or [""])[0])
+        if track:
+            values["TRACK"] = _number(track[0], track[1], fmt.track_zeros, fmt.track_total and track[1] > 0)
+        disc = _split((t.get("DISCNUMBER") or [""])[0])
+        if disc and (fmt.disc_on or several):
+            values["DISCNUMBER"] = _number(disc[0], disc[1], fmt.disc_zeros, fmt.disc_total and disc[1] > 0)
+        elif not disc and fmt.disc_on and not several:
+            values["DISCNUMBER"] = _number(1, 1, fmt.disc_zeros, fmt.disc_total)
+        out[id(t)] = values
+    return out
+
+
 def example(fmt: NumberFormat) -> tuple[str, str]:
     """How track 3 of 12 on disc 1 of 2 would look; the disc is empty if it is not written."""
     return (_number(3, 12, fmt.track_zeros, fmt.track_total),

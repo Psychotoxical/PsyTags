@@ -9,6 +9,7 @@ import unicodedata
 import urllib.parse
 from typing import Callable
 
+from .. import config
 from ..i18n import tr
 from . import coverart, http
 from .base import Album
@@ -16,14 +17,44 @@ from .base import Album
 API = "https://musicbrainz.org/ws/2/release/"
 _INC = "?inc=artists+artist-credits+labels+recordings+release-groups+isrcs&fmt=json"
 _INTERVAL = 1.1                         # MusicBrainz allows one request per second
+_LONGEST_WAIT = 60                      # seconds: no pause before a new try is longer
 _QUERY_SYNTAX = re.compile(r'[+!(){}\[\]^"~*?:\\]')
+# Media that carry a film: their tracks are no audio files
+_VIDEO_FORMATS = {"dvd", "dvd-video", "blu-ray", "blu-ray-r", "hd-dvd", "vhs", "betamax", "vcd", "svcd",
+                  "laserdisc", "ced", "vhd", "umd"}
 _lock = threading.Lock()
 _last_call = [0.0]
 
 
-def _polite(call: Callable, retries: int = 4):
-    """One request per second; a busy server (HTTP 503) gets a few more tries."""
-    for attempt in range(retries + 1):
+def _patience() -> tuple[int, int]:
+    """(further tries, seconds before the first one) for a busy server, from the options."""
+    defaults = config.Options()
+    s = config.settings()
+    try:
+        return (max(0, int(s.value("options/mb_retries", defaults.mb_retries))),
+                max(1, int(s.value("options/mb_wait", defaults.mb_wait))))
+    except (TypeError, ValueError):
+        return defaults.mb_retries, defaults.mb_wait
+
+
+def busy_waits(retries: int, first: int) -> list[int]:
+    """Seconds before each further try: the pause grows by ``first`` every time."""
+    return [min(first * n, _LONGEST_WAIT) for n in range(1, retries + 1)]
+
+
+def _count_down(attempt: int, total: int, pause: int) -> None:
+    """Wait ``pause`` seconds; the progress window shows the seconds that are left."""
+    for left in range(pause, 0, -1):
+        with http.activity(tr("MusicBrainz ist ausgelastet, Versuch {1} von {2} in {3} s", attempt, total, left)):
+            time.sleep(1)
+
+
+def _polite(call: Callable):
+    """One request per second; a busy server (HTTP 503) gets more tries with growing pauses,
+    as many and as far apart as the options say."""
+    waits: list[int] | None = None          # read on the first busy answer only
+    attempt = 0
+    while True:
         with _lock:
             wait = _last_call[0] + _INTERVAL - time.monotonic()
             if wait > 0:
@@ -32,10 +63,14 @@ def _polite(call: Callable, retries: int = 4):
         try:
             return call()
         except http.FetchError as e:
-            if "503" not in str(e) or attempt == retries:
+            if "503" not in str(e):
                 raise
-            with http.activity(tr("MusicBrainz ist ausgelastet, neuer Versuch gleich")):
-                time.sleep(4)
+            if waits is None:
+                waits = busy_waits(*_patience())
+            if attempt == len(waits):
+                raise
+            attempt += 1
+            _count_down(attempt, len(waits), waits[attempt - 1])
 
 
 def _get(url: str) -> dict:
@@ -69,10 +104,21 @@ def _credits(entries: list | None) -> tuple[str, str, str]:
     return names, sorts, ids
 
 
+def _is_video(medium: dict) -> bool:
+    return _text(medium.get("format")).casefold() in _VIDEO_FORMATS
+
+
+def _audio_media(media: list) -> list | None:
+    """The audio media of a release that also has video media, None if it is not such a mix."""
+    audio = [m for m in media if not _is_video(m)]
+    return audio if audio and len(audio) < len(media) else None
+
+
 def _row(release: dict) -> dict[str, str]:
     rid = _text(release.get("id"))
     first_label = (release.get("label-info") or [{}])[0] or {}
-    return {
+    audio = _audio_media(release.get("media") or [])
+    row = {
         "_preview": f"https://musicbrainz.org/release/{rid}",
         "_coverurl": f"{coverart.BASE}/release/{rid}/front-250",
         "_url": rid,
@@ -87,6 +133,9 @@ def _row(release: dict) -> dict[str, str]:
         "Publisher": _text((first_label.get("label") or {}).get("name")),
         "CatNo": _text(first_label.get("catalog-number")),
     }
+    if audio:                           # a DVD beside the CDs: what a rip of the CDs has
+        row["_audio_tracks"] = _text(sum(m.get("track-count") or 0 for m in audio))
+    return row
 
 
 def _joined(values: list[str]) -> str:
@@ -96,7 +145,8 @@ def _joined(values: list[str]) -> str:
     return out
 
 
-def _parse_album(release: dict) -> Album:
+def _parse_album(release: dict, audio_only: bool = False) -> Album:
+    """``audio_only`` leaves out the video media and counts the discs without them."""
     rid = _text(release.get("id"))
     group = release.get("release-group") or {}
     secondary = ", ".join(_text(s) for s in group.get("secondary-types") or [])
@@ -119,17 +169,20 @@ def _parse_album(release: dict) -> Album:
         "MUSICBRAINZ_ALBUMRELEASECOUNTRY": _text(release.get("country")),
         "BARCODE": _text(release.get("barcode")),
     }
-    media = release.get("media") or []
+    every = release.get("media") or []
+    audio = _audio_media(every)
+    media = audio if audio_only and audio else every
     rows: dict[str, list[str]] = {k: [] for k in (
         "SETSUBTITLE", "DISCNUMBER", "TRACK", "MUSICBRAINZ_TRACKID", "ISRC", "TITLE",
         "ARTIST", "ARTISTSORT", "MUSICBRAINZ_ARTISTID")}
     lengths: list[str] = []
-    for medium in media:
+    for disc, medium in enumerate(media, 1):
+        position = disc if audio_only else _text(medium.get("position"))
         for track in medium.get("tracks") or []:
             recording = track.get("recording") or {}
             artist, sort, ids = _credits(recording.get("artist-credit"))
             rows["SETSUBTITLE"].append(_text(medium.get("title")))
-            rows["DISCNUMBER"].append(f"{_text(medium.get('position'))}/{len(media)}" if len(media) > 1 else "")
+            rows["DISCNUMBER"].append(f"{position}/{len(media)}" if len(media) > 1 else "")
             rows["TRACK"].append(f"{_text(track.get('position'))}/{_text(medium.get('track-count'))}")
             rows["MUSICBRAINZ_TRACKID"].append(_text(recording.get("id")))
             rows["ISRC"].append(", ".join(_text(i) for i in recording.get("isrcs") or []))
@@ -147,6 +200,8 @@ def _parse_album(release: dict) -> Album:
             album.per_track.add(name)
     if (release.get("cover-art-archive") or {}).get("front"):
         album.cover_url = f"{coverart.BASE}/release/{rid}/front"
+    if audio and not audio_only:
+        album.audio_only = _parse_album(release, True)
     return album
 
 

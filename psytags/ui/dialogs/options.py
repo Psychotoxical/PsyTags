@@ -512,6 +512,18 @@ class OptionsDialog(QDialog):
         self._hint(area, tr("Passen mehrere Ausgaben gleich gut, nimmt PsyTags die digitale. Ausgeschaltet zählt nur, "
                             "wie gut Titel und Längen passen. Bleibt ein Album offen, springt Discogs ein, "
                             "wenn unter „Konten und Quellen“ ein Token steht."))
+        self.mb_retries = QSpinBox()
+        self.mb_retries.setRange(0, 20)
+        self.mb_retries.setValue(o.mb_retries)
+        self._row(area, tr("Neue Versuche bei ausgelastetem Server"), self.mb_retries)
+        self.mb_wait = QSpinBox()
+        self.mb_wait.setRange(1, 60)
+        self.mb_wait.setSuffix(" s")
+        self.mb_wait.setValue(o.mb_wait)
+        self._row(area, tr("Pause vor dem ersten neuen Versuch"), self.mb_wait)
+        self._hint(area, tr("Ist MusicBrainz überlastet (HTTP 503), fragt PsyTags erneut. Die Pause wächst mit "
+                            "jedem Versuch um ihren Wert, bei 5 s also 5, 10, 15 s, höchstens 60 s. "
+                            "0 Versuche: Das Album bleibt sofort offen."))
 
         area, self.auto_numbers = self._card(column, "numbers", tr("Nummern"), tr("Format von Track und Disc"), "3",
                                              o.auto_numbers)
@@ -670,6 +682,8 @@ class OptionsDialog(QDialog):
         o.auto_numbers = self.auto_numbers.isChecked()
         o.auto_cover = self.auto_cover.isChecked()
         o.prefer_digital = self.prefer_digital.isChecked()
+        o.mb_retries = self.mb_retries.value()
+        o.mb_wait = self.mb_wait.value()
         o.replace_covers = self.replace_covers.isChecked()
         super().accept()
 

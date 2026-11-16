@@ -1,6 +1,6 @@
 # Nummern
 
-**Nummern schreiben** (Strg+K) schreibt Track- und Discnummern der markierten Alben. Das geschieht auch beim automatischen Lauf.
+**Nummern schreiben** (Strg+K) schreibt Track- und Discnummern der markierten Alben. Das geschieht auch beim automatischen Lauf und nach einer Suche von Hand. Fehlen dabei Dateien eines Albums, wird nicht gezählt: Die Nummern der Quelle bleiben und bekommen nur das Format.
 
 Die Reihenfolge innerhalb eines Albums richtet sich nach Disc und Track.
 
