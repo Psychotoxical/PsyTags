@@ -7,6 +7,7 @@ Every version has its own section. The section of the version in `psytags/__init
 ### Changed
 
 - Release candidates raise the version number on their own, and every change to PsyTags now comes with an entry in this changelog.
+- A release can be built straight from main, without a release candidate before it.
 
 ## [0.1.8] - 2026-11-14
 
