@@ -193,18 +193,26 @@ class PoliteTest(unittest.TestCase):
 
     def _busy(self, retries, wait):
         """The pauses and the number of requests against a server that is always busy."""
-        calls, waits = [], []
+        calls, pauses = [], []
 
         def call():
             calls.append(1)
             raise http.ServerError("HTTP 503")
         with mock.patch.object(musicbrainz, "_patience", return_value=(retries, wait)), \
                 mock.patch.object(musicbrainz.time, "monotonic", return_value=0.0), \
-                mock.patch.object(musicbrainz.time, "sleep", waits.append), \
+                mock.patch.object(musicbrainz.time, "sleep"), \
+                mock.patch.object(musicbrainz, "_count_down", lambda attempt, total, pause: pauses.append(pause)), \
                 self.assertRaises(http.ServerError):
             musicbrainz._last_call[0] = -100.0
             musicbrainz._polite(call)
-        return len(calls), [w for w in waits if w != musicbrainz._INTERVAL]     # without the second between requests
+        return len(calls), pauses
+
+    def test_the_pause_counts_down_second_by_second(self):
+        seen = []
+        with mock.patch.object(musicbrainz.time, "sleep", side_effect=lambda s: seen.append((s, http.running()))):
+            musicbrainz._count_down(2, 8, 3)
+        self.assertEqual(seen, [(1, [f"MusicBrainz ist ausgelastet, Versuch 2 von 8 in {left} s"]) for left in (3, 2, 1)])
+        self.assertEqual(http.running(), [])
 
     def test_the_pause_grows_with_every_try(self):
         self.assertEqual(self._busy(3, 5), (4, [5, 10, 15]))

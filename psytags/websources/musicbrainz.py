@@ -42,6 +42,13 @@ def busy_waits(retries: int, first: int) -> list[int]:
     return [min(first * n, _LONGEST_WAIT) for n in range(1, retries + 1)]
 
 
+def _count_down(attempt: int, total: int, pause: int) -> None:
+    """Wait ``pause`` seconds; the progress window shows the seconds that are left."""
+    for left in range(pause, 0, -1):
+        with http.activity(tr("MusicBrainz ist ausgelastet, Versuch {1} von {2} in {3} s", attempt, total, left)):
+            time.sleep(1)
+
+
 def _polite(call: Callable):
     """One request per second; a busy server (HTTP 503) gets more tries with growing pauses,
     as many and as far apart as the options say."""
@@ -62,11 +69,8 @@ def _polite(call: Callable):
                 waits = busy_waits(*_patience())
             if attempt == len(waits):
                 raise
-            pause = waits[attempt]
             attempt += 1
-            with http.activity(tr("MusicBrainz ist ausgelastet, Versuch {1} von {2} in {3} s",
-                                  attempt, len(waits), pause)):
-                time.sleep(pause)
+            _count_down(attempt, len(waits), waits[attempt - 1])
 
 
 def _get(url: str) -> dict:
