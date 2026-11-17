@@ -6,6 +6,7 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ### Fixed
 
+- Up to three files in the folder of an album the automatic run tagged that found no match themselves, such as a bonus track with another album tag, are listed with that album under "Files without a track" in the summary instead of staying unnoticed.
 - A release with a DVD beside its CDs: files left over after the CD tracks are matched with the tracks of the DVD whose titles they have, in the automatic and by hand. In the window "Check the assignment", "Show DVD tracks" shows every track of the DVD, but only when there are more files than CD tracks.
 - An album of the automatic run that is saved by hand is shown as done in the summary, also when files without a track were moved to the recycle bin or kept. Kept files are listed under "Files without a track".
 

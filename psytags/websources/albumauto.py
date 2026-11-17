@@ -354,6 +354,25 @@ def album_gaps(tracks: list) -> list[tuple]:
     return plan
 
 
+def attach_strays(entries: list) -> list:
+    """A few files the run could not place, in the folder of an album it finished (a bonus track
+    whose album tag differs, say), are that album's files without a track and not an album of
+    their own; left alone, they would stay unnoticed beside the renamed album. A folder with two
+    finished albums keeps its open rows: it is not clear which album they belong to."""
+    finished: dict[str, list] = {}
+    for e in entries:
+        if e.ok and e.tracks:
+            finished.setdefault(album_folder(e.tracks), []).append(e)
+    out = []
+    for e in entries:
+        hosts = finished.get(album_folder(e.tracks), []) if not e.ok and e.tracks else []
+        if len(hosts) == 1 and len(e.tracks) <= albummatch.MAX_LEFTOVERS:
+            hosts[0].leftovers.extend(t for t in e.tracks if not any(t is x for x in hosts[0].leftovers))
+            continue
+        out.append(e)
+    return out
+
+
 def album_title(tracks: list) -> str:
     t = tracks[0]
     album = _first(t, "ALBUM")
