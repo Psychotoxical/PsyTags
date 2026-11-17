@@ -100,6 +100,28 @@ ruff check .
 
 Changes go to `main` through pull requests only. Every pull request runs the tests on Linux, Windows and macOS (Intel and Apple Silicon), Ruff, ShellCheck and actionlint, and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora, the Mac apps are signed, notarized and checked by Gatekeeper.
 
+## Translating PsyTags
+
+PsyTags speaks English, German, Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek. It follows the system language until another one is chosen under Options → Program.
+
+Every language other than German and English is one file in [`psytags/resources/locales/`](psytags/resources/locales): the English text on the left, the translation on the right.
+
+```json
+{
+  "Save tag": "Guardar etiqueta",
+  "Step {1} of {2}": "Paso {1} de {2}",
+  "{1} files": { "one": "{1} archivo", "other": "{1} archivos" }
+}
+```
+
+- **Improve a language:** change the text on the right and open a pull request. Keep everything in `{…}` as it is; PsyTags puts numbers and names there. A `&` marks the key of a menu entry; keep exactly one.
+- **Counts** can be objects with one form per plural category of the language ([CLDR plural rules](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html)): `one` and `other` for most languages, `one`, `few`, `many` and `other` for Russian, Ukrainian and Polish, `one`, `few` and `other` for Romanian, only `other` for Chinese and Japanese.
+- **What is missing:** `python packaging/i18n_report.py` shows how complete every language is; `python packaging/i18n_report.py fr` lists the missing texts of one language. A missing or empty text shows in English.
+- **A new language:** `python packaging/i18n_report.py --new <code>` writes a file with every English text, ready to translate. Add the code and the language's own name to `LANGUAGES` in `psytags/i18n.py`; if its plural rules differ from English, add them to `plural_form` there.
+- `python -m unittest tests.test_locales` checks the files: unknown texts, placeholders, menu keys and plural forms.
+
+The help pages are in German and English (`psytags/resources/help/<code>/`); other languages show the English help until a folder for them exists.
+
 ## Releases
 
 A release starts with a new version number in `psytags/__init__.py` and `pyproject.toml` and its section in `CHANGELOG.md`. Once that is on `main`, the workflow creates a release draft with the section as text and the installer, AppImage, deb, rpm and both Mac disk images attached. Publishing the draft creates the tag.

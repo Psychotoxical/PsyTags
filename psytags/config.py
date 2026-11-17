@@ -252,9 +252,15 @@ def push_history(key: str, value: str, limit: int = 30) -> None:
 
 
 def system_language() -> str:
-    """German on a German system, otherwise English: the language before any choice."""
+    """The language of the system if PsyTags has it, otherwise English."""
     from PySide6.QtCore import QLocale
-    return "de" if QLocale.system().language() == QLocale.Language.German else "en"
+    from .i18n import system_code
+    return system_code(QLocale.system().name())
+
+
+def ui_language(opts: "Options") -> str:
+    """The language to show: the chosen one, or the system's while none is chosen."""
+    return opts.language or system_language()
 
 
 @dataclass
@@ -278,7 +284,7 @@ class Options:
     save_on_selection_change: bool = True
     confirm_delete: bool = True
     alt_row_colors: bool = True
-    language: str = "de"
+    language: str = ""                # empty: the language of the system
     theme: str = "mocha"
     extensions: list[str] = field(default_factory=list)
 
@@ -297,8 +303,6 @@ class Options:
             elif isinstance(v, list):
                 raw = list(raw) if isinstance(raw, (list, tuple)) else [raw]
             setattr(o, k, raw)
-        if s.value("options/language") is None:
-            o.language = system_language()
         return o
 
     def save(self) -> None:

@@ -176,9 +176,12 @@ def _parse_album(release: dict, audio_only: bool = False) -> Album:
         "SETSUBTITLE", "DISCNUMBER", "TRACK", "MUSICBRAINZ_TRACKID", "ISRC", "TITLE",
         "ARTIST", "ARTISTSORT", "MUSICBRAINZ_ARTISTID")}
     lengths: list[str] = []
+    video: list[int] = []
     for disc, medium in enumerate(media, 1):
         position = disc if audio_only else _text(medium.get("position"))
         for track in medium.get("tracks") or []:
+            if _is_video(medium):
+                video.append(len(lengths))
             recording = track.get("recording") or {}
             artist, sort, ids = _credits(recording.get("artist-credit"))
             rows["SETSUBTITLE"].append(_text(medium.get("title")))
@@ -191,7 +194,7 @@ def _parse_album(release: dict, audio_only: bool = False) -> Album:
             rows["ARTISTSORT"].append(sort)
             rows["MUSICBRAINZ_ARTISTID"].append(ids)
             lengths.append(_text(recording.get("length")))
-    album = Album(tracks=len(rows["TITLE"]), lengths=lengths)
+    album = Album(tracks=len(rows["TITLE"]), lengths=lengths, video_tracks=video)
     album.fields = {k: [v] for k, v in common.items() if v}
     album.fields["DISCOGS_RELEASE_ID"] = [""]       # an earlier tagging from Discogs no longer applies
     for name, values in rows.items():

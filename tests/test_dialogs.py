@@ -314,3 +314,116 @@ class BlockMoveTests(unittest.TestCase):
         d.table.setCurrentItem(d.table.topLevelItem(3))
         d._move(-1)
         self.assertEqual(self._order(d), [0, 1, 3, 2, 4, 5])
+
+
+class DvdTracksBoxTests(unittest.TestCase):
+    """The adjust dialog offers the tracks of a DVD only when files are left for them."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        cls.dir = tempfile.mkdtemp()
+        cls.orig_config_dir = config.config_dir
+        config.config_dir = lambda: cls.dir
+
+    @classmethod
+    def tearDownClass(cls):
+        config.config_dir = cls.orig_config_dir
+        shutil.rmtree(cls.dir, ignore_errors=True)
+
+    def _dialog(self, titles):
+        from psytags.track import Track
+        from psytags.ui.dialogs.tagsources import AdjustDialog
+        from psytags.websources.base import Album
+        folder = os.path.join(tempfile.gettempdir(), "album")
+        files = []
+        for title in titles:
+            t = Track(os.path.join(folder, f"{title}.mp3"))
+            t.set("TITLE", title)
+            files.append(t)
+        whole = Album(fields={"TITLE": ["One", "Two", "Film", "Live Song"]}, per_track={"TITLE"},
+                      tracks=4, video_tracks=[2, 3])
+        whole.audio_only = Album(fields={"TITLE": ["One", "Two"]}, per_track={"TITLE"}, tracks=2)
+        d = AdjustDialog(whole.audio_only, files, whole=whole)
+        self.addCleanup(d.deleteLater)
+        return d
+
+    def test_files_of_the_cds_alone_get_no_box(self):
+        d = self._dialog(["One", "Two"])
+        self.assertTrue(d.dvd_box.isHidden())
+
+    def test_a_file_left_over_gets_the_box_unticked(self):
+        d = self._dialog(["One", "Two", "Other"])
+        self.assertFalse(d.dvd_box.isHidden())
+        self.assertFalse(d.dvd_box.isChecked())
+        self.assertEqual(d.album.tracks, 2)
+        d.dvd_box.setChecked(True)
+        self.assertEqual(d.album.tracks, 4)
+        self.assertEqual(d.source_table.topLevelItemCount(), 4)
+
+    def test_a_file_with_a_dvd_title_ticks_it_and_lands_there(self):
+        d = self._dialog(["One", "Two", "Live Song"])
+        self.assertTrue(d.dvd_box.isChecked())
+        self.assertEqual(d.files[3].filename, "Live Song.mp3")
+        self.assertEqual([t.filename for t, _v in d.plan()], ["One.mp3", "Two.mp3", "Live Song.mp3"])
+        d.dvd_box.setChecked(False)
+        self.assertEqual([t.filename for t in d.leftovers()], ["Live Song.mp3"])
+
+
+class DropScrollTests(unittest.TestCase):
+    """After a drop the list stays where it is, wherever Qt thinks the pointer is."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        cls.dir = tempfile.mkdtemp()
+        cls.orig_config_dir = config.config_dir
+        config.config_dir = lambda: cls.dir
+
+    @classmethod
+    def tearDownClass(cls):
+        config.config_dir = cls.orig_config_dir
+        shutil.rmtree(cls.dir, ignore_errors=True)
+
+    def test_the_scrolling_at_the_edge_ends_with_the_drop(self):
+        import time
+        from PySide6.QtCore import QPointF
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QAbstractItemView
+        from psytags.track import Track
+        from psytags.ui.dialogs.tagsources import AdjustDialog
+        from psytags.websources.base import Album
+        n = 60
+        files = [Track(os.path.join(tempfile.gettempdir(), "album", f"file{i}.mp3")) for i in range(n)]
+        album = Album(fields={"TITLE": [f"Song {i}" for i in range(n)]}, per_track={"TITLE"}, tracks=n)
+        d = AdjustDialog(album, files)
+        self.addCleanup(d.deleteLater)
+        d.resize(1180, 660)
+        d.show()
+        self.app.processEvents()
+        table, bar = d.table, d.table.verticalScrollBar()
+        bar.setValue(bar.maximum())
+        table.setCurrentItem(table.topLevelItem(50))
+        table.setState(QAbstractItemView.State.DraggingState)
+        table.startAutoScroll()                          # as while dragging near the edge
+
+        class Drop:
+            def source(self):
+                return table
+
+            def position(self):
+                return QPointF(table.visualItemRect(table.topLevelItem(45)).center())
+
+            def setDropAction(self, _action):
+                pass
+
+            def accept(self):
+                pass
+        table.dropEvent(Drop())
+        kept = bar.value()
+        QCursor.setPos(-500, -500)                       # a pointer Qt places above the list
+        end = time.monotonic() + 0.8
+        while time.monotonic() < end:
+            self.app.processEvents()
+        self.assertGreater(kept, 0)
+        self.assertEqual(bar.value(), kept)

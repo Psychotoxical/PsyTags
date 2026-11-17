@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     app.setOrganizationName(config.APP)
     app.setDesktopFileName("psytags")
     opts = config.Options.load()
-    set_language(opts.language)
+    set_language(config.ui_language(opts))
     apply_theme(app, opts.theme)
     f = QFont(app.font())
     if "Inter" in QFontDatabase.families():

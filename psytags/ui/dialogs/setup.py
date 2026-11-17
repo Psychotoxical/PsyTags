@@ -15,7 +15,7 @@ from ...i18n import language, set_language, tr
 from ...track import Track
 from ...websources import discogs, http, lastfm
 from .. import icons, theme
-from ..controls import NumberFormatEditor, Segmented, add_row
+from ..controls import NumberFormatEditor, Segmented, add_row, language_box
 from ..persist import remember
 from .rename import SchemeEditor
 from .tagsources import run_async
@@ -104,10 +104,11 @@ class SetupDialog(QDialog):
 
     def change_language(self, lang: str) -> None:
         """Takes effect at once; the main window follows when the assistant closes."""
-        if lang == language():
-            return
         self.opts.language = lang
-        set_language(lang)
+        shown = config.ui_language(self.opts)
+        if shown == language():
+            return
+        set_language(shown)
         self._build(self.stack.currentIndex())
 
     def change_theme(self, name: str) -> None:
@@ -193,10 +194,7 @@ class SetupDialog(QDialog):
 
     # ------------------------------------------------------------------ pages
     def _welcome(self, area: QVBoxLayout) -> None:
-        self.lang = Segmented()
-        self.lang.addItem("Deutsch", "de")
-        self.lang.addItem("English", "en")
-        self.lang.select(language(), "de")
+        self.lang = language_box(self.opts.language)
         self.lang.currentIndexChanged.connect(lambda _i: self.change_language(self.lang.currentData()))
         add_row(area, tr("Sprache"), self.lang)
         self._text(area, tr("In wenigen Schritten ist alles eingerichtet. Jeden Schritt können Sie überspringen "

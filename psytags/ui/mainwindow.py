@@ -114,6 +114,12 @@ def _store_front_cover(window, tracks, data: bytes, label: str, ask: bool, keep:
     return ""
 
 
+def _quiet_if_inactive(window) -> None:
+    """A window that opens while the user works in another program must not take the focus."""
+    if QApplication.applicationState() != Qt.ApplicationState.ApplicationActive:
+        window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+
+
 class _StayingProgress(QDialog):
     """Stays open and modal after Cancel until the running step has finished."""
     canceled = Signal()
@@ -168,6 +174,7 @@ class _StayingProgress(QDialog):
         self._guard = _ScrollOnlyGuard(parent) if hasattr(parent, "view") else None
         if self._guard is not None:
             QApplication.instance().installEventFilter(self._guard)
+        _quiet_if_inactive(self)
         self.show()
 
     def setValue(self, value: int) -> None:
@@ -211,9 +218,12 @@ class _StayingProgress(QDialog):
         if self._guard is not None:
             QApplication.instance().removeEventFilter(self._guard)
             self._guard = None
+        was_active = self.isActiveWindow()
         self.hide()
         self.deleteLater()
-        if self.parentWidget() is not None:         # tooltips only appear in an active window
+        # tooltips only appear in an active window; but only take back the focus this window had,
+        # never from another program the user went to meanwhile
+        if was_active and self.parentWidget() is not None:
             self.parentWidget().activateWindow()
 
 
@@ -1334,8 +1344,8 @@ class MainWindow(QMainWindow):
                 stage = "album"
             if stage == "album":
                 try:
-                    album = self._background(tr("Album von {1} laden", name), lambda: src.album(row))
-                    album = albumauto.for_files(album, len(tracks))
+                    whole = self._background(tr("Album von {1} laden", name), lambda: src.album(row))
+                    album = albumauto.for_files(whole, len(tracks))
                     cover = None
                     if album.cover_url:
                         try:
@@ -1348,7 +1358,7 @@ class MainWindow(QMainWindow):
                             == QMessageBox.StandardButton.Retry:
                         continue
                     return
-                d = AdjustDialog(album, self.view.selected_tracks() or tracks, cover, self)
+                d = AdjustDialog(album, self.view.selected_tracks() or tracks, cover, self, whole=whole)
                 r = d.exec()
                 if r == 2:
                     stage = "results"
@@ -1564,7 +1574,7 @@ class MainWindow(QMainWindow):
         album = match.release.key
         disabled = set(config.string_list(self.settings, "tagsources/disabled_fields"))
         return self._finish_source_import(src.name, albumauto.plan_for(match, disabled),
-                                          None, match.leftover_keys, interactive, complete=True,
+                                          None, match.leftover_keys, interactive, complete=not album.partial,
                                           archive=coverart.ids_of(album) or ("", ""))   # no IDs: the other cover sources
 
     def _finish_source_import(self, name: str, plan: list, cover: bytes | None,
@@ -1614,17 +1624,20 @@ class MainWindow(QMainWindow):
         cover_result = self.fetch_cover_chain(written, False, archive, keep=keep) if run_chain else None
         outcome = cover_result, self.finish_lastfm(job, interactive) if job is not None else None
         if interactive and saved == len(written):      # a file that could not be written leaves it open
-            self._note_in_summary(name, written, outcome)
+            self._note_in_summary(name, written, outcome, leftovers)
         return outcome
 
-    def _note_in_summary(self, name: str, tracks: list, outcome: tuple) -> None:
+    def _note_in_summary(self, name: str, tracks: list, outcome: tuple, leftovers: list = ()) -> None:
         """An album of the last automatic run that was tagged by hand is no longer open, but only
-        when the import took every one of its files."""
-        ids = {id(t) for t in tracks}
+        when the import took every one of its files; files without a track count as taken. Those
+        still on disk go to the list of files without a track, as after the automatic."""
+        ids = {id(t) for t in tracks} | {id(t) for t in leftovers}
         for entry in self._last_batch:
             if not entry.tracks or not all(id(t) in ids for t in entry.tracks):
                 continue
             entry.ok, (entry.cover, entry.genres), entry.source = True, outcome, name
+            entry.leftovers = [t for t in leftovers if any(t is e for e in entry.tracks)
+                               and os.path.exists(longpath.io(t.path))]
             origin = [tr("Von {1}", name)] if name != "MusicBrainz" else []
             entry.detail = " · ".join([tr("Manuell getaggt")] + origin + [n for n in outcome if n])
             _remember_covers(entry)
@@ -1737,6 +1750,7 @@ class MainWindow(QMainWindow):
                 entries.append(self._fill_gaps(tracks) or self._auto_one(src, tracks))
         finally:
             dlg.finish()
+            entries = albumauto.attach_strays(entries)
             self._last_batch = entries
             self._update_actions()
         self.message(run_statistics(entries, time.monotonic() - started))      # stays until the next message
@@ -1796,6 +1810,7 @@ class MainWindow(QMainWindow):
         while True:
             self._notice_new_covers()
             d = BatchSummaryDialog(self._last_batch, self._trash_files, self)
+            _quiet_if_inactive(d)
             accepted = d.exec()
             entry, action = d.chosen, d.action
             d.deleteLater()
@@ -1973,7 +1988,7 @@ class MainWindow(QMainWindow):
         d.exec()
         self.opts = d.opts
         self.opts.save()
-        self.apply_appearance(self.opts.language, self.opts.theme)
+        self.apply_appearance(config.ui_language(self.opts), self.opts.theme)
 
     def _open_options(self, tab: str = ""):
         from .dialogs.options import OptionsDialog
@@ -1982,7 +1997,7 @@ class MainWindow(QMainWindow):
             self.opts = d.opts
             self.opts.save()
             self.panel.blank_comments = self.opts.drop_comments
-            self.apply_appearance(self.opts.language, self.opts.theme)
+            self.apply_appearance(config.ui_language(self.opts), self.opts.theme)
 
     def apply_appearance(self, language: str, theme_name: str) -> "MainWindow":
         """Language and theme take effect at once. Every text is set when a widget is built,

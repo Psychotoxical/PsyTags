@@ -5,7 +5,8 @@
 
 next: PUBLISHED are the versions that are already released. If the version in
 psytags/__init__.py is one of them, the next free patch version goes into psytags/__init__.py
-and pyproject.toml, and the entries under [Unreleased] in CHANGELOG.md become its section.
+and pyproject.toml; a version set by hand that is not released yet stays. The entries under
+[Unreleased] in CHANGELOG.md become the section of the version, unless it has one already.
 Prints the version. Used by the main → next workflow on the next branch only.
 
 sync: after VERSION was released, main gets that version and the section from the released
@@ -37,6 +38,14 @@ def next_version(current: str, published: set[str]) -> str:
     while version in published:
         version = bump_patch(version)
     return version
+
+
+def for_next(current: str, published: set[str], changelog: str, date: str) -> tuple[str, str]:
+    """(version, changelog) for the next channel: a released version gets the next patch number;
+    a version set by hand on main (a jump such as 1.0.1) stays. Either way [Unreleased] becomes its
+    section unless it has one already."""
+    version = next_version(current, published)
+    return version, release_unreleased(changelog, version, date)
 
 
 def set_init_version(text: str, version: str) -> str:
@@ -131,10 +140,10 @@ def main(argv: list[str]) -> int:
     try:
         if len(argv) >= 2 and argv[1] == "next":
             current = current_version()
-            version = next_version(current, set(argv[2:]))
+            today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+            version, changelog = for_next(current, set(argv[2:]), _read(CHANGELOG), today)
+            _write(CHANGELOG, changelog)
             if version != current:
-                today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-                _write(CHANGELOG, release_unreleased(_read(CHANGELOG), version, today))
                 set_version(version)
             print(version)
             return 0

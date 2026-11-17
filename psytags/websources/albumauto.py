@@ -30,11 +30,64 @@ def track_count(row: dict, n_files: int | None = None) -> int | None:
     return count
 
 
+def _dvd_tracks_possible(row: dict, n_files: int) -> bool:
+    """More files than the CDs of a release with a DVD have: some may be tracks of the DVD."""
+    audio, whole = row.get("_audio_tracks", ""), re.match(r"\s*(\d+)", row.get("Tracks", ""))
+    return audio.isdigit() and whole is not None and int(audio) < n_files < int(whole.group(1))
+
+
 def for_files(album: Album, n_files: int) -> Album:
     """A release with a DVD beside its CDs: the files of a rip are the CDs, so only the audio
     media count. The whole release stays when there are files for every track."""
     slim = album.audio_only
     return slim if slim is not None and n_files < album.tracks else album
+
+
+def _release_of(album: Album, indexes: list[int]) -> Release:
+    return Release(None, [album.value("TITLE", i) for i in indexes],
+                   [albummatch.seconds(album.lengths[i]) if i < len(album.lengths) else None for i in indexes])
+
+
+def _subset(album: Album, indexes: list[int]) -> Album:
+    """The tracks ``indexes`` of a release; their numbers stay those of the whole release."""
+    out = Album(tracks=len(indexes), cover_url=album.cover_url, partial=True,
+                lengths=[album.lengths[i] if i < len(album.lengths) else "" for i in indexes],
+                video_tracks=[n for n, i in enumerate(indexes) if i in set(album.video_tracks)])
+    out.per_track = set(album.per_track)
+    out.fields = {k: [album.value(k, i) for i in indexes] if k in album.per_track else list(v)
+                  for k, v in album.fields.items()}
+    return out
+
+
+def with_video_tracks(album: Album, tracks: list) -> Album | None:
+    """A release with a DVD beside its CDs and more files than CD tracks: the CD tracks plus
+    the DVD tracks whose titles the files without a CD track have. None if no file fits one."""
+    slim = album.audio_only
+    if slim is None or not album.video_tracks or not slim.tracks < len(tracks) < album.tracks:
+        return None
+    infos = file_infos(tracks)
+    video = album.video_tracks
+    cd = [i for i in range(album.tracks) if i not in set(video)]
+    on_cd = {f for f, _t, s in albummatch.align(infos, _release_of(album, cd)) if s >= albummatch.THRESHOLD}
+    extra = [info for f, info in enumerate(infos) if f not in on_cd]
+    fits = [video[t] for _f, t, s in albummatch.align(extra, _release_of(album, video)) if s >= albummatch.THRESHOLD]
+    return _subset(album, sorted(cd + fits)) if fits else None
+
+
+def _leftover_count(tracks: list, album: Album) -> int | None:
+    """Files without a track if ``album`` fits the files, None if it does not."""
+    m = albummatch.match_release(file_infos(tracks), _release_of(album, list(range(album.tracks))))
+    return len(m.leftovers) if isinstance(m, Match) else None
+
+
+def for_tracks(album: Album, tracks: list) -> Album:
+    """``for_files``, but DVD tracks that files fit count as well when that leaves fewer files over."""
+    slim = for_files(album, len(tracks))
+    dvd = with_video_tracks(album, tracks)
+    if dvd is None:
+        return slim
+    with_dvd, without = _leftover_count(tracks, dvd), _leftover_count(tracks, slim)
+    return dvd if with_dvd is not None and (without is None or with_dvd < without) else slim
 
 
 def is_digital(row: dict) -> bool:
@@ -59,7 +112,8 @@ def candidate_rows(matches: list, n_files: int, mbid: str = "", prefer_digital: 
     counts a hidden track before the first one (pregap). An ID from the tags is one more candidate."""
     lowest = n_files - min(albummatch.MAX_LEFTOVERS, n_files // 4)
     fit = [m.row for m in matches                   # a search may not tell the count: the lookup will
-           if (c := track_count(m.row, n_files)) is None or lowest <= c <= n_files + 1]
+           if (c := track_count(m.row, n_files)) is None or lowest <= c <= n_files + 1
+           or _dvd_tracks_possible(m.row, n_files)]
     fit.sort(key=lambda r: (track_count(r, n_files) != n_files, (track_count(r, n_files) or 0) > n_files,
                             prefer_digital and not is_digital(r)))
     if mbid and not any(mbid.lower() in r.get("_url", "").lower() for r in fit):
@@ -190,7 +244,7 @@ def _search(src: TagSource, tracks: list, title: str, values: list[str], album: 
                                 prefer_digital)
     for number, row in enumerate(candidates, 1):
         with http.activity(tr("Ausgabe {1} von {2}", number, len(candidates))):
-            found = for_files(src.album(row), len(tracks))
+            found = for_tracks(src.album(row), tracks)
         if _fits_album(found, album, artist) and (not strict or _all_lengths_known(found)):
             releases.append(to_release(found, row, _needs_tight_lengths(found, album), prefer_digital))
     d: Decision = albummatch.decide(file_infos(tracks), releases, _first(tracks[0], "YEAR")[:4])
@@ -298,6 +352,25 @@ def album_gaps(tracks: list) -> list[tuple]:
                     values[name] = shared
         plan.append((t, values))
     return plan
+
+
+def attach_strays(entries: list) -> list:
+    """A few files the run could not place, in the folder of an album it finished (a bonus track
+    whose album tag differs, say), are that album's files without a track and not an album of
+    their own; left alone, they would stay unnoticed beside the renamed album. A folder with two
+    finished albums keeps its open rows: it is not clear which album they belong to."""
+    finished: dict[str, list] = {}
+    for e in entries:
+        if e.ok and e.tracks:
+            finished.setdefault(album_folder(e.tracks), []).append(e)
+    out = []
+    for e in entries:
+        hosts = finished.get(album_folder(e.tracks), []) if not e.ok and e.tracks else []
+        if len(hosts) == 1 and len(e.tracks) <= albummatch.MAX_LEFTOVERS:
+            hosts[0].leftovers.extend(t for t in e.tracks if not any(t is x for x in hosts[0].leftovers))
+            continue
+        out.append(e)
+    return out
 
 
 def album_title(tracks: list) -> str:
