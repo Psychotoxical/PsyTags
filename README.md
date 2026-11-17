@@ -1,3 +1,23 @@
+<!-- psy-suite:start -->
+<p align="center"><sub>Part of the <b>Psy Suite</b></sub></p>
+<table align="center">
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <a href="https://github.com/Psysonic/psysonic"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Psysonic/psysonic/main/.github/psy-suite/psysonic-dark.svg"><img src="https://raw.githubusercontent.com/Psysonic/psysonic/main/.github/psy-suite/psysonic-light.svg" alt="Psysonic" height="28"></picture></a><br>
+      <sub>Desktop music player for Navidrome and Subsonic</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <a href="https://github.com/Psysonic/psysonic-mobile"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Psysonic/psysonic-mobile/main/.github/psy-suite/psysonic-mobile-dark.svg"><img src="https://raw.githubusercontent.com/Psysonic/psysonic-mobile/main/.github/psy-suite/psysonic-mobile-light.svg" alt="Psysonic Mobile" height="28"></picture></a><br>
+      <sub>Psysonic on iPhone, iPad and Android (beta)</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <a href="https://github.com/Psysonic/PsyAudio"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Psysonic/PsyAudio/main/.github/psy-suite/psyaudio-dark.svg"><img src="https://raw.githubusercontent.com/Psysonic/PsyAudio/main/.github/psy-suite/psyaudio-light.svg" alt="PsyAudio" height="28"></picture></a><br>
+      <sub>Bit-perfect CD ripper and audio converter</sub>
+    </td>
+  </tr>
+</table>
+<!-- psy-suite:end -->
+
 # PsyTags
 
 PsyTags is a tag editor for music collections. It runs on Windows, Linux and macOS, and its interface is available in English and German.

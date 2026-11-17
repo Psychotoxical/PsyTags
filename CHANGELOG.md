@@ -10,6 +10,7 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ### Changed
 
+- The README opens with links to the other apps of the Psy Suite: Psysonic, Psysonic Mobile and PsyAudio.
 - CONTRIBUTING.md explains how to report bugs, translate and send pull requests, and that only maintainers merge; the pull request template asks for a changelog entry in every pull request, as CI does.
 - A release started right after a merge waits until the checks of main are green instead of failing.
 - Pull requests and main are checked on Linux only; the tests on Windows and macOS run when the release packages are built.
