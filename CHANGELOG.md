@@ -13,6 +13,7 @@ Every version has its own section. The section of the version in `psytags/__init
 - A release started right after a merge waits until the checks of main are green instead of failing.
 - Pull requests and main are checked on Linux only; the tests on Windows and macOS run when the release packages are built.
 - The macOS packages try the signature again when Apple's timestamp service does not answer, instead of failing the release.
+- PsyTags lives in the Psysonic organization on GitHub; links, the About window and the user agent for MusicBrainz point there. Old links still lead to the right page.
 
 ## [1.0.1] - 2026-11-17
 

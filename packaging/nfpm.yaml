@@ -13,7 +13,7 @@ description: |
   Tags albums from MusicBrainz only when the match is certain,
   analyzes moods from the audio and renames files by scheme.
 vendor: Psychotoxical
-homepage: https://github.com/Psychotoxical/PsyTags
+homepage: https://github.com/Psysonic/PsyTags
 license: GPL-3.0-or-later
 
 contents:

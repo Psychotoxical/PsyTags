@@ -247,7 +247,7 @@ class PoliteTest(unittest.TestCase):
 
 class UserAgentTest(unittest.TestCase):
     def test_names_program_and_repository(self):
-        self.assertRegex(http.USER_AGENT, r"^PsyTags/\S+ \( https://github\.com/Psychotoxical/PsyTags \)$")
+        self.assertRegex(http.USER_AGENT, r"^PsyTags/\S+ \( https://github\.com/Psysonic/PsyTags \)$")
 
 
 def _medium(position, fmt, titles):
