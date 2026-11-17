@@ -74,5 +74,17 @@ class BumpVersionTests(unittest.TestCase):
             bump_version.sync_released(MAIN, MAIN, "1.2.1")
 
 
+    def test_next_raises_a_released_version_and_moves_unreleased(self):
+        version, text = bump_version.for_next("1.2.0", {"1.2.0"}, MAIN, "2026-02-03")
+        self.assertEqual(version, "1.2.1")
+        self.assertIn("## [Unreleased]\n\n## [1.2.1] - 2026-02-03\n\n### Added\n\n- later", text)
+
+    def test_a_version_set_by_hand_stays_and_gets_its_section(self):
+        version, text = bump_version.for_next("1.0.1", {"1.2.0"}, MAIN, "2026-02-03")
+        self.assertEqual(version, "1.0.1")
+        self.assertIn("## [Unreleased]\n\n## [1.0.1] - 2026-02-03\n\n### Added", text)
+        self.assertEqual(bump_version.for_next("1.0.1", set(), text, "2026-02-04"), ("1.0.1", text))
+
+
 if __name__ == "__main__":
     unittest.main()

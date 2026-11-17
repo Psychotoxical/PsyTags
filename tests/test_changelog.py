@@ -27,10 +27,12 @@ SAMPLE = """# Changelog
 
 class ChangelogTests(unittest.TestCase):
     def test_current_version_has_a_section(self):
-        # the release draft takes its text from this section
+        # the release draft takes its text from this section; a version set by hand on main gets
+        # it from the entries under [Unreleased] on the way to the release (bump_version.py next)
         text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertTrue(release_notes.section(text, psytags.__version__),
-                        f"CHANGELOG.md needs a section '## [{psytags.__version__}]'")
+        self.assertTrue(release_notes.section(text, psytags.__version__)
+                        or release_notes.section(text, "Unreleased"),
+                        f"CHANGELOG.md needs a section '## [{psytags.__version__}]' or entries under [Unreleased]")
 
     def test_script_reads_the_package_version(self):
         self.assertEqual(release_notes.package_version(), psytags.__version__)
