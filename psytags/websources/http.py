@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from .. import __version__
 from ..i18n import tr
 
-USER_AGENT = f"PsyTags/{__version__} ( https://github.com/Psychotoxical/PsyTags )"
+USER_AGENT = f"PsyTags/{__version__} ( https://github.com/Psysonic/PsyTags )"
 BROWSER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
                  "Chrome/140.0 Safari/537.36")
 _cache: dict[str, bytes] = {}

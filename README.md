@@ -4,7 +4,7 @@ PsyTags is a tag editor for music collections. It runs on Windows, Linux and mac
 
 The main window has a file list and a tag panel. One command tags every loaded album, and each step can also be run on its own. Moods are determined locally from the audio.
 
-PsyTags is young. Downloads for Windows, Linux and macOS are on the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page.
+PsyTags is young. Downloads for Windows, Linux and macOS are on the [Releases](https://github.com/Psysonic/PsyTags/releases) page.
 
 ![Main window of PsyTags with the file list on the left and the tag panel on the right](docs/screenshot.png)
 
@@ -66,7 +66,7 @@ AAC, AIFF, APE, DSF, FLAC, M4A, M4B, MP2, MP3, MP4, MPC, OGG, Opus, Speex, TAK, 
 
 ## Installation
 
-Download from the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page:
+Download from the [Releases](https://github.com/Psysonic/PsyTags/releases) page:
 
 - **Windows 10 and 11:** `PsyTags-Setup-<version>.exe`. It installs for your user without admin rights; the first page also offers an installation for all users. Your settings stay when you uninstall.
 - **Debian, Ubuntu, Mint:** `psytags_<version>_amd64.deb`, installed with `sudo apt install ./psytags_<version>_amd64.deb`.
@@ -81,7 +81,7 @@ All of them come with ffmpeg for the mood analysis.
 Requires Python 3.11 or newer and, for the mood analysis, ffmpeg.
 
 ```
-git clone https://github.com/Psychotoxical/PsyTags.git
+git clone https://github.com/Psysonic/PsyTags.git
 cd PsyTags
 python -m venv .venv
 .venv/bin/pip install .

@@ -15,7 +15,7 @@ from ...i18n import tr
 from ..icons import logo_pixmap
 from ..persist import remember
 
-REPOSITORY = "https://github.com/Psychotoxical/PsyTags"
+REPOSITORY = "https://github.com/Psysonic/PsyTags"
 _FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                        "resources", "licenses")
 
