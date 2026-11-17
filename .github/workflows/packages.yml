@@ -143,14 +143,15 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           status=0
-          timeout 15 dist/PsyTags-x86_64.AppImage || status=$?
+          appimages=(dist/PsyTags-*-x86_64.AppImage)
+          timeout 15 "${appimages[0]}" || status=$?
           test "$status" = 124
       - name: deb und rpm
         run: packaging/build_linux_packages.sh
       - uses: actions/upload-artifact@v7
         with:
           name: PsyTags-Linux-AppImage
-          path: dist/PsyTags-x86_64.AppImage
+          path: dist/PsyTags-*-x86_64.AppImage
       - uses: actions/upload-artifact@v7
         with:
           name: PsyTags-Linux-deb

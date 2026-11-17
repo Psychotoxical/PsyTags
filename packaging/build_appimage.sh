@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Packs dist/PsyTags into dist/PsyTags-x86_64.AppImage. Run from the repository root after PyInstaller.
+# Packs dist/PsyTags into dist/PsyTags-VERSION-x86_64.AppImage. Run from the repository root after PyInstaller.
 set -euo pipefail
 
 TOOL_URL=https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
 TOOL_SHA256=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
 RUNTIME_URL=https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
 RUNTIME_SHA256=2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
+
+version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' psytags/__init__.py)
+test -n "$version"
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -29,4 +32,4 @@ EOF
 chmod +x "$app/AppRun"
 
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$work/appimagetool" --no-appstream --runtime-file "$work/runtime" \
-    "$app" dist/PsyTags-x86_64.AppImage
+    "$app" "dist/PsyTags-$version-x86_64.AppImage"

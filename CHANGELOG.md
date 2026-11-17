@@ -4,6 +4,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Fixed
+
+- The AppImage carries the version in its name, like the other packages: `PsyTags-<version>-x86_64.AppImage`.
+
 ### Changed
 
 - A release started right after a merge waits until the checks of main are green instead of failing.

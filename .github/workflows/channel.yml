@@ -177,7 +177,7 @@ jobs:
       - name: Draft anlegen oder aktualisieren
         run: |
           python3 packaging/release_notes.py "$VERSION" > notes.md
-          files=(assets/PsyTags-Setup-"$VERSION".exe assets/PsyTags-x86_64.AppImage
+          files=(assets/PsyTags-Setup-"$VERSION".exe assets/PsyTags-"$VERSION"-x86_64.AppImage
                  assets/psytags_"$VERSION"_amd64.deb assets/psytags-"$VERSION"-1.x86_64.rpm
                  assets/PsyTags-"$VERSION"-macOS-arm64.dmg assets/PsyTags-"$VERSION"-macOS-x86_64.dmg)
           ls -l "${files[@]}"
