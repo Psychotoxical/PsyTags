@@ -4,6 +4,13 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Changed
+
+- A release started right after a merge waits until the checks of main are green instead of failing.
+- Pull requests and main are checked on Linux only; the tests on Windows and macOS run when the release packages are built.
+
+## [1.0.1] - 2026-11-17
+
 ### Added
 
 - PsyTags speaks Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek besides German and English. It follows the system language until another one is chosen under Options → Program. Every language is one file, so translations can be improved through pull requests; the README explains how.
@@ -18,8 +25,6 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ### Changed
 
-- A release started right after a merge waits until the checks of main are green instead of failing.
-- Pull requests and main are checked on Linux only; the tests on Windows and macOS run when the release packages are built.
 - The version number moves to 1.0.1.
 
 ## [0.1.9] - 2026-11-16
