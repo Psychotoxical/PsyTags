@@ -368,3 +368,62 @@ class DvdTracksBoxTests(unittest.TestCase):
         self.assertEqual([t.filename for t, _v in d.plan()], ["One.mp3", "Two.mp3", "Live Song.mp3"])
         d.dvd_box.setChecked(False)
         self.assertEqual([t.filename for t in d.leftovers()], ["Live Song.mp3"])
+
+
+class DropScrollTests(unittest.TestCase):
+    """After a drop the list stays where it is, wherever Qt thinks the pointer is."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        cls.dir = tempfile.mkdtemp()
+        cls.orig_config_dir = config.config_dir
+        config.config_dir = lambda: cls.dir
+
+    @classmethod
+    def tearDownClass(cls):
+        config.config_dir = cls.orig_config_dir
+        shutil.rmtree(cls.dir, ignore_errors=True)
+
+    def test_the_scrolling_at_the_edge_ends_with_the_drop(self):
+        import time
+        from PySide6.QtCore import QPointF
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QAbstractItemView
+        from psytags.track import Track
+        from psytags.ui.dialogs.tagsources import AdjustDialog
+        from psytags.websources.base import Album
+        n = 60
+        files = [Track(os.path.join(tempfile.gettempdir(), "album", f"file{i}.mp3")) for i in range(n)]
+        album = Album(fields={"TITLE": [f"Song {i}" for i in range(n)]}, per_track={"TITLE"}, tracks=n)
+        d = AdjustDialog(album, files)
+        self.addCleanup(d.deleteLater)
+        d.resize(1180, 660)
+        d.show()
+        self.app.processEvents()
+        table, bar = d.table, d.table.verticalScrollBar()
+        bar.setValue(bar.maximum())
+        table.setCurrentItem(table.topLevelItem(50))
+        table.setState(QAbstractItemView.State.DraggingState)
+        table.startAutoScroll()                          # as while dragging near the edge
+
+        class Drop:
+            def source(self):
+                return table
+
+            def position(self):
+                return QPointF(table.visualItemRect(table.topLevelItem(45)).center())
+
+            def setDropAction(self, _action):
+                pass
+
+            def accept(self):
+                pass
+        table.dropEvent(Drop())
+        kept = bar.value()
+        QCursor.setPos(-500, -500)                       # a pointer Qt places above the list
+        end = time.monotonic() + 0.8
+        while time.monotonic() < end:
+            self.app.processEvents()
+        self.assertGreater(kept, 0)
+        self.assertEqual(bar.value(), kept)

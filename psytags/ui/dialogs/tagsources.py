@@ -499,6 +499,9 @@ class _TrackTable(QTreeWidget):
         rows = self.selected_rows()
         e.setDropAction(Qt.DropAction.IgnoreAction)     # Qt must not remove the rows itself
         e.accept()
+        # Qt's own drop would end the scrolling at the edge; left running, it keeps going wherever
+        # it thinks the pointer is, on Wayland often above the list: up to the first row
+        self.stopAutoScroll()
         self.dropped.emit(rows, target)
 
 

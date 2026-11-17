@@ -114,6 +114,12 @@ def _store_front_cover(window, tracks, data: bytes, label: str, ask: bool, keep:
     return ""
 
 
+def _quiet_if_inactive(window) -> None:
+    """A window that opens while the user works in another program must not take the focus."""
+    if QApplication.applicationState() != Qt.ApplicationState.ApplicationActive:
+        window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+
+
 class _StayingProgress(QDialog):
     """Stays open and modal after Cancel until the running step has finished."""
     canceled = Signal()
@@ -168,6 +174,7 @@ class _StayingProgress(QDialog):
         self._guard = _ScrollOnlyGuard(parent) if hasattr(parent, "view") else None
         if self._guard is not None:
             QApplication.instance().installEventFilter(self._guard)
+        _quiet_if_inactive(self)
         self.show()
 
     def setValue(self, value: int) -> None:
@@ -211,9 +218,12 @@ class _StayingProgress(QDialog):
         if self._guard is not None:
             QApplication.instance().removeEventFilter(self._guard)
             self._guard = None
+        was_active = self.isActiveWindow()
         self.hide()
         self.deleteLater()
-        if self.parentWidget() is not None:         # tooltips only appear in an active window
+        # tooltips only appear in an active window; but only take back the focus this window had,
+        # never from another program the user went to meanwhile
+        if was_active and self.parentWidget() is not None:
             self.parentWidget().activateWindow()
 
 
@@ -1800,6 +1810,7 @@ class MainWindow(QMainWindow):
         while True:
             self._notice_new_covers()
             d = BatchSummaryDialog(self._last_batch, self._trash_files, self)
+            _quiet_if_inactive(d)
             accepted = d.exec()
             entry, action = d.chosen, d.action
             d.deleteLater()
