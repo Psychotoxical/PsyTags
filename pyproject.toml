@@ -28,4 +28,4 @@ ignore = ["B905", "B008"]
 include = ["psytags*"]
 
 [tool.setuptools.package-data]
-psytags = ["resources/*.txt", "resources/*.png", "resources/help/*/*.md", "resources/licenses/*.txt"]
+psytags = ["resources/*.txt", "resources/*.png", "resources/help/*/*.md", "resources/locales/*.json", "resources/licenses/*.txt"]

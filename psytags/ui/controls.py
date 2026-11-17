@@ -3,14 +3,24 @@ from __future__ import annotations
 
 from PySide6.QtCore import QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
-from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
                                QWidget)
 
-from .. import numbering
+from .. import config, i18n, numbering
 from ..i18n import tr
 from . import theme
 
 SWITCH_SIZE = QSize(38, 22)
+
+
+def language_box(chosen: str) -> QComboBox:
+    """The languages by their own names; the first entry follows the system ("")."""
+    box = QComboBox()
+    box.addItem(tr("Systemsprache ({1})", i18n.native_name(config.system_language())), "")
+    for code, name in i18n.LANGUAGES:
+        box.addItem(name, code)
+    box.setCurrentIndex(max(0, box.findData(chosen)))
+    return box
 
 
 def paint_switch(painter: QPainter, rect: QRect, on: bool, focus: bool = False, enabled: bool = True) -> None:

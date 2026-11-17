@@ -9,6 +9,7 @@ Every version has its own section. The section of the version in `psytags/__init
 - In the window "Check the assignment", several selected files move together, with the buttons, Alt+↑/↓ and drag and drop, and stay selected.
 
 - How often and how far apart PsyTags asks again when MusicBrainz is busy (HTTP 503) can be set under Options → Automatic → MusicBrainz. The pause grows with every try; the default is six tries starting at 5 seconds.
+- PsyTags speaks Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek besides German and English. It follows the system language until another one is chosen under Options → Program. Every language is one file, so translations can be improved through pull requests; the README explains how.
 
 ### Fixed
 
