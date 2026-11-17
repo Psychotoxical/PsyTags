@@ -71,7 +71,7 @@ Download from the [Releases](https://github.com/Psychotoxical/PsyTags/releases) 
 - **Windows 10 and 11:** `PsyTags-Setup-<version>.exe`. It installs for your user without admin rights; the first page also offers an installation for all users. Your settings stay when you uninstall.
 - **Debian, Ubuntu, Mint:** `psytags_<version>_amd64.deb`, installed with `sudo apt install ./psytags_<version>_amd64.deb`.
 - **Fedora, openSUSE:** `psytags-<version>-1.x86_64.rpm`, installed with `sudo dnf install ./psytags-<version>-1.x86_64.rpm` or `sudo zypper install`.
-- **Other Linux:** `PsyTags-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
+- **Other Linux:** `PsyTags-<version>-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
 - **macOS 13 or newer:** `PsyTags-<version>-macOS-arm64.dmg` for Apple Silicon (M1 and later), `PsyTags-<version>-macOS-x86_64.dmg` for Intel. Open it and drag PsyTags into Applications. The app is signed and notarized by Apple.
 
 All of them come with ffmpeg for the mood analysis.
