@@ -1,7 +1,8 @@
 name: Kanal
 
 # Moves a channel branch forward and builds a draft from it, nothing is published:
-#   next:    next takes over main (main must have a green ci-ok); draft prerelease vX.Y.Z-rc.N.
+#   next:    next takes over main (main must have a green ci-ok; a CI still running on main is
+#            waited for); draft prerelease vX.Y.Z-rc.N.
 #            If the version on main is already released, next gets the next patch number in
 #            psytags/__init__.py and pyproject.toml, and [Unreleased] in CHANGELOG.md becomes its
 #            section (packaging/bump_version.py). main itself catches up after the release
@@ -55,14 +56,19 @@ jobs:
           fetch-depth: 0
       - name: main ist grün?
         if: inputs.channel != 'release'
+        timeout-minutes: 90
         run: |
+          # right after a merge the CI of main is still running: wait for it instead of failing
           sha=$(git rev-parse origin/main)
-          ok=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?check_name=ci-ok" \
-               --jq '[.check_runs[] | select(.conclusion == "success")] | length')
-          if [ "$ok" = 0 ]; then
-            echo "::error::main ($sha) has no green ci-ok"
-            exit 1
-          fi
+          while :; do
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?check_name=ci-ok" \
+                   --jq '[.check_runs[] | .conclusion // "running"] | join(" ")')
+            case " $runs " in
+              *" success "*) echo "main ($sha): ci-ok is green"; break ;;
+              *" running "*|"  ") echo "main ($sha): waiting for ci-ok (${runs:-not started})"; sleep 30 ;;
+              *) echo "::error::main ($sha) has no green ci-ok: $runs"; exit 1 ;;
+            esac
+          done
       - name: Stand zusammenstellen
         run: |
           git config user.name "github-actions[bot]"

@@ -98,7 +98,7 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests
 ruff check .
 ```
 
-Changes go to `main` through pull requests only. Every pull request runs the tests on Linux, Windows and macOS (Intel and Apple Silicon), Ruff, ShellCheck and actionlint, and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora, the Mac apps are signed, notarized and checked by Gatekeeper.
+Changes go to `main` through pull requests only. Every pull request runs the tests, Ruff, ShellCheck and actionlint on Linux. Building a release runs the tests on Windows and macOS (Intel and Apple Silicon) as well and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora, the Mac apps are signed, notarized and checked by Gatekeeper.
 
 ## Translating PsyTags
 

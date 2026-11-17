@@ -69,6 +69,11 @@ jobs:
           name: ffmpeg-windows
           path: ffmpeg
       - run: pip install . pyinstaller
+      # the tests of this system run here only: pull requests test on Linux
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover tests
       - name: Paket
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}\ffmpeg\bin\ffmpeg.exe
@@ -178,6 +183,11 @@ jobs:
           path: ffmpeg
       - run: chmod +x ffmpeg/bin/ffmpeg
       - run: pip install . pyinstaller pillow
+      # the tests of this system run here only: pull requests test on Linux
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover tests
       - name: Paket
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}/ffmpeg/bin/ffmpeg
