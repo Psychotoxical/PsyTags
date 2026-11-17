@@ -18,6 +18,8 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ### Changed
 
+- A release started right after a merge waits until the checks of main are green instead of failing.
+- Pull requests and main are checked on Linux only; the tests on Windows and macOS run when the release packages are built.
 - The version number moves to 1.0.1.
 
 ## [0.1.9] - 2026-11-16
