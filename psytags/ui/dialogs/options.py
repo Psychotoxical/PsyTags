@@ -14,7 +14,7 @@ from ... import config
 from ...config import Column, Options, PanelField
 from ...i18n import tr
 from .. import theme
-from ..controls import SWITCH_SIZE, NumberFormatEditor, Segmented, Switch, add_row, add_switch, paint_switch
+from ..controls import SWITCH_SIZE, NumberFormatEditor, Segmented, Switch, add_row, add_switch, language_box, paint_switch
 from ..persist import remember
 from ...websources import discogs, lastfm
 from .tagsources import run_async
@@ -373,6 +373,11 @@ class OptionsDialog(QDialog):
             note = QLabel(what)
             note.setObjectName("StepKey")
             inner.addWidget(note)
+            # the labels sit in a layout the button does not measure, and the style sheet sets
+            # min-width 0 for buttons: longer languages need the room
+            heading.ensurePolished()
+            note.ensurePolished()
+            tab.setStyleSheet(f"min-width: {max(heading.sizeHint().width(), note.sizeHint().width()) + 26}px;")
             tab.clicked.connect(lambda _=False, key=key: self.show_section(key))
             group.addButton(tab)
             row.addWidget(tab, 1)
@@ -630,7 +635,7 @@ class OptionsDialog(QDialog):
     def _program_page(self, column: QVBoxLayout) -> None:
         o = self.opts
         area, _ = self._card(column, "program", tr("Programm"), tr("Sprache und Design"))
-        self.lang = self._segmented((("Deutsch", "de"), ("English", "en")), o.language, "de")
+        self.lang = language_box(o.language)
         self._row(area, tr("Sprache"), self.lang)
         self.theme = self._segmented((("Mocha, " + tr("dunkel"), "mocha"), ("Latte, " + tr("hell"), "latte")), o.theme, "mocha")
         self.theme.as_swatches([theme.MOCHA, theme.LATTE])

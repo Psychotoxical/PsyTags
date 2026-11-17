@@ -1977,7 +1977,7 @@ class MainWindow(QMainWindow):
         d.exec()
         self.opts = d.opts
         self.opts.save()
-        self.apply_appearance(self.opts.language, self.opts.theme)
+        self.apply_appearance(config.ui_language(self.opts), self.opts.theme)
 
     def _open_options(self, tab: str = ""):
         from .dialogs.options import OptionsDialog
@@ -1986,7 +1986,7 @@ class MainWindow(QMainWindow):
             self.opts = d.opts
             self.opts.save()
             self.panel.blank_comments = self.opts.drop_comments
-            self.apply_appearance(self.opts.language, self.opts.theme)
+            self.apply_appearance(config.ui_language(self.opts), self.opts.theme)
 
     def apply_appearance(self, language: str, theme_name: str) -> "MainWindow":
         """Language and theme take effect at once. Every text is set when a widget is built,

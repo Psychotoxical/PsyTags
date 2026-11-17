@@ -4,6 +4,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Added
+
+- PsyTags speaks Spanish, French, Norwegian Bokmål, Dutch, Romanian, Russian, Chinese, Japanese, Hungarian, Polish, Bulgarian, Italian, Ukrainian and Greek besides German and English. It follows the system language until another one is chosen under Options → Program. Every language is one file, so translations can be improved through pull requests; the README explains how.
+
 ### Fixed
 
 - Up to three files in the folder of an album the automatic run tagged that found no match themselves, such as a bonus track with another album tag, are listed with that album under "Files without a track" in the summary instead of staying unnoticed.

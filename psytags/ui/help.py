@@ -60,7 +60,7 @@ def _shortcuts_page() -> str:
     for group, items in SHORTCUTS:
         lines += [f"## {tr(group)}", "", f"| {tr('Taste')} | {tr('Funktion')} |", "|---|---|"]
         for combo, what in items:
-            if i18n.language() == "en":
+            if i18n.language() != "de":
                 combo = combo.replace("Strg", "Ctrl").replace("Entf", "Del")
             lines.append(f"| {combo} | {tr(what)} |")
         lines.append("")
@@ -73,7 +73,8 @@ def page(topic: str) -> str:
         text = _shortcuts_page()
     else:
         folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources", "help")
-        with open(os.path.join(folder, "en" if i18n.language() == "en" else "de", f"{topic}.md"), encoding="utf-8") as fh:
+        lang = i18n.language() if os.path.isdir(os.path.join(folder, i18n.language())) else "en"
+        with open(os.path.join(folder, lang, f"{topic}.md"), encoding="utf-8") as fh:
             text = fh.read()
     return keys.mac_text(text) if keys.on_mac() else text
 

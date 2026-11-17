@@ -83,15 +83,21 @@ class SwitchTests(Base):
 
 
 class DefaultLanguageTests(Base):
+    def _shown(self, system):
+        from psytags import config
+        with mock.patch.object(QLocale, "system", return_value=QLocale(system)):
+            return config.ui_language(Options.load())
+
     def test_a_german_system_starts_in_german(self):
-        with mock.patch.object(QLocale, "system", return_value=QLocale(QLocale.Language.German)):
-            self.assertEqual(Options.load().language, "de")
+        self.assertEqual(self._shown(QLocale.Language.German), "de")
+
+    def test_a_system_language_psytags_has_is_taken(self):
+        self.assertEqual(self._shown(QLocale.Language.French), "fr")
+        self.assertEqual(self._shown(QLocale.Language.NorwegianBokmal), "nb")
 
     def test_any_other_system_starts_in_english(self):
-        with mock.patch.object(QLocale, "system", return_value=QLocale(QLocale.Language.French)):
-            self.assertEqual(Options.load().language, "en")
+        self.assertEqual(self._shown(QLocale.Language.Portuguese), "en")
 
     def test_a_stored_choice_wins(self):
         Options(language="de").save()
-        with mock.patch.object(QLocale, "system", return_value=QLocale(QLocale.Language.French)):
-            self.assertEqual(Options.load().language, "de")
+        self.assertEqual(self._shown(QLocale.Language.French), "de")

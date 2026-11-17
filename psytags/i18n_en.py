@@ -53,7 +53,7 @@ EN_MORE: dict[str, str] = {
     "Plugin-Ordner öffnen": "Open plugin folder",
     "ID3v2-Version für MP3": "ID3v2 version for MP3",
     "Unterordner mit einlesen": "Include subfolders",
-    "Sprache": "Language",
+    "Sprache": "Language", "Systemsprache ({1})": "System language ({1})",
     "dunkel": "dark",
     "hell": "light",
     "Analyse aus dem Audio": "Analysis of the audio",
