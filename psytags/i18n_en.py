@@ -213,6 +213,9 @@ EN_MORE: dict[str, str] = {
     "Format": "Format", "Bitrate": "Bitrate",
     "Tag": "Tag", "Größe": "Size", "Moods": "Moods",
     "Cover laden": "Loading cover",
+    "DVD-Spuren anzeigen": "Show DVD tracks",
+    "Zeigt auch die Tracks der DVD, damit Sie übrige Dateien zuordnen können":
+        "Also shows the tracks of the DVD, so files left over can be placed",
     # covers from tag sources, Last.fm
     "Cover von {1} laden": "Load cover from {1}",
     "Cover von {1} zu klein ({2}x{3}, mindestens {4}) – nicht übernommen":
