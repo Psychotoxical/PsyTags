@@ -28,7 +28,7 @@ If Discogs tagged an album, its row offers **Try MusicBrainz again**. It opens t
 
 **Missing cover or genres:** the **Retry** button asks again. For a cover, you can pick from the results when no match is certain. The summary notices a cover you set some other way the next time it opens.
 
-**Files without a track:** at the bottom are files the release has no track for, such as bonus tracks. Tick what should go and press **Move to recycle bin**.
+**Files without a track:** at the bottom are files the release has no track for, such as bonus tracks. Tick what should go and press **Move to recycle bin**. Up to three files in the folder of a finished album that found no match join them, such as a bonus track with another album tag: they belong to that album and do not stay unnoticed beside the renamed folder.
 
 ## Why an album stays open
 

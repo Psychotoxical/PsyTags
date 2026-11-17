@@ -1740,6 +1740,7 @@ class MainWindow(QMainWindow):
                 entries.append(self._fill_gaps(tracks) or self._auto_one(src, tracks))
         finally:
             dlg.finish()
+            entries = albumauto.attach_strays(entries)
             self._last_batch = entries
             self._update_actions()
         self.message(run_statistics(entries, time.monotonic() - started))      # stays until the next message

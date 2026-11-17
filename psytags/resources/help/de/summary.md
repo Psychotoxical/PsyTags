@@ -28,7 +28,7 @@ Hat Discogs ein Album getaggt, bietet die Zeile **MusicBrainz erneut versuchen**
 
 **Cover oder Genres fehlen:** Der Knopf **Nachholen** fragt noch einmal nach. Beim Cover können Sie dabei aus der Trefferliste wählen, wenn kein Treffer sicher ist. Ein Cover, das Sie auf anderem Weg gesetzt haben, erkennt die Übersicht beim nächsten Öffnen.
 
-**Dateien ohne Track:** Unten stehen Dateien, zu denen das Release keinen Track hat, etwa Bonus-Tracks. Haken Sie an, was weg soll, und drücken Sie **In den Papierkorb**.
+**Dateien ohne Track:** Unten stehen Dateien, zu denen das Release keinen Track hat, etwa Bonus-Tracks. Haken Sie an, was weg soll, und drücken Sie **In den Papierkorb**. Dazu kommen bis zu drei Dateien im Ordner eines erledigten Albums, die keinen Treffer bekamen, etwa ein Bonus-Track mit anderem Album-Tag: Sie gehören zu diesem Album und bleiben nicht unbemerkt neben dem umbenannten Ordner stehen.
 
 ## Warum ein Album offen bleibt
 
