@@ -4,6 +4,8 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-11-16
+
 ### Added
 
 - In the window "Check the assignment", several selected files move together, with the buttons, Alt+↑/↓ and drag and drop, and stay selected.
