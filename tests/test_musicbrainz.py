@@ -307,5 +307,57 @@ class VideoMediaTest(unittest.TestCase):
                                            "media": [{"format": "CD", "track-count": 11}]}))
 
 
+def _file(title):
+    from psytags.track import Track
+    t = Track(f"{title}.flac")
+    t.set("TITLE", title)
+    return t
+
+
+class VideoTracksWithFilesTest(unittest.TestCase):
+    """Files beside the CDs that are tracks of the DVD are matched with them."""
+
+    def _album(self):
+        return album_from(_with_media(_medium(1, "CD", ["One", "Two", "Three", "Four"]),
+                                      _medium(2, "DVD-Video", ["Film", "Live Song", "Interview"])))[0]
+
+    def test_the_tracks_of_the_dvd_are_known(self):
+        self.assertEqual(self._album().video_tracks, [4, 5, 6])
+
+    def test_a_file_with_the_title_of_a_dvd_track_brings_it_in(self):
+        from psytags.websources import albumauto
+        files = [_file(t) for t in ("One", "Two", "Three", "Four", "Live Song")]
+        dvd = albumauto.with_video_tracks(self._album(), files)
+        self.assertEqual(dvd.fields["TITLE"], ["One", "Two", "Three", "Four", "Live Song"])
+        self.assertEqual(dvd.fields["TRACK"][-1], "2/3")              # numbers of the whole release
+        self.assertEqual(dvd.fields["DISCNUMBER"][-1], "2/2")
+        self.assertTrue(dvd.partial)
+        self.assertIs(albumauto.for_tracks(self._album(), files).partial, True)
+
+    def test_files_that_fit_no_dvd_track_leave_the_cds_alone(self):
+        from psytags.websources import albumauto
+        album = self._album()
+        files = [_file(t) for t in ("One", "Two", "Three", "Four", "Something Else")]
+        self.assertIsNone(albumauto.with_video_tracks(album, files))
+        self.assertIs(albumauto.for_tracks(album, files), album.audio_only)
+        self.assertIsNone(albumauto.with_video_tracks(album, files[:4]))   # only the CDs
+
+    def test_a_cd_song_of_the_same_name_does_not_take_the_dvd_track(self):
+        from psytags.websources import albumauto
+        album = album_from(_with_media(_medium(1, "CD", ["One", "Two", "Three", "Four"]),
+                                       _medium(2, "DVD-Video", ["One", "Bonus"])))[0]
+        files = [_file(t) for t in ("One", "Two", "Three", "Four", "Other")]
+        self.assertIsNone(albumauto.with_video_tracks(album, files))
+
+    def test_a_search_row_with_room_for_dvd_files_is_a_candidate(self):
+        from psytags.websources import albumauto
+        row = musicbrainz._row({"id": "x", "track-count": 23,
+                                "media": [{"format": "CD", "track-count": 11},
+                                          {"format": "DVD-Video", "track-count": 12}]})
+        match = NS(row=row)
+        self.assertEqual(albumauto.candidate_rows([match], 18), [row])      # 11 CD tracks, 7 from the DVD
+        self.assertEqual(albumauto.candidate_rows([match], 30), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -36,6 +36,8 @@ Comments are deleted on import when **Options → Automatic → MusicBrainz → 
 
 When a release has a DVD or Blu-ray beside its CDs, only the tracks of the CDs count, in the automatic and by hand: the files of a rip are the CDs. The disc numbers then count without the DVD. When there is a file for every track of the release, the whole release stays.
 
+When files are left over after the CD tracks and their titles fit tracks of the DVD, those DVD tracks are matched too; their track and disc numbers are those of the whole release. The window **Check the assignment** then has **Show DVD tracks**: it shows every track of the DVD, so files left over can be placed by hand. The box appears only when there are more files than tracks on the CDs.
+
 ## When MusicBrainz is overloaded
 
 When MusicBrainz answers “HTTP 503”, PsyTags asks again. How often and how far apart is set under **Options → Automatic → MusicBrainz**: **Further tries when the server is busy** (default 6) and **Pause before the first further try** (default 5 s). The pause grows by its value with every try and never exceeds 60 s. The progress window shows the current try.

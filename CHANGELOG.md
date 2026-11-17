@@ -15,6 +15,8 @@ Every version has its own section. The section of the version in `psytags/__init
 - Dialogs open centred on the main window, also when it stands on another screen. A dialog that was moved keeps its place relative to the main window.
 - A release with a DVD or Blu-ray beside its CDs: only the tracks of the CDs are matched against the files, in the automatic and in the search by hand, unless there is a file for every track.
 - After a search by hand, an album with missing files keeps the track numbers of the source in the format set in the options instead of staying unformatted.
+- A release with a DVD beside its CDs: files left over after the CD tracks are matched with the tracks of the DVD whose titles they have, in the automatic and by hand. In the window "Check the assignment", "Show DVD tracks" shows every track of the DVD, but only when there are more files than CD tracks.
+- An album of the automatic run that is saved by hand is shown as done in the summary, also when files without a track were moved to the recycle bin or kept. Kept files are listed under "Files without a track".
 
 ### Changed
 

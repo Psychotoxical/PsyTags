@@ -237,9 +237,11 @@ class ResultsDialog(QDialog):
 class AdjustDialog(QDialog):
     """Adjust a tag source result: choose fields, align tracks with files."""
 
-    def __init__(self, album, tracks, cover: bytes | None = None, parent=None):
+    def __init__(self, album, tracks, cover: bytes | None = None, parent=None, whole=None):
         super().__init__(parent)
         self.album = album
+        self.slim = album                  # without the DVD; ``whole`` is the release with it
+        self.whole = whole
         self.cover = cover
         # Fewer files than tracks: empty slots ("(ohne Datei)") fill the rest. They
         # can be moved like files, e.g. to the top when the first song is missing.
@@ -321,6 +323,17 @@ class AdjustDialog(QDialog):
             b.clicked.connect(lambda _=False, d=d: self._move(d))
             row.addWidget(b)
             QShortcut(QKeySequence(key), self, lambda d=d: self._move(d))
+        # A release with a DVD whose files may be on the list: its tracks can be shown
+        self.dvd_box = QCheckBox(tr("DVD-Spuren anzeigen"))
+        self.dvd_box.setToolTip(tr("Zeigt auch die Tracks der DVD, damit Sie übrige Dateien zuordnen können"))
+        n_files = sum(1 for t in self.files if t is not None)
+        offered = whole is not None and whole is not album and album.tracks < n_files
+        self.dvd_box.setVisible(offered)
+        if offered and albumauto.with_video_tracks(whole, list(tracks)) is not None:
+            self.dvd_box.setChecked(True)          # files fit tracks of the DVD
+            self._show_dvd(True)
+        self.dvd_box.toggled.connect(self._show_dvd)
+        row.addWidget(self.dvd_box)
         row.addStretch(1)
         self.hint = QLabel()
         self.hint.setStyleSheet(f"color: {theme.WARNING};")
@@ -382,6 +395,13 @@ class AdjustDialog(QDialog):
             item.setSelected(True)
         if rows:
             self.table.scrollToItem(self.table.topLevelItem(rows[0]))
+
+    def _show_dvd(self, on: bool) -> None:
+        """Switch between the CD tracks alone and the whole release; the files are placed anew."""
+        self.album = self.whole if on and self.whole is not None else self.slim
+        self.files = albumauto.prealign([t for t in self.files if t is not None], self.album)
+        if hasattr(self, "hint"):
+            self._fill()
 
     def _sync_current(self, src, dst, cur):
         r = src.indexOfTopLevelItem(cur) if cur is not None else -1

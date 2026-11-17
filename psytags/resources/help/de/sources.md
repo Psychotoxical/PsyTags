@@ -36,6 +36,8 @@ Kommentare werden beim Import gelöscht, wenn **Optionen → Automatik → Music
 
 Hat eine Ausgabe neben den CDs eine DVD oder Blu-ray, zählen nur die Tracks der CDs, automatisch wie von Hand: Die Dateien eines Rips sind die CDs. Die Discnummern zählen dann ohne die DVD. Gibt es für jeden Track der Ausgabe eine Datei, bleibt die ganze Ausgabe stehen.
 
+Sind nach den CD-Tracks noch Dateien übrig, deren Titel zu Tracks der DVD passen, werden diese DVD-Tracks mit zugeordnet; ihre Track- und Discnummern sind die der ganzen Ausgabe. Im Fenster **Zuordnung prüfen** gibt es dann **DVD-Spuren anzeigen**: Es zeigt alle Tracks der DVD, damit Sie übrige Dateien von Hand zuordnen können. Der Schalter erscheint nur, wenn mehr Dateien da sind als Tracks auf den CDs.
+
 ## Wenn MusicBrainz überlastet ist
 
 Antwortet MusicBrainz mit „HTTP 503“, fragt PsyTags erneut. Wie oft und mit welcher Pause, steht unter **Optionen → Automatik → MusicBrainz**: **Neue Versuche bei ausgelastetem Server** (Standard 6) und **Pause vor dem ersten neuen Versuch** (Standard 5 s). Die Pause wächst mit jedem Versuch um ihren Wert und wird nie länger als 60 s. Das Fortschrittsfenster zeigt den laufenden Versuch.
