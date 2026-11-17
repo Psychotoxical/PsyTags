@@ -8,8 +8,19 @@ app=${1:?app bundle}
 identity=${2:?signing identity}
 entitlements=$(cd "$(dirname "$0")" && pwd)/psytags.entitlements
 
+# Apple's timestamp service sometimes does not answer ("A timestamp was expected but was not
+# found"); a few more tries with a pause get past that.
 sign() {
-    codesign --force --timestamp --options runtime --entitlements "$entitlements" --sign "$identity" "$1"
+    local try
+    for try in 1 2 3 4 5; do
+        if codesign --force --timestamp --options runtime --entitlements "$entitlements" \
+            --sign "$identity" "$1"; then
+            return 0
+        fi
+        echo "codesign failed for $1 (try $try), trying again" >&2
+        sleep $((try * 10))
+    done
+    return 1
 }
 
 # Deepest paths first, so that a folder is signed after everything in it.

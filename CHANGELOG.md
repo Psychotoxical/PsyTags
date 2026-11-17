@@ -8,6 +8,7 @@ Every version has its own section. The section of the version in `psytags/__init
 
 - A release started right after a merge waits until the checks of main are green instead of failing.
 - Pull requests and main are checked on Linux only; the tests on Windows and macOS run when the release packages are built.
+- The macOS packages try the signature again when Apple's timestamp service does not answer, instead of failing the release.
 
 ## [1.0.1] - 2026-11-17
 
