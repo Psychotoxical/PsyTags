@@ -5,7 +5,8 @@
 # one in the PATH. On Linux it does so only if PSYTAGS_FFMPEG is set, as for the AppImage.
 # Next to its bin folder the build expects the LICENSE of that ffmpeg.
 # The macOS icon is drawn from psytags.svg; PyInstaller needs Pillow to turn it into .icns.
-# PSYTAGS_LASTFM_KEY, if set, goes into the package as psytags/lastfm.key (see websources/lastfm.py).
+# The Last.fm key goes into the package as psytags/lastfm.key (see websources/lastfm.py): from
+# PSYTAGS_LASTFM_KEY if set (CI), else from psytags/lastfm.key of the checkout (local builds).
 import os
 import shutil
 import sys
@@ -51,10 +52,16 @@ def mac_icon():
 
 
 def lastfm_key_files():
-    """datas for the Last.fm key in PSYTAGS_LASTFM_KEY (a secret of the release build), if set."""
+    """datas for the Last.fm key: PSYTAGS_LASTFM_KEY (a secret of the release build in CI),
+    else psytags/lastfm.key of the checkout (kept once on the machine that builds locally,
+    ignored by git). Without either the package brings no key."""
     key = os.environ.get("PSYTAGS_LASTFM_KEY", "").strip()
+    local = os.path.join(root, "psytags", "lastfm.key")
+    if not key and os.path.isfile(local):
+        with open(local, encoding="utf-8") as fh:
+            key = fh.read().strip()
     if not key:
-        print("PSYTAGS_LASTFM_KEY is not set: the package brings no Last.fm key")
+        print("No Last.fm key (PSYTAGS_LASTFM_KEY or psytags/lastfm.key): the package brings none")
         return []
     path = os.path.join(workpath, "lastfm.key")
     with open(path, "w", encoding="utf-8") as fh:
