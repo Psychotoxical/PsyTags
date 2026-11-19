@@ -2,7 +2,7 @@
 
 ## Where covers come from
 
-The **Cover Art Archive**, the picture archive of MusicBrainz, comes with the program. It only finds covers for albums with a MusicBrainz ID. Add more sources with [cover plugins](help:plugins).
+The **Cover Art Archive**, the picture archive of MusicBrainz, comes with the program. It only finds covers for albums with a MusicBrainz ID. With a [Beatport sign-in](help:sources), Beatport joins the list. Add more sources with [cover plugins](help:plugins).
 
 Under **Options → Automatic → Cover** you switch sources on and off and drag them into the order you want. From top to bottom, the first source that delivers a cover wins.
 

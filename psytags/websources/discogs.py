@@ -24,7 +24,7 @@ _NUMBER_SUFFIX = re.compile(r"\s*\(\d+\)$")
 _DISC_AND_TRACK = re.compile(r"^(?:[a-z]+\s*)?(\d+)[-.](\d+)$", re.IGNORECASE)
 _MUSICBRAINZ_FIELDS = ("MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_RELEASEGROUPID", "MUSICBRAINZ_ALBUMARTISTID",
                        "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "MUSICBRAINZ_TRACKID",
-                       "MUSICBRAINZ_ARTISTID")
+                       "MUSICBRAINZ_ARTISTID", "BEATPORT_RELEASE_ID")
 _lock = threading.Lock()
 _last_call = [0.0]
 

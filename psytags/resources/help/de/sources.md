@@ -22,9 +22,15 @@ Bleibt ein Album bei MusicBrainz offen, sieht PsyTags bei Discogs nach, wenn ein
 
 Bei Discogs gelten dieselben Regeln, zusätzlich müssen alle Tracklängen bekannt sein. Von dort kommen nur Texte und nie Bilder, denn Cover sind dort meist Fotos von Nutzern. Das Cover holen die übrigen Quellen.
 
+## Beatport als dritte Quelle
+
+Lassen MusicBrainz und Discogs ein Album offen, sieht PsyTags bei Beatport nach. Dafür brauchen Sie einen eigenen API-Zugang: Client-ID und Secret vergibt Beatport nur auf Antrag, über das [Beatport-Partnerportal](https://partnerportal.beatport.com/hc/en-us/requests/new). Tragen Sie beides mit Ihrem Beatport-Konto und Passwort unter **Optionen → Konten und Quellen → Beatport** ein und klicken Sie auf **Anmelden**. PsyTags behält die Anmeldung, nicht das Passwort, und erneuert die Anmeldung selbst.
+
+Es gelten dieselben Regeln wie bei Discogs. Beatport liefert zusätzlich BPM und Tonart für jeden Titel. Der Titel trägt den Mix, etwa „Titel (Extended Mix)“; der Original Mix bekommt keinen Zusatz. Sobald Sie angemeldet sind, steht Beatport auch in der Liste der [Cover-Quellen](help:covers).
+
 ## Von Hand
 
-**MusicBrainz durchsuchen** (Strg+I) oder **Manuell suchen → Discogs …** im Rechtsklick-Menü öffnen das Suchformular. Danach wählen Sie aus der Trefferliste.
+**MusicBrainz durchsuchen** (Strg+I), **Manuell suchen → Discogs …** oder **Manuell suchen → Beatport …** im Rechtsklick-Menü öffnen das Suchformular. Danach wählen Sie aus der Trefferliste.
 
 Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts Ihre Dateien. Dateien lassen sich per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben; mehrere markierte Dateien wandern zusammen und bleiben markiert. Gelb markierte Zeilen weichen um mehr als 3 Sekunden ab. Links wählen Sie, welche Felder geschrieben werden.
 

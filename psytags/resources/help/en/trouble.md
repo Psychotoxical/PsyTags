@@ -35,6 +35,8 @@ Why single albums stay open is explained under [The summary](help:summary).
 | Red cross behind a key | Check the key, also for spaces. If it appears suddenly, the service may just be unreachable. |
 | "Discogs refuses the token" | Create a new token at discogs.com/settings/developers and enter it under **Options → Accounts and sources → Discogs**. |
 | Discogs is grayed out in the menu | No token has been entered yet. |
+| Beatport is grayed out in the menu | Not signed in yet: **Options → Accounts and sources → Beatport**. |
+| "Beatport refuses the sign-in" | Check client ID, secret, account and password. The API access itself is granted by Beatport. |
 | MusicBrainz is busy | PsyTags tries again by itself. If it stays that way, start again later. |
 | No cover | The Cover Art Archive needs a MusicBrainz ID. Add more sources with [cover plugins](help:plugins). |
 | Cover too small | Lower the [minimum size](help:covers) or use another source. |
