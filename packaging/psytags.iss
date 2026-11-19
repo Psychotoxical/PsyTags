@@ -41,6 +41,12 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
+#ifdef Sign
+; Signed build (/DSign plus a sign tool named "certum", see the signing guide): Setup,
+; uninstaller and PsyTags.exe get the signature. Without /DSign, as in CI, nothing is signed.
+SignTool=certum
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
@@ -54,7 +60,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
+#ifdef Sign
+Source: "{#SourceDir}\PsyTags.exe"; DestDir: "{app}"; Flags: ignoreversion sign
+Source: "{#SourceDir}\*"; Excludes: "\PsyTags.exe"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#else
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 
 [Icons]
 Name: "{autoprograms}\PsyTags"; Filename: "{app}\PsyTags.exe"
