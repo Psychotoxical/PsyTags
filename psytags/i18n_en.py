@@ -75,7 +75,11 @@ EN_MORE: dict[str, str] = {
     "Bitte zuerst nur an Kopien testen": "Please test on copies first",
     "PsyTags schreibt direkt in Ihre Musikdateien und benennt sie um. Probieren Sie alles zuerst an Kopien einiger Alben aus, bevor Sie Ihren Ablauf festlegen.": "PsyTags writes directly to your music files and renames them. Try everything on copies of a few albums first, before you settle on your workflow.",
     "Design": "Theme",
-    "PsyTags holt die Genres von Last.fm. Dafür brauchen Sie einen eigenen, kostenlosen Schlüssel.": "PsyTags gets genres from Last.fm. For that you need your own free key.",
+    "PsyTags holt die Genres von Last.fm und bringt dafür einen Schlüssel mit. Einen eigenen brauchen Sie nicht.":
+        "PsyTags gets genres from Last.fm and brings a key for it. You do not need one of your own.",
+    "PsyTags holt die Genres von Last.fm. Dafür brauchen Sie einen eigenen Schlüssel, den es nur mit Last.fm Pro gibt.":
+        "PsyTags gets genres from Last.fm. For that you need a key of your own, which only Last.fm Pro provides.",
+    "Leer lassen nimmt den Schlüssel, den PsyTags mitbringt.": "Leave it empty to use the key PsyTags brings along.",
     "Testen": "Test",
     "Ohne Schlüssel bleibt der Schritt Genres aus. Sie können ihn später in den Optionen eintragen.": "Without a key the Genres step stays off. You can enter it later in the options.",
     "Der Schlüssel wurde nicht angenommen, oder Last.fm ist gerade nicht erreichbar.": "The key was not accepted, or Last.fm cannot be reached right now.",
@@ -180,8 +184,8 @@ EN_MORE: dict[str, str] = {
     "Beispiel-Album": "Example Album",
     "Beispiel-Titel": "Example Title",
     "Genres von Last.fm": "Genres from Last.fm",
-    "API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):":
-        "API key (free at <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):",
+    "API-Key (mit Last.fm Pro unter <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):":
+        "API key (with Last.fm Pro at <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):",
     "Suchergebnisse": "Search results", "Felder:": "Fields:", 
     "Links die Tracks der Quelle, rechts Ihre Dateien. Dateien per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben:":
         "Tracks of the source on the left, your files on the right. Move files to the matching row "

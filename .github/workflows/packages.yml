@@ -77,6 +77,7 @@ jobs:
       - name: Paket
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}\ffmpeg\bin\ffmpeg.exe
+          PSYTAGS_LASTFM_KEY: ${{ secrets.LASTFM_API_KEY }}
         run: python -m PyInstaller --noconfirm --clean packaging/psytags.spec
       - name: Installer
         shell: pwsh
@@ -135,6 +136,7 @@ jobs:
       - name: Paket
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}/ffmpeg/bin/ffmpeg
+          PSYTAGS_LASTFM_KEY: ${{ secrets.LASTFM_API_KEY }}
         run: python -m PyInstaller --noconfirm --clean packaging/psytags.spec
       - run: packaging/build_appimage.sh
       - name: Startet das AppImage?
@@ -192,6 +194,7 @@ jobs:
       - name: Paket
         env:
           PSYTAGS_FFMPEG: ${{ github.workspace }}/ffmpeg/bin/ffmpeg
+          PSYTAGS_LASTFM_KEY: ${{ secrets.LASTFM_API_KEY }}
         run: python -m PyInstaller --noconfirm --clean packaging/psytags.spec
       # Signing needs the Apple secrets; pull requests from forks have none and stay unsigned.
       - name: Signieren

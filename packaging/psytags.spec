@@ -5,6 +5,7 @@
 # one in the PATH. On Linux it does so only if PSYTAGS_FFMPEG is set, as for the AppImage.
 # Next to its bin folder the build expects the LICENSE of that ffmpeg.
 # The macOS icon is drawn from psytags.svg; PyInstaller needs Pillow to turn it into .icns.
+# PSYTAGS_LASTFM_KEY, if set, goes into the package as psytags/lastfm.key (see websources/lastfm.py).
 import os
 import shutil
 import sys
@@ -49,12 +50,25 @@ def mac_icon():
     return path
 
 
+def lastfm_key_files():
+    """datas for the Last.fm key in PSYTAGS_LASTFM_KEY (a secret of the release build), if set."""
+    key = os.environ.get("PSYTAGS_LASTFM_KEY", "").strip()
+    if not key:
+        print("PSYTAGS_LASTFM_KEY is not set: the package brings no Last.fm key")
+        return []
+    path = os.path.join(workpath, "lastfm.key")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(key)
+    return [(path, "psytags")]
+
+
 root = os.path.abspath(".")
 ffmpeg_binaries, ffmpeg_datas = ffmpeg_files()
 a = Analysis(
     [os.path.join(root, "packaging", "psytags_main.py")],
     pathex=[root],
-    datas=[(os.path.join(root, "psytags", "resources"), os.path.join("psytags", "resources"))] + ffmpeg_datas,
+    datas=[(os.path.join(root, "psytags", "resources"), os.path.join("psytags", "resources"))]
+    + ffmpeg_datas + lastfm_key_files(),
     binaries=collect_dynamic_libs("onnxruntime") + ffmpeg_binaries,
     hiddenimports=["mutagen._constants", "psytags.moodanalysis", "onnxruntime"],
     excludes=["tkinter", "PySide6.QtQml", "PySide6.QtQuick",

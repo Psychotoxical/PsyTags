@@ -38,4 +38,4 @@ Why single albums stay open is explained under [The summary](help:summary).
 | MusicBrainz is busy | PsyTags tries again by itself. If it stays that way, start again later. |
 | No cover | The Cover Art Archive needs a MusicBrainz ID. Add more sources with [cover plugins](help:plugins). |
 | Cover too small | Lower the [minimum size](help:covers) or use another source. |
-| No genres | Last.fm does not know the album, or the API key is missing. |
+| No genres | Last.fm does not know the album, or the Genres step is off under **Options → Automatic**. A build from source needs its own API key. |

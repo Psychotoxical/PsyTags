@@ -213,13 +213,18 @@ class SetupDialog(QDialog):
         area.addWidget(self.theme_choice, 0, Qt.AlignmentFlag.AlignLeft)
 
     def _lastfm(self, area: QVBoxLayout) -> None:
-        self._text(area, tr("PsyTags holt die Genres von Last.fm. Dafür brauchen Sie einen eigenen, kostenlosen Schlüssel."))
-        link = self._text(area, tr("API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>"
+        builtin = bool(lastfm.builtin_key())
+        self._text(area, tr("PsyTags holt die Genres von Last.fm und bringt dafür einen Schlüssel mit. "
+                            "Einen eigenen brauchen Sie nicht.") if builtin else
+                   tr("PsyTags holt die Genres von Last.fm. Dafür brauchen Sie einen eigenen Schlüssel, "
+                      "den es nur mit Last.fm Pro gibt."))
+        link = self._text(area, tr("API-Key (mit Last.fm Pro unter <a href='https://www.last.fm/api/account/create'>"
                                    "last.fm/api/account/create</a>):"))
         link.setOpenExternalLinks(True)
         self.lastfm_key, self.lastfm_check, self.lastfm_result = self._secret_row(
             area, config.settings().value("lastfm/api_key", ""), self.check_lastfm_key)
-        self._text(area, tr("Ohne Schlüssel bleibt der Schritt Genres aus. Sie können ihn später in den Optionen eintragen."),
+        self._text(area, tr("Leer lassen nimmt den Schlüssel, den PsyTags mitbringt.") if builtin else
+                   tr("Ohne Schlüssel bleibt der Schritt Genres aus. Sie können ihn später in den Optionen eintragen."),
                    "DialogSubtitle")
 
     def _secret_row(self, area: QVBoxLayout, stored: str, check) -> tuple[QLineEdit, QPushButton, QLabel]:
@@ -253,7 +258,7 @@ class SetupDialog(QDialog):
         self._jobs.append(run_async(check, finished))
 
     def check_lastfm_key(self) -> None:
-        key = self.lastfm_key.text().strip()
+        key = lastfm.key(self.lastfm_key.text())
         if not key:
             self.lastfm_result.setText(tr("Bitte zuerst einen Last.fm-API-Key eintragen."))
             return
@@ -265,7 +270,7 @@ class SetupDialog(QDialog):
         s = config.settings()
         key = self.lastfm_key.text().strip()
         s.setValue("lastfm/api_key", key)
-        s.setValue("lastfm/enabled", bool(key))
+        s.setValue("lastfm/enabled", bool(lastfm.key(key)))
 
     def _discogs(self, area: QVBoxLayout) -> None:
         self._text(area, tr("Findet MusicBrainz ein Album nicht, kann PsyTags bei Discogs nachsehen. Von dort kommen nur "

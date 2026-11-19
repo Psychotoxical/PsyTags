@@ -136,10 +136,19 @@ class PageTests(Base):
         self.assertEqual(s.value("lastfm/api_key"), "abc")
         self.assertIn(s.value("lastfm/enabled"), (True, "true"))
 
+    def _without_own_key(self, builtin):
+        from unittest import mock
+        from psytags.websources import lastfm
+        with mock.patch.object(lastfm, "builtin_key", lambda: builtin):
+            d = self._dialog("lastfm")
+            d.next_page()
+        return config.settings().value("lastfm/enabled", False) in (True, "true")
+
     def test_without_a_key_the_genres_stay_off(self):
-        d = self._dialog("lastfm")
-        d.next_page()
-        self.assertNotIn(config.settings().value("lastfm/enabled", False), (True, "true"))
+        self.assertFalse(self._without_own_key(""))
+
+    def test_the_built_in_key_switches_the_genres_on(self):
+        self.assertTrue(self._without_own_key("built-in"))
 
     def _check_key(self, d):
         d.check_lastfm_key()
