@@ -6,7 +6,7 @@ import copy
 from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
-                               QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+                               QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                                QPushButton, QScrollArea, QSpinBox, QStackedWidget, QStyle, QStyledItemDelegate,
                                QVBoxLayout, QWidget)
 
@@ -16,7 +16,7 @@ from ...i18n import tr
 from .. import theme
 from ..controls import SWITCH_SIZE, NumberFormatEditor, Segmented, Switch, add_row, add_switch, language_box, paint_switch
 from ..persist import remember
-from ...websources import discogs, lastfm
+from ...websources import beatport, discogs, lastfm
 from .tagsources import run_async
 
 
@@ -298,8 +298,8 @@ class OptionsDialog(QDialog):
     PAGES = ("automatic", "sources", "files", "program")
     STEPS = ("moods", "musicbrainz", "numbers", "cover", "genres")
     # where every part lives; callers may open the dialog at any of them
-    SECTION_PAGE = {**{s: "automatic" for s in STEPS}, "discogs": "sources", "lastfm": "sources",
-                    "plugins": "sources", "files": "files", "program": "program"}
+    SECTION_PAGE = {**{s: "automatic" for s in STEPS}, "discogs": "sources", "beatport": "sources",
+                    "lastfm": "sources", "plugins": "sources", "files": "files", "program": "program"}
 
     def __init__(self, opts: Options, parent=None, section: str = ""):
         super().__init__(parent)
@@ -554,7 +554,8 @@ class OptionsDialog(QDialog):
         stored = s.value("lastfm/api_key", "")
         area, self.lastfm_on = self._card(column, "genres", tr("Genres"), tr("Von Last.fm"), "5",
                                           s.value("lastfm/enabled", "false") in (True, "true") or not stored)
-        self._hint(area, tr("Braucht den API-Key von Last.fm unter „Konten und Quellen“."))
+        if not lastfm.builtin_key():
+            self._hint(area, tr("Braucht den API-Key von Last.fm unter „Konten und Quellen“."))
 
     def _cover_list(self, area: QVBoxLayout) -> None:
         from ...websources import coverprovider
@@ -591,8 +592,10 @@ class OptionsDialog(QDialog):
         self.discogs_token = self.discogs_field.input
         area.addWidget(self.discogs_field)
 
+        self._beatport(column)
+
         area, _ = self._card(column, "lastfm", tr("Last.fm"), tr("Genres"))
-        link = QLabel(tr("API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>"
+        link = QLabel(tr("API-Key (mit Last.fm Pro unter <a href='https://www.last.fm/api/account/create'>"
                          "last.fm/api/account/create</a>):"))
         link.setOpenExternalLinks(True)
         link.setWordWrap(True)
@@ -600,6 +603,8 @@ class OptionsDialog(QDialog):
         self.lastfm_field = KeyField(config.settings().value("lastfm/api_key", ""), lambda key: lastfm.verify_key(key))
         self.lastfm_key = self.lastfm_field.input
         area.addWidget(self.lastfm_field)
+        if lastfm.builtin_key():
+            self._hint(area, tr("Leer lassen nimmt den Schlüssel, den PsyTags mitbringt."))
 
         area, _ = self._card(column, "plugins", tr("Cover-Plugins"), tr("Weitere Cover-Quellen"))
         self._hint(area, tr("Ein Plugin ist eine kleine Datei im Plugin-Ordner. Seine Quelle erscheint danach "
@@ -621,6 +626,84 @@ class OptionsDialog(QDialog):
             label.setWordWrap(True)
             label.setStyleSheet(f"color: {theme.ERROR};")
             area.addWidget(label)
+
+    def _beatport(self, column: QVBoxLayout) -> None:
+        s = config.settings()
+        area, _ = self._card(column, "beatport", "Beatport", tr("Wenn MusicBrainz und Discogs ein Album offen lassen"))
+        self._hint(area, tr("Bleibt ein Album offen, sieht PsyTags mit Ihrem API-Zugang bei Beatport nach. "
+                            "Von dort kommen auch BPM, Tonart und Cover."))
+        self.beatport_id = QLineEdit(str(s.value(beatport.CLIENT_ID, "") or ""))
+        self.beatport_secret = QLineEdit(str(s.value(beatport.CLIENT_SECRET, "") or ""))
+        self.beatport_secret.setEchoMode(QLineEdit.EchoMode.Password)
+        self.beatport_user = QLineEdit(str(s.value(beatport.USERNAME, "") or ""))
+        self.beatport_password = QLineEdit()
+        self.beatport_password.setEchoMode(QLineEdit.EchoMode.Password)
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(20)
+        grid.setVerticalSpacing(8)
+        grid.setColumnStretch(1, 1)
+        for i, (label, field) in enumerate(((tr("Client-ID"), self.beatport_id),
+                                            (tr("Client-Secret"), self.beatport_secret),
+                                            (tr("Beatport-Konto"), self.beatport_user),
+                                            (tr("Passwort"), self.beatport_password))):
+            grid.addWidget(QLabel(label), i, 0)
+            grid.addWidget(field, i, 1)
+        area.addLayout(grid)
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        self.beatport_login = QPushButton(tr("Anmelden"))
+        self.beatport_login.setAutoDefault(False)
+        self.beatport_login.clicked.connect(self.login_beatport)
+        self.beatport_logout = QPushButton(tr("Abmelden"))
+        self.beatport_logout.setAutoDefault(False)
+        self.beatport_logout.clicked.connect(self.logout_beatport)
+        self.beatport_state = QLabel()
+        self.beatport_state.setObjectName("DialogSubtitle")
+        self.beatport_state.setWordWrap(True)
+        buttons.addWidget(self.beatport_login)
+        buttons.addWidget(self.beatport_logout)
+        buttons.addWidget(self.beatport_state, 1)
+        area.addLayout(buttons)
+        note = QLabel(tr("Den API-Zugang (Client-ID und Secret) vergibt Beatport nur auf Antrag, über das "
+                         "<a href='https://partnerportal.beatport.com/hc/en-us/requests/new'>Beatport-Partnerportal</a>. "
+                         "Das Passwort speichert PsyTags nicht, nur die Anmeldung."))
+        note.setObjectName("SmallPrint")
+        note.setOpenExternalLinks(True)
+        note.setWordWrap(True)
+        area.addWidget(note)
+        self._show_beatport_state()
+
+    def _show_beatport_state(self, text: str = "") -> None:
+        signed_in = beatport.configured()
+        self.beatport_logout.setEnabled(signed_in)
+        user = str(config.settings().value(beatport.USERNAME, "") or "")
+        self.beatport_state.setText(text or (tr("Angemeldet als {1}", user) if signed_in else tr("Nicht angemeldet")))
+
+    def login_beatport(self) -> None:
+        values = [w.text().strip() for w in (self.beatport_id, self.beatport_secret, self.beatport_user)]
+        password = self.beatport_password.text()
+        if not all(values) or not password:
+            self._show_beatport_state(tr("Bitte alle vier Felder ausfüllen."))
+            return
+
+        def work() -> str:
+            try:
+                beatport.login(*values, password)
+            except Exception as e:      # shown in the card
+                return (str(e) or type(e).__name__).splitlines()[0]
+            return ""
+
+        def done(problem) -> None:
+            self.beatport_login.setEnabled(True)
+            self.beatport_password.clear()
+            self._show_beatport_state(problem or "")
+        self.beatport_login.setEnabled(False)
+        self._show_beatport_state(tr("Wird geprüft ..."))
+        self._beatport_job = run_async(work, done)
+
+    def logout_beatport(self) -> None:
+        beatport.logout()
+        self._show_beatport_state()
 
     def _files_page(self, column: QVBoxLayout) -> None:
         o = self.opts
@@ -669,7 +752,7 @@ class OptionsDialog(QDialog):
         s = config.settings()
         key = self.lastfm_key.text().strip()
         s.setValue("lastfm/api_key", key)
-        s.setValue("lastfm/enabled", self.lastfm_on.isChecked() and bool(key))
+        s.setValue("lastfm/enabled", self.lastfm_on.isChecked() and bool(lastfm.key(key)))
         s.setValue("discogs/token", self.discogs_token.text().strip())
         s.setValue("tagsources/cover_min_size", self.cover_min.value())
         o = self.opts

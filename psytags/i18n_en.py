@@ -75,7 +75,11 @@ EN_MORE: dict[str, str] = {
     "Bitte zuerst nur an Kopien testen": "Please test on copies first",
     "PsyTags schreibt direkt in Ihre Musikdateien und benennt sie um. Probieren Sie alles zuerst an Kopien einiger Alben aus, bevor Sie Ihren Ablauf festlegen.": "PsyTags writes directly to your music files and renames them. Try everything on copies of a few albums first, before you settle on your workflow.",
     "Design": "Theme",
-    "PsyTags holt die Genres von Last.fm. Dafür brauchen Sie einen eigenen, kostenlosen Schlüssel.": "PsyTags gets genres from Last.fm. For that you need your own free key.",
+    "PsyTags holt die Genres von Last.fm und bringt dafür einen Schlüssel mit. Einen eigenen brauchen Sie nicht.":
+        "PsyTags gets genres from Last.fm and brings a key for it. You do not need one of your own.",
+    "PsyTags holt die Genres von Last.fm. Dafür brauchen Sie einen eigenen Schlüssel, den es nur mit Last.fm Pro gibt.":
+        "PsyTags gets genres from Last.fm. For that you need a key of your own, which only Last.fm Pro provides.",
+    "Leer lassen nimmt den Schlüssel, den PsyTags mitbringt.": "Leave it empty to use the key PsyTags brings along.",
     "Testen": "Test",
     "Ohne Schlüssel bleibt der Schritt Genres aus. Sie können ihn später in den Optionen eintragen.": "Without a key the Genres step stays off. You can enter it later in the options.",
     "Der Schlüssel wurde nicht angenommen, oder Last.fm ist gerade nicht erreichbar.": "The key was not accepted, or Last.fm cannot be reached right now.",
@@ -147,7 +151,7 @@ EN_MORE: dict[str, str] = {
     "Die Modelle discogs-effnet und mtg_jamendo_moodtheme liegen nicht im Paket.": "The models discogs-effnet and mtg_jamendo_moodtheme are not part of the package.",
     "Die Kerndaten von MusicBrainz stehen unter CC0.": "The core data of MusicBrainz is under CC0.",
     "Hinweis": "Note", "Die Cover gehören ihren jeweiligen Rechteinhabern.": "The covers belong to their respective rights holders.",
-    "Genres, mit eigenem API-Schlüssel": "Genres, with your own API key", "Nicht kommerziell": "Non-commercial",
+    "Nicht kommerziell": "Non-commercial",
     "Die Bedingungen von Last.fm erlauben nur nicht kommerzielle Nutzung.": "The terms of Last.fm allow non-commercial use only.",
     "Zweite Quelle für offene Alben, mit eigenem Token": "Second source for open albums, with your own token",
     "Von Discogs kommen nur Texte, keine Cover.": "Discogs provides text only, no covers.",
@@ -180,8 +184,8 @@ EN_MORE: dict[str, str] = {
     "Beispiel-Album": "Example Album",
     "Beispiel-Titel": "Example Title",
     "Genres von Last.fm": "Genres from Last.fm",
-    "API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):":
-        "API key (free at <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):",
+    "API-Key (mit Last.fm Pro unter <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):":
+        "API key (with Last.fm Pro at <a href='https://www.last.fm/api/account/create'>last.fm/api/account/create</a>):",
     "Suchergebnisse": "Search results", "Felder:": "Fields:", 
     "Links die Tracks der Quelle, rechts Ihre Dateien. Dateien per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben:":
         "Tracks of the source on the left, your files on the right. Move files to the matching row "
@@ -406,4 +410,33 @@ EN_MORE: dict[str, str] = {
     "Taggt alle Alben der Liste ohne MusicBrainz-Album-ID, wenn sie sicher erkannt werden; Moods bleiben außen vor.":
         "Tags every album in the list without a MusicBrainz album ID when it is certain; moods are left out.",
     "Alle Alben dieser Liste haben schon eine MusicBrainz-Album-ID.": "Every album in this list already has a MusicBrainz album ID.",
+    # Beatport
+    "Beatport (nicht angemeldet)": "Beatport (not signed in)",
+    "Beatport hat keine lesbare Antwort geliefert": "Beatport did not send a readable answer",
+    "Beatport lehnt die Anmeldung ab": "Beatport refuses the sign-in",
+    "Beatport: bitte unter Optionen → Konten und Quellen anmelden": "Beatport: please sign in under Options → Accounts and sources",
+    "Beatport: Album-Daten": "Beatport: album data",
+    "Beatport: Anmeldung": "Beatport: sign-in",
+    "Beatport: Suche": "Beatport: search",
+    "Wenn MusicBrainz und Discogs ein Album offen lassen": "When MusicBrainz and Discogs leave an album open",
+    "Bleibt ein Album offen, sieht PsyTags mit Ihrem API-Zugang bei Beatport nach. Von dort kommen auch BPM, Tonart und Cover.":
+        "If an album stays open, PsyTags looks it up at Beatport with your API access. BPM, key and cover come from there as well.",
+    "Client-ID": "Client ID",
+    "Client-Secret": "Client secret",
+    "Beatport-Konto": "Beatport account",
+    "Passwort": "Password",
+    "Anmelden": "Sign in",
+    "Abmelden": "Sign out",
+    "Angemeldet als {1}": "Signed in as {1}",
+    "Nicht angemeldet": "Not signed in",
+    "Bitte alle vier Felder ausfüllen.": "Please fill in all four fields.",
+    "Den API-Zugang (Client-ID und Secret) vergibt Beatport nur auf Antrag, über das "
+    "<a href='https://partnerportal.beatport.com/hc/en-us/requests/new'>Beatport-Partnerportal</a>. "
+    "Das Passwort speichert PsyTags nicht, nur die Anmeldung.":
+        "Beatport grants API access (client ID and secret) only on request, through the "
+        "<a href='https://partnerportal.beatport.com/hc/en-us/requests/new'>Beatport partner portal</a>. "
+        "PsyTags does not store the password, only the sign-in.",
+    "Weitere Quelle für offene Alben und Cover, mit eigenem API-Zugang":
+        "Further source for open albums and covers, with your own API access",
+    "Einen API-Zugang vergibt Beatport nur auf Antrag.": "Beatport grants API access only on request.",
 }

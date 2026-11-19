@@ -31,12 +31,15 @@ class AlbumBand:
     status: list[tuple[str, bool]] = field(default_factory=list)
 
 
-DISCOGS = "discogs"         # status of an album tagged from Discogs: done, but not from MusicBrainz
+DISCOGS = "discogs"         # status of an album tagged from Discogs or Beatport: done, but not from MusicBrainz
 
 
 def _status(tracks: list) -> list[tuple[str, bool | str]]:
-    if not all(t.get("MUSICBRAINZ_ALBUMID") for t in tracks) and all(t.get("DISCOGS_RELEASE_ID") for t in tracks):
+    second = not all(t.get("MUSICBRAINZ_ALBUMID") for t in tracks)
+    if second and all(t.get("DISCOGS_RELEASE_ID") for t in tracks):
         album = ("Discogs", DISCOGS)
+    elif second and all(t.get("BEATPORT_RELEASE_ID") for t in tracks):
+        album = ("Beatport", DISCOGS)
     else:
         album = ("Album", all(t.get("MUSICBRAINZ_ALBUMID") for t in tracks))
     return [album,

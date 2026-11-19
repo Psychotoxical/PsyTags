@@ -14,7 +14,7 @@
 
 | Seite | Was Sie einstellen |
 |---|---|
-| Konten und Quellen | Discogs-Token, Last.fm-API-Key, [Cover-Plugins](help:plugins) |
+| Konten und Quellen | Discogs-Token, Beatport-Anmeldung, Last.fm-API-Key, [Cover-Plugins](help:plugins) |
 | Dateien | ID3-Version für MP3, zusätzliches ID3v1, Unterordner einlesen, automatisch speichern beim Wechsel der Auswahl, Änderungsdatum der Dateien nicht anfassen |
 | Programm | Sprache und Design, sie gelten sofort |
 

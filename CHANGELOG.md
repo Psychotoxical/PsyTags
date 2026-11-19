@@ -4,6 +4,29 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-19
+
+### Added
+
+- Beatport as a third tag source, with your own API access (Beatport grants it only on request): albums MusicBrainz and Discogs leave open are looked up there, and Search manually → Beatport searches by hand. Beatport adds BPM, key and the mix in the title, and joins the cover sources. Sign in under Options → Accounts and sources → Beatport; PsyTags keeps the sign-in, not the password.
+
+### Changed
+
+- Genres from Last.fm work without a key of your own: since December 2026 Last.fm only gives API keys to Pro accounts, so the release packages bring one. A key entered under Options → Accounts and sources still wins. If you skipped the key so far, switch Genres on under Options → Automatic.
+
+### Fixed
+
+- The AppImage carries the version in its name, like the other packages: `PsyTags-<version>-x86_64.AppImage`.
+
+### Changed
+
+- The README opens with links to the other apps of the Psy Suite: Psysonic, Psysonic Mobile and PsyAudio.
+- CONTRIBUTING.md explains how to report bugs, translate and send pull requests, and that only maintainers merge; the pull request template asks for a changelog entry in every pull request, as CI does.
+- A release started right after a merge waits until the checks of main are green instead of failing.
+- Pull requests and main are checked on Linux only; the tests on Windows and macOS run when the release packages are built.
+- The macOS packages try the signature again when Apple's timestamp service does not answer, instead of failing the release.
+- PsyTags lives in the Psysonic organization on GitHub; links, the About window and the user agent for MusicBrainz point there. Old links still lead to the right page.
+
 ## [1.0.1] - 2026-11-17
 
 ### Added

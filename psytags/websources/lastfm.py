@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import urllib.parse
@@ -12,10 +13,32 @@ from . import http
 API_URL = "https://ws.audioscrobbler.com/2.0/"
 RETRIES = 2                            # Last.fm often answers 5xx for a moment
 RETRY_WAIT = 3.0
+# Since December 2026 only Last.fm Pro accounts get an API key. The release packages bring one:
+# the build writes it into this file (packaging/psytags.spec); it is not part of the repository.
+# For a build from source, PSYTAGS_LASTFM_KEY or a key of one's own in the options does the same.
+KEY_ENV = "PSYTAGS_LASTFM_KEY"
+KEY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lastfm.key")
 
 
 class LastfmError(Exception):
     pass
+
+
+def builtin_key() -> str:
+    """The key PsyTags brings along, or ""."""
+    key = os.environ.get(KEY_ENV, "").strip()
+    if key:
+        return key
+    try:
+        with open(KEY_FILE, encoding="utf-8") as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
+
+
+def key(own: str) -> str:
+    """The key to use: one's own from the options wins over the built-in one."""
+    return (own or "").strip() or builtin_key()
 
 
 def _fetch(url: str) -> str:

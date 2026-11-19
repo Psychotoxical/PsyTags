@@ -291,16 +291,26 @@ class ManualTests(unittest.TestCase):
         from PySide6.QtWidgets import QApplication
         cls.app = QApplication.instance() or QApplication([])
 
-    def _entries(self, second):
+    def _entries(self, second, third=None):
         from PySide6.QtWidgets import QMenu
         from psytags.ui import mainwindow as mw
+        from psytags.websources import beatport
         menu = QMenu()
         self.addCleanup(menu.deleteLater)
         win = mock.MagicMock()
-        win._tag_fallback.return_value = second
         win.view.selected_tracks.return_value = [NS()]
-        mw.MainWindow._add_source_entries(win, menu)
+        with mock.patch.object(discogs, "from_settings", return_value=second), \
+                mock.patch.object(beatport, "from_settings", return_value=third):
+            mw.MainWindow._add_source_entries(win, menu)
         return win, {a.text(): a for a in menu.actions()}
+
+    def test_beatport_has_its_own_entry(self):
+        third = NS(name="Beatport")
+        win, actions = self._entries(None, third)
+        actions["Beatport …"].trigger()
+        win.run_source.assert_called_once_with(src=third)
+        _win, actions = self._entries(None)
+        self.assertFalse(actions["Beatport (nicht angemeldet)"].isEnabled())
 
     def test_with_a_token_the_menu_offers_discogs(self):
         second = NS(name="Discogs")

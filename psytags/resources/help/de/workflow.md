@@ -14,7 +14,7 @@ Für jedes Album der Liste, in dieser Reihenfolge:
 | Schritt | Was passiert |
 |---|---|
 | [Moods](help:moods) | Jeder Song wird aus dem Audio analysiert. |
-| [MusicBrainz](help:sources) | Das passende Release wird gesucht und die Tags werden geschrieben. Bleibt es offen und ist ein Token eingetragen, wird Discogs gefragt. |
+| [MusicBrainz](help:sources) | Das passende Release wird gesucht und die Tags werden geschrieben. Bleibt es offen, werden Discogs und danach Beatport gefragt, soweit eingerichtet. |
 | [Nummern](help:numbers) | Track- und Discnummern werden geschrieben. |
 | [Cover](help:covers) | Die Cover-Quellen werden der Reihe nach gefragt. |
 | [Genres](help:genres) | Last.fm liefert die Genres. |
@@ -31,4 +31,4 @@ Jeder Schritt lässt sich auch allein ausführen, über die Leiste oben oder die
 
 **Alle** bei **MusicBrainz** überspringt Alben, die schon eine MusicBrainz-Album-ID haben, und analysiert keine Moods. Wie beim automatischen Lauf werden nur eindeutige Treffer getaggt, danach zeigt die Übersicht das Ergebnis.
 
-In der Dateiliste zeigt jede Album-Zeile rechts den Stand von Album, Cover, Genres und Moods. Ein gelbes **Discogs** heißt: getaggt, aber von Discogs statt MusicBrainz.
+In der Dateiliste zeigt jede Album-Zeile rechts den Stand von Album, Cover, Genres und Moods. Ein gelbes **Discogs** oder **Beatport** heißt: getaggt, aber von dort statt von MusicBrainz.

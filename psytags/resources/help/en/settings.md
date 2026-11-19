@@ -14,7 +14,7 @@
 
 | Page | What you set |
 |---|---|
-| Accounts and sources | Discogs token, Last.fm API key, [cover plugins](help:plugins) |
+| Accounts and sources | Discogs token, Beatport sign-in, Last.fm API key, [cover plugins](help:plugins) |
 | Files | ID3 version for MP3, additional ID3v1, read subfolders, save automatically when the selection changes, leave the modification date of files alone |
 | Program | Language and theme, they apply at once |
 

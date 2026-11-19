@@ -1239,11 +1239,13 @@ class MainWindow(QMainWindow):
         selected = bool(self.view.selected_tracks())
         a = m.addAction("MusicBrainz …", lambda _=False: self.run_source())
         a.setEnabled(selected)
-        second = self._tag_fallback()
-        if second is None:
-            m.addAction(tr("Discogs (kein Token eingetragen)")).setEnabled(False)
-        else:
-            m.addAction(f"{second.name} …", lambda _=False: self.run_source(src=second)).setEnabled(selected)
+        from ..websources import beatport, discogs
+        for source, missing in ((discogs.from_settings(), tr("Discogs (kein Token eingetragen)")),
+                                (beatport.from_settings(), tr("Beatport (nicht angemeldet)"))):
+            if source is None:
+                m.addAction(missing).setEnabled(False)
+            else:
+                m.addAction(f"{source.name} …", lambda _=False, s=source: self.run_source(src=s)).setEnabled(selected)
 
     def _add_cover_entries(self, m: QMenu) -> None:
         """The cover sources: all in their order, or one of them."""
@@ -1421,7 +1423,7 @@ class MainWindow(QMainWindow):
         Returns a job for finish_lastfm(), or None."""
         import concurrent.futures
         from ..websources import lastfm
-        key = self.settings.value("lastfm/api_key", "")
+        key = lastfm.key(self.settings.value("lastfm/api_key", ""))
         if not tracks:
             return None
         if not key:
@@ -1563,10 +1565,10 @@ class MainWindow(QMainWindow):
         self.message(tr("{1}: {2} ({3}) automatisch gewählt, {4} Dateien", used.name,
                         res.album.value("ALBUM", 0), albumauto.release_year(res.match), len(res.match.mapping)), 10000)
 
-    def _tag_fallback(self):
-        """The source for albums MusicBrainz leaves open, None without a token."""
-        from ..websources import discogs
-        return discogs.from_settings()
+    def _tag_fallback(self) -> list:
+        """The sources for albums MusicBrainz leaves open, in order; only those set up."""
+        from ..websources import beatport, discogs
+        return [s for s in (discogs.from_settings(), beatport.from_settings()) if s is not None]
 
     def _import_match(self, src, match, interactive: bool) -> tuple[str | None, str | None]:
         """Write a certain match; returns the outcome of the cover and genre steps."""

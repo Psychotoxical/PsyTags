@@ -1,10 +1,30 @@
+<!-- psy-suite:start -->
+<p align="center"><sub>Part of the <b>Psy Suite</b></sub></p>
+<table align="center">
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <a href="https://github.com/Psysonic/psysonic"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Psysonic/psysonic/main/.github/psy-suite/psysonic-dark.svg"><img src="https://raw.githubusercontent.com/Psysonic/psysonic/main/.github/psy-suite/psysonic-light.svg" alt="Psysonic" height="28"></picture></a><br>
+      <sub>Desktop music player for Navidrome and Subsonic</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <a href="https://github.com/Psysonic/psysonic-mobile"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Psysonic/psysonic-mobile/main/.github/psy-suite/psysonic-mobile-dark.svg"><img src="https://raw.githubusercontent.com/Psysonic/psysonic-mobile/main/.github/psy-suite/psysonic-mobile-light.svg" alt="Psysonic Mobile" height="28"></picture></a><br>
+      <sub>Psysonic on iPhone, iPad and Android (beta)</sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <a href="https://github.com/Psysonic/PsyAudio"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Psysonic/PsyAudio/main/.github/psy-suite/psyaudio-dark.svg"><img src="https://raw.githubusercontent.com/Psysonic/PsyAudio/main/.github/psy-suite/psyaudio-light.svg" alt="PsyAudio" height="28"></picture></a><br>
+      <sub>Bit-perfect CD ripper and audio converter</sub>
+    </td>
+  </tr>
+</table>
+<!-- psy-suite:end -->
+
 # PsyTags
 
 PsyTags is a tag editor for music collections. It runs on Windows, Linux and macOS, and its interface is available in English and German.
 
 The main window has a file list and a tag panel. One command tags every loaded album, and each step can also be run on its own. Moods are determined locally from the audio.
 
-PsyTags is young. Downloads for Windows, Linux and macOS are on the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page.
+PsyTags is young. Downloads for Windows, Linux and macOS are on the [Releases](https://github.com/Psysonic/PsyTags/releases) page.
 
 ![Main window of PsyTags with the file list on the left and the tag panel on the right](docs/screenshot.png)
 
@@ -38,7 +58,7 @@ For each album in the list, in this order:
 | Step | Result |
 |---|---|
 | Moods | Each song is analyzed and the MOOD field is written. |
-| MusicBrainz | The matching release is looked up and the tags are written. If it stays open and a token is set, Discogs is asked. |
+| MusicBrainz | The matching release is looked up and the tags are written. If it stays open, Discogs and then Beatport are asked, as far as they are set up. |
 | Numbers | Track and disc numbers are written. |
 | Cover | The enabled cover sources are asked in order. |
 | Genres | Genres are fetched from Last.fm. |
@@ -56,7 +76,8 @@ The analysis uses two models of about 20 MB, downloaded on first use. No audio l
 | MusicBrainz | Tags | None |
 | Cover Art Archive | Covers | None |
 | Discogs | Second source for albums MusicBrainz leaves open, text only | Free personal token |
-| Last.fm | Genres | Free API key |
+| Beatport | Third source for open albums, with BPM and key; covers | Own API access, granted by Beatport only on request |
+| Last.fm | Genres | None, the release packages bring a key. Builds from source need their own (Last.fm Pro) |
 
 More cover sources can be added as plugins. The help describes the format.
 
@@ -66,12 +87,12 @@ AAC, AIFF, APE, DSF, FLAC, M4A, M4B, MP2, MP3, MP4, MPC, OGG, Opus, Speex, TAK, 
 
 ## Installation
 
-Download from the [Releases](https://github.com/Psychotoxical/PsyTags/releases) page:
+Download from the [Releases](https://github.com/Psysonic/PsyTags/releases) page:
 
 - **Windows 10 and 11:** `PsyTags-Setup-<version>.exe`. It installs for your user without admin rights; the first page also offers an installation for all users. Your settings stay when you uninstall.
 - **Debian, Ubuntu, Mint:** `psytags_<version>_amd64.deb`, installed with `sudo apt install ./psytags_<version>_amd64.deb`.
 - **Fedora, openSUSE:** `psytags-<version>-1.x86_64.rpm`, installed with `sudo dnf install ./psytags-<version>-1.x86_64.rpm` or `sudo zypper install`.
-- **Other Linux:** `PsyTags-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
+- **Other Linux:** `PsyTags-<version>-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
 - **macOS 13 or newer:** `PsyTags-<version>-macOS-arm64.dmg` for Apple Silicon (M1 and later), `PsyTags-<version>-macOS-x86_64.dmg` for Intel. Open it and drag PsyTags into Applications. The app is signed and notarized by Apple.
 
 All of them come with ffmpeg for the mood analysis.
@@ -81,7 +102,7 @@ All of them come with ffmpeg for the mood analysis.
 Requires Python 3.11 or newer and, for the mood analysis, ffmpeg.
 
 ```
-git clone https://github.com/Psychotoxical/PsyTags.git
+git clone https://github.com/Psysonic/PsyTags.git
 cd PsyTags
 python -m venv .venv
 .venv/bin/pip install .
@@ -98,7 +119,7 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests
 ruff check .
 ```
 
-Changes go to `main` through pull requests only. Every pull request runs the tests on Linux, Windows and macOS (Intel and Apple Silicon), Ruff, ShellCheck and actionlint, and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora, the Mac apps are signed, notarized and checked by Gatekeeper.
+Changes go to `main` through pull requests only; [CONTRIBUTING.md](CONTRIBUTING.md) has the house rules. Every pull request runs the tests, Ruff, ShellCheck and actionlint on Linux. Building a release runs the tests on Windows and macOS (Intel and Apple Silicon) as well and builds all packages; the Linux packages are test-installed on Ubuntu and Fedora, the Mac apps are signed, notarized and checked by Gatekeeper.
 
 ## Translating PsyTags
 

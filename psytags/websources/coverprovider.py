@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 from .. import config
 from ..i18n import tr
-from . import http
+from . import beatport, http
 
 FOLDER = "cover-provider"
 ARCHIVE = "Cover Art Archive"           # the built-in source, in the order of the sources
@@ -93,8 +93,9 @@ def load(path: str) -> Provider:
     for key in _REQUIRED:
         if not isinstance(data.get(key), str) or not data[key].strip():
             raise ProviderError(tr("{1}: Feld {2} fehlt", where, key))
-    if data["name"].strip().casefold() == ARCHIVE.casefold():
-        raise ProviderError(tr("{1}: name {2} ist schon vergeben", where, ARCHIVE))
+    for taken in (ARCHIVE, beatport.NAME):
+        if data["name"].strip().casefold() == taken.casefold():
+            raise ProviderError(tr("{1}: name {2} ist schon vergeben", where, taken))
     url = data["search_url"]
     if not re.match(r"https?://", url) or not ("{album}" in url or "{artist}" in url):
         raise ProviderError(tr("{1}: search_url braucht http(s) und {album} oder {artist}", where))
@@ -131,10 +132,15 @@ def discover() -> tuple[list[Provider], list[str]]:
     return [found[k] for k in sorted(found)], problems
 
 
+def built_in() -> list[str]:
+    """The sources PsyTags brings: the archive, and Beatport once a login is set up."""
+    return [ARCHIVE] + ([beatport.NAME] if beatport.configured() else [])
+
+
 def arranged(providers: list[Provider]) -> list[tuple[str, bool]]:
-    """(name, on) of all sources in the saved order. The archive starts on top, new files join at the end."""
+    """(name, on) of all sources in the saved order. The archive starts on top, new ones join at the end."""
     s = config.settings()
-    names = [ARCHIVE] + [p.name for p in providers]
+    names = built_in() + [p.name for p in providers]
     saved = [n for n in config.string_list(s, _ORDER_KEY) if n in names]
     off = set(config.string_list(s, _OFF_KEY))
     return [(n, n not in off) for n in saved + [n for n in names if n not in saved]]
@@ -147,9 +153,11 @@ def save_arrangement(sources: list[tuple[str, bool]]) -> None:
 
 
 def active(providers: list[Provider]) -> list:
-    """The sources that are switched on, in order: ``ARCHIVE`` or a Provider."""
-    by_name = {p.name: p for p in providers}
-    return [ARCHIVE if n == ARCHIVE else by_name[n] for n, on in arranged(providers) if on]
+    """The sources that are switched on, in order: ``ARCHIVE``, a Provider or ``beatport.Covers``."""
+    by_name: dict = {p.name: p for p in providers}
+    by_name[ARCHIVE] = ARCHIVE
+    by_name[beatport.NAME] = beatport.Covers()
+    return [by_name[n] for n, on in arranged(providers) if on]
 
 
 _last_call: dict[str, float] = {}
@@ -224,13 +232,17 @@ def rows(provider: Provider, answer: str) -> list[dict]:
     return out
 
 
-def search(provider: Provider, artist: str, album: str) -> list[dict]:
+def search(provider: Provider | beatport.Covers, artist: str, album: str) -> list[dict]:
+    if isinstance(provider, beatport.Covers):
+        return provider.search(artist, album)
     quote = lambda text: urllib.parse.quote(text.strip(), safe="")
     url = provider.search_url.replace("{artist}", quote(artist)).replace("{album}", quote(album))
     _wait_turn(provider)
     return rows(provider, http.fetch(url, "2" if provider.browser_agent else "1", timeout=TIMEOUT))
 
 
-def image(provider: Provider, row: dict) -> bytes:
+def image(provider: Provider | beatport.Covers, row: dict) -> bytes:
+    if isinstance(provider, beatport.Covers):
+        return provider.image(row)
     _wait_turn(provider)
     return http.fetch_bytes(row["_image"], timeout=TIMEOUT, browser=provider.browser_agent)

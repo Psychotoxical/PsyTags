@@ -53,6 +53,33 @@ class CoverMatchTests(unittest.TestCase):
         self.assertIsNone(first_cover(None, [], fetch=fetch))
 
 
+class LastfmKeyTests(unittest.TestCase):
+    def _key(self, own, env="", file_text=None):
+        import os
+        import tempfile
+        from unittest import mock
+        from psytags.websources import lastfm
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "lastfm.key")
+            if file_text is not None:
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(file_text)
+            with mock.patch.dict(os.environ, {lastfm.KEY_ENV: env}), mock.patch.object(lastfm, "KEY_FILE", path):
+                return lastfm.key(own), lastfm.builtin_key()
+
+    def test_own_key_wins_over_the_built_in_one(self):
+        self.assertEqual(self._key(" own ", file_text="built-in\n"), ("own", "built-in"))
+
+    def test_without_own_key_the_package_key_is_used(self):
+        self.assertEqual(self._key("", file_text="built-in\n"), ("built-in", "built-in"))
+
+    def test_the_environment_counts_for_builds_from_source(self):
+        self.assertEqual(self._key("", env="from-env", file_text="built-in"), ("from-env", "from-env"))
+
+    def test_no_key_at_all(self):
+        self.assertEqual(self._key("  "), ("", ""))
+
+
 class LastfmGenreTests(unittest.TestCase):
     def _run(self, answers):
         from unittest import mock
