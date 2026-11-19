@@ -89,7 +89,7 @@ AAC, AIFF, APE, DSF, FLAC, M4A, M4B, MP2, MP3, MP4, MPC, OGG, Opus, Speex, TAK, 
 
 Download from the [Releases](https://github.com/Psysonic/PsyTags/releases) page:
 
-- **Windows 10 and 11:** `PsyTags-Setup-<version>.exe`. It installs for your user without admin rights; the first page also offers an installation for all users. Your settings stay when you uninstall. The installer, its uninstaller and `PsyTags.exe` are signed with a Certum open source code signing certificate.
+- **Windows 10 and 11:** `PsyTags-Setup-<version>.exe`. It installs for your user without admin rights; the first page also offers an installation for all users. Your settings stay when you uninstall. The installer and the app are signed.
 - **Debian, Ubuntu, Mint:** `psytags_<version>_amd64.deb`, installed with `sudo apt install ./psytags_<version>_amd64.deb`.
 - **Fedora, openSUSE:** `psytags-<version>-1.x86_64.rpm`, installed with `sudo dnf install ./psytags-<version>-1.x86_64.rpm` or `sudo zypper install`.
 - **Other Linux:** `PsyTags-<version>-x86_64.AppImage`. Make it executable (`chmod +x`) and start it.
@@ -145,7 +145,7 @@ The help pages are in German and English (`psytags/resources/help/<code>/`); oth
 
 ## Releases
 
-A release starts with a new version number in `psytags/__init__.py` and `pyproject.toml` and its section in `CHANGELOG.md`. Once that is on `main`, the workflow creates a release draft with the section as text and the installer, AppImage, deb, rpm and both Mac disk images attached. The Mac disk images are signed and notarized in the workflow. The Windows installer from the workflow is unsigned; it is replaced by a signed one, built from the same state, before the release is published. Publishing the draft creates the tag.
+A release starts with a new version number in `psytags/__init__.py` and `pyproject.toml` and its section in `CHANGELOG.md`. Once that is on `main`, the workflow creates a release draft with the section as text and the installer, AppImage, deb, rpm and both Mac disk images attached. Publishing the draft creates the tag.
 
 ## Acknowledgements
 
