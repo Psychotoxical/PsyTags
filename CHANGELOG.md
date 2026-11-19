@@ -4,6 +4,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Changed
+
+- The Windows installer can be built signed: with `/DSign` and a sign tool named `certum`, Inno Setup signs PsyTags.exe, the setup and the uninstaller. Builds without it, as in CI, stay unsigned.
+
 ## [1.0.2] - 2026-11-19
 
 ### Added
