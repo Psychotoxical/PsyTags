@@ -38,4 +38,4 @@ Warum einzelne Alben offen bleiben, steht unter [Die Übersicht](help:summary).
 | MusicBrainz ist ausgelastet | PsyTags versucht es selbst noch einmal. Bleibt es dabei, später erneut starten. |
 | Kein Cover | Das Cover Art Archive braucht eine MusicBrainz-ID. Fügen Sie weitere Quellen mit [Cover-Plugins](help:plugins) hinzu. |
 | Cover zu klein | Die [Mindestgröße](help:covers) senken oder eine andere Quelle verwenden. |
-| Keine Genres | Last.fm kennt das Album nicht, oder der API-Key fehlt. |
+| Keine Genres | Last.fm kennt das Album nicht, oder der Schritt Genres ist unter **Optionen → Automatik** aus. Ein selbst gebautes PsyTags braucht einen eigenen API-Key. |

@@ -554,7 +554,8 @@ class OptionsDialog(QDialog):
         stored = s.value("lastfm/api_key", "")
         area, self.lastfm_on = self._card(column, "genres", tr("Genres"), tr("Von Last.fm"), "5",
                                           s.value("lastfm/enabled", "false") in (True, "true") or not stored)
-        self._hint(area, tr("Braucht den API-Key von Last.fm unter „Konten und Quellen“."))
+        if not lastfm.builtin_key():
+            self._hint(area, tr("Braucht den API-Key von Last.fm unter „Konten und Quellen“."))
 
     def _cover_list(self, area: QVBoxLayout) -> None:
         from ...websources import coverprovider
@@ -592,7 +593,7 @@ class OptionsDialog(QDialog):
         area.addWidget(self.discogs_field)
 
         area, _ = self._card(column, "lastfm", tr("Last.fm"), tr("Genres"))
-        link = QLabel(tr("API-Key (kostenlos unter <a href='https://www.last.fm/api/account/create'>"
+        link = QLabel(tr("API-Key (mit Last.fm Pro unter <a href='https://www.last.fm/api/account/create'>"
                          "last.fm/api/account/create</a>):"))
         link.setOpenExternalLinks(True)
         link.setWordWrap(True)
@@ -600,6 +601,8 @@ class OptionsDialog(QDialog):
         self.lastfm_field = KeyField(config.settings().value("lastfm/api_key", ""), lambda key: lastfm.verify_key(key))
         self.lastfm_key = self.lastfm_field.input
         area.addWidget(self.lastfm_field)
+        if lastfm.builtin_key():
+            self._hint(area, tr("Leer lassen nimmt den Schlüssel, den PsyTags mitbringt."))
 
         area, _ = self._card(column, "plugins", tr("Cover-Plugins"), tr("Weitere Cover-Quellen"))
         self._hint(area, tr("Ein Plugin ist eine kleine Datei im Plugin-Ordner. Seine Quelle erscheint danach "
@@ -669,7 +672,7 @@ class OptionsDialog(QDialog):
         s = config.settings()
         key = self.lastfm_key.text().strip()
         s.setValue("lastfm/api_key", key)
-        s.setValue("lastfm/enabled", self.lastfm_on.isChecked() and bool(key))
+        s.setValue("lastfm/enabled", self.lastfm_on.isChecked() and bool(lastfm.key(key)))
         s.setValue("discogs/token", self.discogs_token.text().strip())
         s.setValue("tagsources/cover_min_size", self.cover_min.value())
         o = self.opts

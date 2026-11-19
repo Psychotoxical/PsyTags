@@ -76,7 +76,7 @@ The analysis uses two models of about 20 MB, downloaded on first use. No audio l
 | MusicBrainz | Tags | None |
 | Cover Art Archive | Covers | None |
 | Discogs | Second source for albums MusicBrainz leaves open, text only | Free personal token |
-| Last.fm | Genres | Free API key |
+| Last.fm | Genres | None, the release packages bring a key. Builds from source need their own (Last.fm Pro) |
 
 More cover sources can be added as plugins. The help describes the format.
 

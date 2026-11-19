@@ -1421,7 +1421,7 @@ class MainWindow(QMainWindow):
         Returns a job for finish_lastfm(), or None."""
         import concurrent.futures
         from ..websources import lastfm
-        key = self.settings.value("lastfm/api_key", "")
+        key = lastfm.key(self.settings.value("lastfm/api_key", ""))
         if not tracks:
             return None
         if not key:
