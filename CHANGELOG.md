@@ -4,6 +4,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Added
+
+- Beatport as a third tag source, with your own API access (Beatport grants it only on request): albums MusicBrainz and Discogs leave open are looked up there, and Search manually → Beatport searches by hand. Beatport adds BPM, key and the mix in the title, and joins the cover sources. Sign in under Options → Accounts and sources → Beatport; PsyTags keeps the sign-in, not the password.
+
 ### Changed
 
 - Genres from Last.fm work without a key of your own: since December 2026 Last.fm only gives API keys to Pro accounts, so the release packages bring one. A key entered under Options → Accounts and sources still wins. If you skipped the key so far, switch Genres on under Options → Automatic.

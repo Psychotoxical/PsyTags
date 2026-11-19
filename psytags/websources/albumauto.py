@@ -191,18 +191,24 @@ def find_album(src: TagSource, tracks: list, strict: bool = False, prefer_digita
     return result
 
 
-def find_with_fallback(src: TagSource, second: TagSource | None, tracks: list,
+def find_with_fallback(src: TagSource, fallbacks: TagSource | list | None, tracks: list,
                        prefer_digital: bool = True) -> tuple[TagSource, AutoResult]:
-    """(source that decided, result): ``second`` only gets the albums ``src`` leaves open.
-    Its failure must not end the run, the album stays open and the reason says why."""
+    """(source that decided, result): the ``fallbacks``, one source or several in order, only
+    get the albums ``src`` leaves open. A failure must not end the run: the album stays open
+    and the reason says why."""
     result = find_album(src, tracks, prefer_digital=prefer_digital)
-    if result.match is not None or second is None:
+    if result.match is not None:
         return src, result
-    try:
-        found = find_album(second, tracks, strict=True, prefer_digital=prefer_digital)
-    except http.FetchError as e:
-        return src, AutoResult(None, f"{result.reason} · {str(e).splitlines()[0]}")
-    return (second, found) if found.match is not None else (src, result)
+    others = fallbacks if isinstance(fallbacks, list) else [fallbacks] if fallbacks is not None else []
+    for second in others:
+        try:
+            found = find_album(second, tracks, strict=True, prefer_digital=prefer_digital)
+        except http.FetchError as e:
+            result = AutoResult(None, f"{result.reason} · {str(e).splitlines()[0]}")
+            continue
+        if found.match is not None:
+            return second, found
+    return src, result
 
 
 _KINDS = {"live": ("live",), "remix": ("remix", "remixes"), "demo": ("demo", "demos")}

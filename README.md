@@ -58,7 +58,7 @@ For each album in the list, in this order:
 | Step | Result |
 |---|---|
 | Moods | Each song is analyzed and the MOOD field is written. |
-| MusicBrainz | The matching release is looked up and the tags are written. If it stays open and a token is set, Discogs is asked. |
+| MusicBrainz | The matching release is looked up and the tags are written. If it stays open, Discogs and then Beatport are asked, as far as they are set up. |
 | Numbers | Track and disc numbers are written. |
 | Cover | The enabled cover sources are asked in order. |
 | Genres | Genres are fetched from Last.fm. |
@@ -76,6 +76,7 @@ The analysis uses two models of about 20 MB, downloaded on first use. No audio l
 | MusicBrainz | Tags | None |
 | Cover Art Archive | Covers | None |
 | Discogs | Second source for albums MusicBrainz leaves open, text only | Free personal token |
+| Beatport | Third source for open albums, with BPM and key; covers | Own API access, granted by Beatport only on request |
 | Last.fm | Genres | None, the release packages bring a key. Builds from source need their own (Last.fm Pro) |
 
 More cover sources can be added as plugins. The help describes the format.

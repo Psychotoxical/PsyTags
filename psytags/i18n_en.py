@@ -151,7 +151,7 @@ EN_MORE: dict[str, str] = {
     "Die Modelle discogs-effnet und mtg_jamendo_moodtheme liegen nicht im Paket.": "The models discogs-effnet and mtg_jamendo_moodtheme are not part of the package.",
     "Die Kerndaten von MusicBrainz stehen unter CC0.": "The core data of MusicBrainz is under CC0.",
     "Hinweis": "Note", "Die Cover gehören ihren jeweiligen Rechteinhabern.": "The covers belong to their respective rights holders.",
-    "Genres, mit eigenem API-Schlüssel": "Genres, with your own API key", "Nicht kommerziell": "Non-commercial",
+    "Nicht kommerziell": "Non-commercial",
     "Die Bedingungen von Last.fm erlauben nur nicht kommerzielle Nutzung.": "The terms of Last.fm allow non-commercial use only.",
     "Zweite Quelle für offene Alben, mit eigenem Token": "Second source for open albums, with your own token",
     "Von Discogs kommen nur Texte, keine Cover.": "Discogs provides text only, no covers.",
@@ -410,4 +410,33 @@ EN_MORE: dict[str, str] = {
     "Taggt alle Alben der Liste ohne MusicBrainz-Album-ID, wenn sie sicher erkannt werden; Moods bleiben außen vor.":
         "Tags every album in the list without a MusicBrainz album ID when it is certain; moods are left out.",
     "Alle Alben dieser Liste haben schon eine MusicBrainz-Album-ID.": "Every album in this list already has a MusicBrainz album ID.",
+    # Beatport
+    "Beatport (nicht angemeldet)": "Beatport (not signed in)",
+    "Beatport hat keine lesbare Antwort geliefert": "Beatport did not send a readable answer",
+    "Beatport lehnt die Anmeldung ab": "Beatport refuses the sign-in",
+    "Beatport: bitte unter Optionen → Konten und Quellen anmelden": "Beatport: please sign in under Options → Accounts and sources",
+    "Beatport: Album-Daten": "Beatport: album data",
+    "Beatport: Anmeldung": "Beatport: sign-in",
+    "Beatport: Suche": "Beatport: search",
+    "Wenn MusicBrainz und Discogs ein Album offen lassen": "When MusicBrainz and Discogs leave an album open",
+    "Bleibt ein Album offen, sieht PsyTags mit Ihrem API-Zugang bei Beatport nach. Von dort kommen auch BPM, Tonart und Cover.":
+        "If an album stays open, PsyTags looks it up at Beatport with your API access. BPM, key and cover come from there as well.",
+    "Client-ID": "Client ID",
+    "Client-Secret": "Client secret",
+    "Beatport-Konto": "Beatport account",
+    "Passwort": "Password",
+    "Anmelden": "Sign in",
+    "Abmelden": "Sign out",
+    "Angemeldet als {1}": "Signed in as {1}",
+    "Nicht angemeldet": "Not signed in",
+    "Bitte alle vier Felder ausfüllen.": "Please fill in all four fields.",
+    "Den API-Zugang (Client-ID und Secret) vergibt Beatport nur auf Antrag, über das "
+    "<a href='https://partnerportal.beatport.com/hc/en-us/requests/new'>Beatport-Partnerportal</a>. "
+    "Das Passwort speichert PsyTags nicht, nur die Anmeldung.":
+        "Beatport grants API access (client ID and secret) only on request, through the "
+        "<a href='https://partnerportal.beatport.com/hc/en-us/requests/new'>Beatport partner portal</a>. "
+        "PsyTags does not store the password, only the sign-in.",
+    "Weitere Quelle für offene Alben und Cover, mit eigenem API-Zugang":
+        "Further source for open albums and covers, with your own API access",
+    "Einen API-Zugang vergibt Beatport nur auf Antrag.": "Beatport grants API access only on request.",
 }

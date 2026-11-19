@@ -118,6 +118,10 @@ def describe(url: str) -> str:
         return tr("Last.fm: Genres")
     if host.endswith("discogs.com"):
         return tr("Discogs: Suche") if "/search" in parts.path else tr("Discogs: Album-Daten")
+    if host.endswith("beatport.com"):
+        if "/auth/" in parts.path:
+            return tr("Beatport: Anmeldung")
+        return tr("Beatport: Suche") if "/search" in parts.path else tr("Beatport: Album-Daten")
     return host
 
 
@@ -157,6 +161,14 @@ def fetch(url: str, user_agent: str = "1", timeout: float = 30, headers: dict[st
         _cache.clear()
     _cache[url] = data
     return _decode(data)
+
+
+def post_form(url: str, fields: dict[str, str], timeout: float = 30) -> str:
+    """A form sent by POST, never cached: logins. The fields stay out of every message."""
+    req = urllib.request.Request(url, data=urllib.parse.urlencode(fields).encode("ascii"),
+                                 headers={"User-Agent": USER_AGENT,
+                                          "Content-Type": "application/x-www-form-urlencoded"})
+    return _decode(_download(req, url, timeout, lambda r: r.read()))
 
 
 def fetch_bytes(url: str, timeout: float = 30, browser: bool = False) -> bytes:

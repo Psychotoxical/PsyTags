@@ -14,7 +14,7 @@ For each album in the list, in this order:
 | Step | What happens |
 |---|---|
 | [Moods](help:moods) | Each song is analyzed from its audio. |
-| [MusicBrainz](help:sources) | The matching release is looked up and the tags are written. If it stays open and a token is set, Discogs is asked. |
+| [MusicBrainz](help:sources) | The matching release is looked up and the tags are written. If it stays open, Discogs and then Beatport are asked, as far as they are set up. |
 | [Numbers](help:numbers) | Track and disc numbers are written. |
 | [Cover](help:covers) | The cover sources are asked in order. |
 | [Genres](help:genres) | Last.fm delivers the genres. |
@@ -31,4 +31,4 @@ Each step can also run alone, from the bar at the top or with the [keyboard shor
 
 **All** under **MusicBrainz** skips albums that already have a MusicBrainz album ID and analyzes no moods. As in the automatic run, only clear matches are tagged; the summary shows the result afterwards.
 
-In the file list, the right side of each album row shows the state of album, cover, genres and moods. A yellow **Discogs** means: tagged, but from Discogs instead of MusicBrainz.
+In the file list, the right side of each album row shows the state of album, cover, genres and moods. A yellow **Discogs** or **Beatport** means: tagged, but from there instead of MusicBrainz.

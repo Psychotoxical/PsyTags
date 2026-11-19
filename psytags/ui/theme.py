@@ -129,7 +129,7 @@ QPushButton#DialogPrimary { background: $ACCENT; color: $ACCENT_TEXT; border: no
 QPushButton#DialogPrimary:hover { background: $ACCENT_HOVER; }
 QPushButton#DialogPrimary:disabled { background: $BUTTON; color: $DISABLED; }
 QLabel#ProgressCount { color: $SECONDARY; font-size: 12px; }
-QLabel#ProgressActivity { color: $SECONDARY; font-size: 11px; }
+QLabel#ProgressActivity, QLabel#SmallPrint { color: $SECONDARY; font-size: 11px; }
 QProgressBar { background: $FIELD; border: none; border-radius: 4px; }
 QProgressBar::chunk { background: $ACCENT; border-radius: 4px; }
 QPushButton#ChipButton { padding: 3px 11px; min-width: 0; border-radius: 11px; }

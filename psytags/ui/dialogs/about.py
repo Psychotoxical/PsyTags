@@ -87,10 +87,12 @@ def sections() -> list[tuple[str, str, list[Entry]]]:
                   "https://musicbrainz.org"),
             Entry("Cover Art Archive", "", tr("Cover"), tr("Hinweis"),
                   tr("Die Cover gehören ihren jeweiligen Rechteinhabern."), "https://coverartarchive.org"),
-            Entry("Last.fm", "", tr("Genres, mit eigenem API-Schlüssel"), tr("Nicht kommerziell"),
+            Entry("Last.fm", "", tr("Genres"), tr("Nicht kommerziell"),
                   tr("Die Bedingungen von Last.fm erlauben nur nicht kommerzielle Nutzung."), "https://www.last.fm"),
             Entry("Discogs", "", tr("Zweite Quelle für offene Alben, mit eigenem Token"), tr("Hinweis"),
                   tr("Von Discogs kommen nur Texte, keine Cover."), "https://www.discogs.com"),
+            Entry("Beatport", "", tr("Weitere Quelle für offene Alben und Cover, mit eigenem API-Zugang"), tr("Hinweis"),
+                  tr("Einen API-Zugang vergibt Beatport nur auf Antrag."), "https://www.beatport.com"),
             Entry("Catppuccin", "", tr("Farben Mocha und Latte"), "MIT", license_text("catppuccin.txt"),
                   "https://catppuccin.com")]),
     ]

@@ -2,7 +2,7 @@
 
 ## Woher die Cover kommen
 
-Mitgeliefert ist das **Cover Art Archive**, das Bilder-Archiv zu MusicBrainz. Es findet Cover nur für Alben mit einer MusicBrainz-ID. Weitere Quellen fügen Sie mit [Cover-Plugins](help:plugins) hinzu.
+Mitgeliefert ist das **Cover Art Archive**, das Bilder-Archiv zu MusicBrainz. Es findet Cover nur für Alben mit einer MusicBrainz-ID. Mit einer [Beatport-Anmeldung](help:sources) kommt Beatport dazu. Weitere Quellen fügen Sie mit [Cover-Plugins](help:plugins) hinzu.
 
 Unter **Optionen → Automatik → Cover** schalten Sie Quellen ein und aus und ziehen sie in die gewünschte Reihenfolge. Von oben nach unten gilt: Die erste Quelle, die ein Cover liefert, gewinnt.
 

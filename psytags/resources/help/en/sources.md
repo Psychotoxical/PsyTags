@@ -22,9 +22,15 @@ If an album stays open at MusicBrainz, PsyTags looks it up on Discogs when a tok
 
 The same rules apply to Discogs, and all track lengths must be known as well. Only texts come from there and never pictures, because covers there are mostly photos by users. The other sources fetch the cover.
 
+## Beatport as a third source
+
+If MusicBrainz and Discogs leave an album open, PsyTags looks it up on Beatport. This needs your own API access: Beatport grants a client ID and secret only on request, through the [Beatport partner portal](https://partnerportal.beatport.com/hc/en-us/requests/new). Enter both with your Beatport account and password under **Options → Accounts and sources → Beatport** and click **Sign in**. PsyTags keeps the sign-in, not the password; it renews the sign-in by itself.
+
+The same rules apply as for Discogs. Beatport also delivers BPM and key for every track. The title carries the mix, for example "Title (Extended Mix)"; the original mix gets no note. Once you are signed in, Beatport also appears in the list of [cover sources](help:covers).
+
 ## By hand
 
-**Search MusicBrainz** (Ctrl+I) or **Search manually → Discogs …** in the right-click menu open the search form. Then you choose from the results.
+**Search MusicBrainz** (Ctrl+I), **Search manually → Discogs …** or **Search manually → Beatport …** in the right-click menu open the search form. Then you choose from the results.
 
 In the window **Check the assignment**, the tracks of the source are on the left and your files on the right. Move files into the right row by drag and drop or with Alt+↑/↓; several selected files move together and stay selected. Rows marked in yellow differ by more than 3 seconds. On the left you choose which fields are written.
 
