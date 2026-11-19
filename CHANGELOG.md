@@ -10,6 +10,7 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ### Changed
 
+- The Windows installer can be built signed: with `/DSign` and a sign tool named `certum`, Inno Setup signs PsyTags.exe, the setup and the uninstaller. Builds without it, as in CI, stay unsigned.
 - Genres from Last.fm work without a key of your own: since December 2026 Last.fm only gives API keys to Pro accounts, so the release packages bring one. A key entered under Options → Accounts and sources still wins. If you skipped the key so far, switch Genres on under Options → Automatic.
 
 ### Fixed
