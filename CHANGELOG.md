@@ -7,6 +7,7 @@ Every version has its own section. The section of the version in `psytags/__init
 ### Changed
 
 - The Windows installer can be built signed: with `/DSign` and a sign tool named `certum`, Inno Setup signs PsyTags.exe, the setup and the uninstaller. Builds without it, as in CI, stay unsigned.
+- A local package build takes the Last.fm key from `psytags/lastfm.key` of the checkout when `PSYTAGS_LASTFM_KEY` is not set; the file is ignored by git.
 
 ## [1.0.2] - 2026-11-19
 
