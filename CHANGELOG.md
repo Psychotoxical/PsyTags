@@ -4,6 +4,8 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-19
+
 ### Added
 
 - Beatport as a third tag source, with your own API access (Beatport grants it only on request): albums MusicBrainz and Discogs leave open are looked up there, and Search manually → Beatport searches by hand. Beatport adds BPM, key and the mix in the title, and joins the cover sources. Sign in under Options → Accounts and sources → Beatport; PsyTags keeps the sign-in, not the password.
