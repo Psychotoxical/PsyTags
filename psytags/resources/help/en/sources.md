@@ -32,7 +32,7 @@ The same rules apply as for Discogs. Beatport also delivers BPM and key for ever
 
 **Search MusicBrainz** (Ctrl+I), **Search manually → Discogs …** or **Search manually → Beatport …** in the right-click menu open the search form. Then you choose from the results.
 
-In the window **Check the assignment**, the tracks of the source are on the left and your files on the right. Move files into the right row by drag and drop or with Alt+↑/↓; several selected files move together and stay selected. Rows marked in yellow differ by more than 3 seconds. On the left you choose which fields are written.
+In the window **Check the assignment**, the tracks of the source are on the left and your files on the right. Move files into the right row by drag and drop or with Alt+↑/↓; several selected files move together and stay selected. Rows marked in yellow differ by more than 3 seconds. If the file names do not fit the sound, **By length** matches the files by their playing time; **By title** matches them by their titles again. On the left you choose which fields are written.
 
 **Search MusicBrainz (Quick)** (Ctrl+Shift+I) skips the search form.
 

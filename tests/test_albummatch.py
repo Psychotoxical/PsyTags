@@ -336,6 +336,24 @@ class PlanAndAlignTests(unittest.TestCase):
         b = _track("b.mp3", "Two")
         self.assertEqual(albumauto.prealign([b], _album(["One", "Two"])), [None, b])
 
+    def test_align_by_length_follows_the_sound_not_the_name(self):
+        # Every name fits a track, but each file holds the next song; the last file holds the first.
+        album = _album(["One", "Two", "Three", "Four"])
+        album.lengths = ["4:59", "4:00", "3:35", "4:42"]
+        files = [_track(f"{n}.mp3", n) for n in ("One", "Two", "Three", "Four")]
+        for t, secs in zip(files, (240.4, 214.6, 282.0, 299.5)):
+            t.data.info.length = secs
+        self.assertEqual(albumauto.prealign(files, album), files)
+        self.assertEqual(albumauto.align_by_length(files, album), [files[3], files[0], files[1], files[2]])
+
+    def test_align_by_length_title_breaks_a_tie_and_strays_fill_gaps(self):
+        album = _album(["One", "Two", "Three"])
+        album.lengths = ["3:26", "3:26", "5:00"]
+        a, b, c = _track("a.mp3", "Two"), _track("b.mp3", "One"), _track("c.mp3", "Other")
+        for t, secs in zip((a, b, c), (206.0, 206.0, 100.0)):
+            t.data.info.length = secs
+        self.assertEqual(albumauto.align_by_length([a, b, c], album), [b, a, c])
+
     def test_plan_respects_disabled_fields(self):
         a, b = _track("a.mp3", "One"), _track("b.mp3", "Two")
         album = _album(["One", "Two"])

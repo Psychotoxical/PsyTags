@@ -4,6 +4,10 @@ Every version has its own section. The section of the version in `psytags/__init
 
 ## [Unreleased]
 
+### Added
+
+- The track check of a tag source has the buttons "By length" and "By title": files whose names do not fit their sound can be matched to the tracks by playing time, and back.
+
 ### Changed
 
 - README and SECURITY.md say which downloads are signed (Windows installer and macOS disk images) and how to check them.

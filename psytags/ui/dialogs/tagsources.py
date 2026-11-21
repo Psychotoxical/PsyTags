@@ -323,6 +323,14 @@ class AdjustDialog(QDialog):
             b.clicked.connect(lambda _=False, d=d: self._move(d))
             row.addWidget(b)
             QShortcut(QKeySequence(key), self, lambda d=d: self._move(d))
+        # Files whose names do not fit their sound: the playing time places them instead.
+        for text, tip, by_length in (
+                (tr("Nach Länge"), tr("Ordnet die Dateien nach ihrer Spieldauer den Tracks zu"), True),
+                (tr("Nach Titel"), tr("Ordnet die Dateien wieder nach ihren Titeln zu"), False)):
+            b = QPushButton(text)
+            b.setToolTip(tip)
+            b.clicked.connect(lambda _=False, v=by_length: self._realign(v))
+            row.addWidget(b)
         # A release with a DVD whose files may be on the list: its tracks can be shown
         self.dvd_box = QCheckBox(tr("DVD-Spuren anzeigen"))
         self.dvd_box.setToolTip(tr("Zeigt auch die Tracks der DVD, damit Sie übrige Dateien zuordnen können"))
@@ -402,6 +410,11 @@ class AdjustDialog(QDialog):
         self.files = albumauto.prealign([t for t in self.files if t is not None], self.album)
         if hasattr(self, "hint"):
             self._fill()
+
+    def _realign(self, by_length: bool) -> None:
+        files = [t for t in self.files if t is not None]
+        self.files = (albumauto.align_by_length if by_length else albumauto.prealign)(files, self.album)
+        self._fill()
 
     def _sync_current(self, src, dst, cur):
         r = src.indexOfTopLevelItem(cur) if cur is not None else -1

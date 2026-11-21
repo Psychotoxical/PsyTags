@@ -6,6 +6,9 @@ EN_MORE: dict[str, str] = {
     # actions
     "&Neu": "&New", "&Duplizieren": "&Duplicate", "&Löschen": "&Delete",
     "Nach &oben": "Move &up", "Nach &unten": "Move &down",
+    "Nach Länge": "By length", "Nach Titel": "By title",
+    "Ordnet die Dateien nach ihrer Spieldauer den Tracks zu": "Matches the files to the tracks by their playing time",
+    "Ordnet die Dateien wieder nach ihren Titeln zu": "Matches the files to the tracks by their titles again",
     # action type names (actions.NAMES) and case modes (actions.CASE_MODES)
 
     # converters

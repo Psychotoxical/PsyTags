@@ -32,7 +32,7 @@ Es gelten dieselben Regeln wie bei Discogs. Beatport liefert zusätzlich BPM und
 
 **MusicBrainz durchsuchen** (Strg+I), **Manuell suchen → Discogs …** oder **Manuell suchen → Beatport …** im Rechtsklick-Menü öffnen das Suchformular. Danach wählen Sie aus der Trefferliste.
 
-Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts Ihre Dateien. Dateien lassen sich per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben; mehrere markierte Dateien wandern zusammen und bleiben markiert. Gelb markierte Zeilen weichen um mehr als 3 Sekunden ab. Links wählen Sie, welche Felder geschrieben werden.
+Im Fenster **Zuordnung prüfen** stehen links die Tracks der Quelle und rechts Ihre Dateien. Dateien lassen sich per Drag & Drop oder Alt+↑/↓ in die passende Zeile schieben; mehrere markierte Dateien wandern zusammen und bleiben markiert. Gelb markierte Zeilen weichen um mehr als 3 Sekunden ab. Passen die Dateinamen nicht zum Inhalt, ordnet **Nach Länge** die Dateien nach ihrer Spieldauer zu; **Nach Titel** stellt die Zuordnung nach Titeln wieder her. Links wählen Sie, welche Felder geschrieben werden.
 
 **MusicBrainz durchsuchen (Schnell)** (Strg+Shift+I) überspringt das Suchformular.
 

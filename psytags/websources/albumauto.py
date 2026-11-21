@@ -304,6 +304,34 @@ def prealign(tracks: list, album: Album) -> list:
     return slots + rest
 
 
+def align_by_length(tracks: list, album: Album, max_gap: float = 3.0) -> list:
+    """Files in the order of the source's tracks by their playing time alone, for files whose
+    names do not fit their sound. The closest lengths pair first, the title breaks a tie;
+    files without a length within ``max_gap`` seconds fill the free slots in their order."""
+    tracks = [t for t in tracks if t is not None]
+    n = max(album.tracks, 1)
+    infos = file_infos(tracks)
+    titles = [albummatch.variants(album.value("TITLE", i)) for i in range(album.tracks)]
+    pairs = []
+    for t in range(album.tracks):
+        have = albummatch.seconds(album.lengths[t]) if t < len(album.lengths) else None
+        for f, info in enumerate(infos):
+            if have and info.length and abs(have - info.length) <= max_gap:
+                pairs.append((round(abs(have - info.length)), -albummatch.similarity(info.titles, titles[t]),
+                              abs(f - t), f, t))
+    slots: list = [None] * n
+    placed: set[int] = set()
+    for *_, f, t in sorted(pairs):
+        if f not in placed and slots[t] is None:
+            slots[t] = tracks[f]
+            placed.add(f)
+    rest = [t for i, t in enumerate(tracks) if i not in placed]
+    for i in range(n):
+        if slots[i] is None and rest:
+            slots[i] = rest.pop(0)
+    return slots + rest
+
+
 def group_albums(tracks: list) -> list[list]:
     """One album per folder and album name; disc folders (CD1, Disc 2) of an album belong
     together. Album folders side by side never merge."""
